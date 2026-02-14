@@ -2,10 +2,9 @@
 Tests for semver-dredd CLI.
 """
 
-import pytest
 from datetime import date
 
-from cli import main, cmd_compare, cmd_bump, cmd_patch
+from cli import main
 
 
 class TestCLIBump:
@@ -87,15 +86,18 @@ class TestCLICompare:
         """Test comparing pygeometry1 and pygeometry2."""
         result = main(["compare", "example.pygeometry1", "example.pygeometry2"])
         assert result == 0
-        output = capsys.readouterr().out
-        assert "MINOR" in output
+        captured = capsys.readouterr()
+        assert "MINOR" in captured.out
+        # MINOR emits a WARN line on stderr
+        assert "[WARN]" in captured.err
 
     def test_compare_same_module(self, capsys):
         """Test comparing same module."""
         result = main(["compare", "example.pygeometry1", "example.pygeometry1"])
         assert result == 0
-        output = capsys.readouterr().out
-        assert "NONE" in output
+        captured = capsys.readouterr()
+        assert "NONE" in captured.out
+        assert "[INFO]" in captured.err or "[INFO]" in captured.out
 
     def test_compare_with_current_version(self, capsys):
         """Test compare with current version suggestion."""
@@ -115,3 +117,38 @@ class TestCLICompare:
         assert result == 1
         err = capsys.readouterr().err
         assert "Error" in err
+
+    def test_compare_mutually_exclusive_breaking_flags(self, capsys):
+        result = main([
+            "compare",
+            "example.pygeometry1",
+            "example.pygeometry1",
+            "--allow-breaking",
+            "--disallow-breaking",
+        ])
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "mutually exclusive" in err
+
+
+class TestCLIBreakingPolicy:
+    """Policy tests for breaking change gating."""
+
+    def test_breaking_changes_disallowed_by_default(self, capsys):
+        # v2 removes things compared to v1 => MAJOR
+        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        assert result == 10
+        captured = capsys.readouterr()
+        assert "MAJOR" in captured.out
+        assert "Breaking changes are not allowed" in captured.err
+
+    def test_breaking_changes_allowed_with_flag(self, capsys):
+        result = main([
+            "compare",
+            "example.pygeometry2",
+            "example.pygeometry1",
+            "--allow-breaking",
+        ])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "MAJOR" in captured.out

@@ -10,6 +10,30 @@ from pathlib import Path
 from semverdredd import ChangeType, Version, detect_change, generate_patch
 
 
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_BREAKING_CHANGES_DETECTED = 10
+
+
+def _print_level(level: str, message: str) -> None:
+    """Print a message with a log level prefix.
+
+    NOTE: We deliberately keep this lightweight (no logging module) so tests can
+    assert on stdout/stderr deterministically.
+    """
+    stream = sys.stdout if level.lower() == "info" else sys.stderr
+    print(f"[{level.upper()}] {message}", file=stream)
+
+
+def _severity_for_change(change: ChangeType) -> str:
+    # Default mapping (can be expanded later via meta.yaml/config)
+    if change in (ChangeType.NONE, ChangeType.PATCH):
+        return "info"
+    if change == ChangeType.MINOR:
+        return "warn"
+    return "error"
+
+
 def import_module_from_path(module_path: str):
     """
     Import a module from a file path or module name.
@@ -52,11 +76,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
         old_module = import_module_from_path(args.old_module)
         new_module = import_module_from_path(args.new_module)
     except ImportError as e:
-        print(f"Error importing module: {e}", file=sys.stderr)
-        return 1
+        _print_level("error", f"Error importing module: {e}")
+        return EXIT_ERROR
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
+        _print_level("error", f"Error: {e}")
+        return EXIT_ERROR
 
     change = detect_change(old_module, new_module)
 
@@ -67,6 +91,10 @@ def cmd_compare(args: argparse.Namespace) -> int:
         ChangeType.MAJOR: "Breaking changes detected (major bump)",
     }
 
+    severity = _severity_for_change(change)
+
+    # Keep existing human-friendly output, but route severity summary to stderr.
+    _print_level(severity, f"{change.name}: {change_descriptions[change]}")
     print(f"Change type: {change.name}")
     print(f"Description: {change_descriptions[change]}")
 
@@ -77,9 +105,17 @@ def cmd_compare(args: argparse.Namespace) -> int:
             print(f"Current version: {current}")
             print(f"Suggested version: {new_version}")
         except ValueError as e:
-            print(f"Warning: Could not parse current version: {e}", file=sys.stderr)
+            _print_level("warn", f"Could not parse current version: {e}")
 
-    return 0
+    # Policy gate: fail if breaking changes are detected and not allowed.
+    if change == ChangeType.MAJOR and not args.allow_breaking:
+        _print_level(
+            "error",
+            "Breaking changes are not allowed (use --allow-breaking to override)",
+        )
+        return EXIT_BREAKING_CHANGES_DETECTED
+
+    return EXIT_OK
 
 
 def cmd_bump(args: argparse.Namespace) -> int:
@@ -87,8 +123,8 @@ def cmd_bump(args: argparse.Namespace) -> int:
     try:
         current = Version.parse(args.current)
     except ValueError as e:
-        print(f"Error parsing version: {e}", file=sys.stderr)
-        return 1
+        _print_level("error", f"Error parsing version: {e}")
+        return EXIT_ERROR
 
     change_map = {
         "major": ChangeType.MAJOR,
@@ -99,9 +135,9 @@ def cmd_bump(args: argparse.Namespace) -> int:
 
     change = change_map.get(args.change.lower())
     if change is None:
-        print(f"Error: Invalid change type '{args.change}'", file=sys.stderr)
-        print(f"Valid types: {', '.join(change_map.keys())}", file=sys.stderr)
-        return 1
+        _print_level("error", f"Invalid change type '{args.change}'")
+        _print_level("error", f"Valid types: {', '.join(change_map.keys())}")
+        return EXIT_ERROR
 
     new_version = current.increment(change)
 
@@ -112,7 +148,7 @@ def cmd_bump(args: argparse.Namespace) -> int:
         print(f"Change: {change.name}")
         print(f"New: {new_version}")
 
-    return 0
+    return EXIT_OK
 
 
 def cmd_patch(args: argparse.Namespace) -> int:
@@ -122,10 +158,10 @@ def cmd_patch(args: argparse.Namespace) -> int:
     try:
         new_patch = generate_patch(current_patch=current)
         print(new_patch)
-        return 0
+        return EXIT_OK
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
+        _print_level("error", f"Error: {e}")
+        return EXIT_ERROR
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -153,6 +189,16 @@ def main(argv: list[str] | None = None) -> int:
     compare_parser.add_argument(
         "--current", "-c",
         help="Current version string to suggest new version",
+    )
+    compare_parser.add_argument(
+        "--allow-breaking",
+        action="store_true",
+        help="Allow breaking changes (MAJOR) without failing the command",
+    )
+    compare_parser.add_argument(
+        "--disallow-breaking",
+        action="store_true",
+        help="Explicitly disallow breaking changes (MAJOR) and fail the command",
     )
     compare_parser.set_defaults(func=cmd_compare)
 
@@ -191,6 +237,14 @@ def main(argv: list[str] | None = None) -> int:
     patch_parser.set_defaults(func=cmd_patch)
 
     args = parser.parse_args(argv)
+
+    # For compare: by default breaking changes are disallowed.
+    if getattr(args, "command", None) == "compare":
+        if args.allow_breaking and args.disallow_breaking:
+            _print_level("error", "--allow-breaking and --disallow-breaking are mutually exclusive")
+            return EXIT_ERROR
+        args.allow_breaking = bool(args.allow_breaking) and not bool(args.disallow_breaking)
+
     return args.func(args)
 
 
