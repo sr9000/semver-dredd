@@ -1,8 +1,6 @@
 """
-Tests for semver-dredd using pygeometry1 and pygeometry2 as test modules.
+Tests for semver-dredd using gogeometry1 and gogeometry2 as test modules.
 """
-
-import pytest
 
 from semverdredd import (
     ChangeType,
@@ -14,7 +12,8 @@ from semverdredd import (
     compare_modules,
     detect_change,
 )
-from example import pygeometry1, pygeometry2
+from example import pygeometry2
+from example.py import pygeometry1
 
 
 class TestAPISignature:
@@ -54,32 +53,32 @@ class TestClassAPI:
     """Tests for ClassAPI class."""
 
     def test_from_class_pygeometry1_point(self):
-        """Test extracting class API from pygeometry1.Point."""
+        """Test extracting class API from gogeometry1.Point."""
         api = ClassAPI.from_class("Point", pygeometry1.Point)
         assert api.name == "Point"
         assert "__init__" in api.methods
         assert "distance" in api.methods
 
     def test_from_class_pygeometry2_point(self):
-        """Test extracting class API from pygeometry2.Point."""
+        """Test extracting class API from gogeometry2.Point."""
         api = ClassAPI.from_class("Point", pygeometry2.Point)
         assert api.name == "Point"
         assert "__init__" in api.methods
         assert "distance" in api.methods
-        assert "translate" in api.methods  # New method in pygeometry2
+        assert "translate" in api.methods  # New method in gogeometry2
 
 
 class TestModuleAPI:
     """Tests for ModuleAPI class."""
 
     def test_from_module_pygeometry1(self):
-        """Test extracting module API from pygeometry1."""
+        """Test extracting module API from gogeometry1."""
         api = ModuleAPI.from_module(pygeometry1)
         assert "area" in api.functions
         assert "Point" in api.classes
 
     def test_from_module_pygeometry2(self):
-        """Test extracting module API from pygeometry2."""
+        """Test extracting module API from gogeometry2."""
         api = ModuleAPI.from_module(pygeometry2)
         assert "area" in api.functions
         assert "volume" in api.functions  # New function
@@ -124,11 +123,11 @@ class TestCompareClasses:
     """Tests for compare_classes function."""
 
     def test_pygeometry_point_classes(self):
-        """Test comparing Point classes from pygeometry1 and pygeometry2."""
+        """Test comparing Point classes from gogeometry1 and gogeometry2."""
         old_api = ClassAPI.from_class("Point", pygeometry1.Point)
         new_api = ClassAPI.from_class("Point", pygeometry2.Point)
         change = compare_classes(old_api, new_api)
-        # pygeometry2.Point adds translate method and z parameter (optional)
+        # gogeometry2.Point adds translate method and z parameter (optional)
         # Adding method -> MINOR, adding optional param -> MINOR
         assert change == ChangeType.MINOR
 
@@ -143,11 +142,11 @@ class TestCompareModules:
     """Tests for compare_modules function."""
 
     def test_pygeometry1_vs_pygeometry2(self):
-        """Test comparing pygeometry1 and pygeometry2 modules."""
+        """Test comparing gogeometry1 and gogeometry2 modules."""
         old_api = ModuleAPI.from_module(pygeometry1)
         new_api = ModuleAPI.from_module(pygeometry2)
         change = compare_modules(old_api, new_api)
-        # pygeometry2 adds volume function and Point.translate method
+        # gogeometry2 adds volume function and Point.translate method
         # Both are additions -> MINOR
         assert change == ChangeType.MINOR
 
@@ -174,9 +173,9 @@ class TestDetectChange:
     """Tests for detect_change function."""
 
     def test_detect_change_pygeometry1_to_pygeometry2(self):
-        """Test detecting change between pygeometry1 and pygeometry2."""
+        """Test detecting change between gogeometry1 and gogeometry2."""
         change = detect_change(pygeometry1, pygeometry2)
-        # pygeometry2 adds new function and method -> MINOR
+        # gogeometry2 adds new function and method -> MINOR
         assert change == ChangeType.MINOR
 
     def test_detect_change_same_module(self):

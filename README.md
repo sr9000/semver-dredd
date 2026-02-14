@@ -123,7 +123,8 @@ semver-dredd patch
 from semverdredd import detect_change, compare, compare_and_suggest, ChangeType, Version
 
 # Compare two module versions
-from example import pygeometry1, pygeometry2
+from example import pygeometry2
+from example.py import pygeometry1
 
 # Simple change detection
 change = detect_change(pygeometry1, pygeometry2)
@@ -132,10 +133,10 @@ if change == ChangeType.MAJOR:
 
 # Structured result with diff details
 result = compare(pygeometry1, pygeometry2)
-print(result.change_type)   # ChangeType.MINOR
-print(result.severity)      # "warn"
-print(result.diff.added)    # ("function added: volume", ...)
-print(result.diff.breaking) # ()
+print(result.change_type)  # ChangeType.MINOR
+print(result.severity)  # "warn"
+print(result.diff.added)  # ("function added: volume", ...)
+print(result.diff.breaking)  # ()
 
 # With version suggestion
 result = compare_and_suggest(pygeometry1, pygeometry2, "1.0.0")

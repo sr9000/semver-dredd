@@ -1,6 +1,7 @@
 """Tests for semver-dredd's programmatic structured API."""
 
-from example import pygeometry1, pygeometry2
+from example import pygeometry2
+from example.py import pygeometry1
 from semverdredd import ChangeType, compare, compare_and_suggest
 
 

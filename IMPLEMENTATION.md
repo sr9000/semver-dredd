@@ -53,9 +53,10 @@ semver-dredd/
 ## Usage Examples
 
 ### Python API
+
 ```python
 from semverdredd import detect_change, ChangeType, Version
-from example import pygeometry1, pygeometry2
+from example.py import pygeometry1, pygeometry2
 
 # Detect change type
 change = detect_change(pygeometry1, pygeometry2)
@@ -70,7 +71,7 @@ print(f"New: {new_version}")  # 1.3.20260214001
 ### CLI
 ```bash
 # Compare modules
-poetry run python -m cli compare example.pygeometry1 example.pygeometry2
+poetry run python -m cli compare example.gogeometry1 example.gogeometry2
 
 # Bump version
 poetry run python -m cli bump -c 1.0.0 -t minor

@@ -7,6 +7,7 @@ import importlib
 import sys
 from pathlib import Path
 from typing import Any
+import subprocess
 
 from semverdredd import ChangeType, Version, detect_change, generate_patch, ModuleAPI, compare_modules
 from semverdredd.diff import diff_module_objects, diff_modules
@@ -97,7 +98,7 @@ def import_module_from_path(module_path: str):
     Import a module from a file path or module name.
 
     Args:
-        module_path: Either a dotted module name (e.g., 'example.pygeometry1')
+        module_path: Either a dotted module name (e.g., 'example.gogeometry1')
                      or a file path (e.g., './mymodule/__init__.py')
 
     Returns:
@@ -427,6 +428,70 @@ def cmd_patch(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
 
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    """Generate a baked.yaml-like snapshot using language-specific parsers."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    lang = args.lang.lower()
+    version = args.version
+    out_path = args.out
+
+    if lang == "go":
+        parser_path = Path(__file__).parent.parent / "parser" / "golang" / "main.go"
+        cmd = [
+            "go", "run", str(parser_path),
+            "--dir", args.path,
+            "--version", version,
+        ]
+        if out_path:
+            cmd += ["--out", out_path]
+    elif lang == "java":
+        # Without Maven we still can run by compiling in-place.
+        # We rely on snakeyaml being available via classpath only if user sets it up.
+        # For now we run the parser source directly if javac/java exist and snakeyaml jar is present.
+        java_dir = Path(__file__).parent.parent / "parser" / "java"
+        jar = java_dir / "lib" / "snakeyaml-2.2.jar"
+        src = java_dir / "main.java"
+
+        if not jar.exists():
+            _print_level(
+                "error",
+                f"Missing {jar}. Install snakeyaml jar or use Maven build. See parser/java/README.md",
+                use_color=use_color,
+            )
+            return EXIT_ERROR
+
+        # Compile
+        compile_cmd = ["javac", "-cp", str(jar), str(src)]
+        try:
+            subprocess.run(compile_cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            _print_level("error", f"javac failed: {e.stderr or e}", use_color=use_color)
+            return EXIT_ERROR
+
+        run_cmd = [
+            "java", "-cp", f"{jar}:{java_dir}", "main",
+            "--dir", args.path,
+            "--version", version,
+        ]
+        if out_path:
+            run_cmd += ["--out", out_path]
+        cmd = run_cmd
+    else:
+        _print_level("error", f"Unsupported language: {args.lang}", use_color=use_color)
+        return EXIT_ERROR
+
+    try:
+        res = subprocess.run(cmd, check=True)
+    except FileNotFoundError as e:
+        _print_level("error", f"Missing tool: {e}", use_color=use_color)
+        return EXIT_ERROR
+    except subprocess.CalledProcessError as e:
+        return e.returncode or EXIT_ERROR
+
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
@@ -637,6 +702,47 @@ def main(argv: list[str] | None = None) -> int:
         help="Current patch version (to increment if same day)",
     )
     patch_parser.set_defaults(func=cmd_patch)
+
+    # Snapshot command
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Generate an API snapshot for a Go/Java project (baked.yaml-like)",
+    )
+    snapshot_parser.add_argument(
+        "--lang",
+        required=True,
+        choices=["go", "java"],
+        help="Language parser to use",
+    )
+    snapshot_parser.add_argument(
+        "--path",
+        required=True,
+        help="Path to the source directory/package",
+    )
+    snapshot_parser.add_argument(
+        "--version",
+        required=True,
+        help="Version string to embed in the snapshot",
+    )
+    snapshot_parser.add_argument(
+        "--out",
+        default="",
+        help="Output YAML file (default: stdout)",
+    )
+    snapshot_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    snapshot_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    snapshot_parser.set_defaults(func=cmd_snapshot)
 
     args = parser.parse_args(argv)
 

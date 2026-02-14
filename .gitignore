@@ -142,3 +142,4 @@ cython_debug/
 
 # macOS
 .DS_Store
+/parser/golang/golang
