@@ -1,0 +1,117 @@
+"""
+Tests for semver-dredd CLI.
+"""
+
+import pytest
+from datetime import date
+
+from cli import main, cmd_compare, cmd_bump, cmd_patch
+
+
+class TestCLIBump:
+    """Tests for bump command."""
+
+    def test_bump_major(self, capsys):
+        """Test bumping major version."""
+        result = main(["bump", "-c", "1.2.20260213001", "-t", "major"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "2.0." in output  # Major bump resets minor
+
+    def test_bump_minor(self, capsys):
+        """Test bumping minor version."""
+        result = main(["bump", "-c", "1.2.20260213001", "-t", "minor"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "1.3." in output
+
+    def test_bump_patch(self, capsys):
+        """Test bumping patch version."""
+        result = main(["bump", "-c", "1.2.20260213001", "-t", "patch"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "1.2." in output
+
+    def test_bump_quiet(self, capsys):
+        """Test quiet mode only outputs version."""
+        result = main(["bump", "-c", "1.2.3", "-t", "minor", "-q"])
+        assert result == 0
+        output = capsys.readouterr().out
+        # Quiet mode should only have the version number
+        lines = [l for l in output.strip().split('\n') if l]
+        assert len(lines) == 1
+        assert lines[0].startswith("1.3.")
+
+    def test_bump_invalid_version(self, capsys):
+        """Test error for invalid version."""
+        result = main(["bump", "-c", "invalid", "-t", "minor"])
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "Error" in err
+
+    def test_bump_none(self, capsys):
+        """Test bump with none change type."""
+        result = main(["bump", "-c", "1.2.3", "-t", "none"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "1.2.3" in output
+
+
+class TestCLIPatch:
+    """Tests for patch command."""
+
+    def test_patch_new(self, capsys):
+        """Test generating new patch version."""
+        result = main(["patch"])
+        assert result == 0
+        output = capsys.readouterr().out.strip()
+        # Should be in YYYYMMDDZZZ format
+        assert len(output) == 11
+        assert output.isdigit()
+
+    def test_patch_increment(self, capsys):
+        """Test incrementing existing patch version."""
+        today = date.today()
+        current = int(f"{today.year:04d}{today.month:02d}{today.day:02d}001")
+        result = main(["patch", "-c", str(current)])
+        assert result == 0
+        output = capsys.readouterr().out.strip()
+        expected = str(current + 1)
+        assert output == expected
+
+
+class TestCLICompare:
+    """Tests for compare command."""
+
+    def test_compare_pygeometry(self, capsys):
+        """Test comparing pygeometry1 and pygeometry2."""
+        result = main(["compare", "example.pygeometry1", "example.pygeometry2"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "MINOR" in output
+
+    def test_compare_same_module(self, capsys):
+        """Test comparing same module."""
+        result = main(["compare", "example.pygeometry1", "example.pygeometry1"])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "NONE" in output
+
+    def test_compare_with_current_version(self, capsys):
+        """Test compare with current version suggestion."""
+        result = main([
+            "compare",
+            "example.pygeometry1",
+            "example.pygeometry2",
+            "--current", "1.0.20260213001"
+        ])
+        assert result == 0
+        output = capsys.readouterr().out
+        assert "1.1." in output  # Minor bump
+
+    def test_compare_invalid_module(self, capsys):
+        """Test error for invalid module."""
+        result = main(["compare", "nonexistent.module", "example.pygeometry1"])
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "Error" in err

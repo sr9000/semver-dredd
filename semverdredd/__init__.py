@@ -18,6 +18,9 @@ from enum import Enum
 from types import ModuleType
 from typing import Any
 
+# Re-export Version and generate_patch from version module
+from semverdredd.version import Version, generate_patch
+
 
 class ChangeType(Enum):
     """Type of API change detected."""

@@ -10,6 +10,9 @@ requires-python = ">=3.14"
 dependencies = [
 ]
 
+[project.scripts]
+semver-dredd = "cli:main"
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
