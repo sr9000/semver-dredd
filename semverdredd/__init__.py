@@ -21,10 +21,10 @@ from typing import Any
 
 class ChangeType(Enum):
     """Type of API change detected."""
-    NONE = "none"
-    PATCH = "patch"
-    MINOR = "minor"
-    MAJOR = "major"
+    NONE = 0
+    PATCH = 1
+    MINOR = 2
+    MAJOR = 3
 
 
 @dataclass
