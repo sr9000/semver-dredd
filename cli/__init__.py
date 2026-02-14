@@ -428,6 +428,60 @@ def cmd_patch(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
 
+def _generate_snapshot_yaml(lang: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
+    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
+    import tempfile
+
+    if lang == "go":
+        parser_dir = Path(__file__).parent.parent / "parser" / "golang"
+        cmd = [
+            "go", "run", ".",
+            "--dir", str(Path(path).absolute()),
+            "--version", version,
+        ]
+        cwd = str(parser_dir)
+    elif lang == "java":
+        java_dir = Path(__file__).parent.parent / "parser" / "java"
+        jar = java_dir / "lib" / "snakeyaml-2.2.jar"
+        src = java_dir / "main.java"
+
+        if not jar.exists():
+            _print_level(
+                "error",
+                f"Missing {jar}. Install snakeyaml jar or use Maven build.",
+                use_color=use_color,
+            )
+            return EXIT_ERROR, ""
+
+        # Compile
+        compile_cmd = ["javac", "-cp", str(jar), str(src)]
+        try:
+            subprocess.run(compile_cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            _print_level("error", f"javac failed: {e.stderr or e}", use_color=use_color)
+            return EXIT_ERROR, ""
+
+        cmd = [
+            "java", "-cp", f"{jar}:{java_dir}", "main",
+            "--dir", str(Path(path).absolute()),
+            "--version", version,
+        ]
+        cwd = None
+    else:
+        _print_level("error", f"Unsupported language: {lang}", use_color=use_color)
+        return EXIT_ERROR, ""
+
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=cwd)
+        return EXIT_OK, result.stdout
+    except FileNotFoundError as e:
+        _print_level("error", f"Missing tool: {e}", use_color=use_color)
+        return EXIT_ERROR, ""
+    except subprocess.CalledProcessError as e:
+        _print_level("error", f"Parser failed: {e.stderr or e}", use_color=use_color)
+        return e.returncode or EXIT_ERROR, ""
+
+
 def cmd_snapshot(args: argparse.Namespace) -> int:
     """Generate a baked.yaml-like snapshot using language-specific parsers."""
     use_color = _should_use_color(getattr(args, "color", None))
@@ -436,58 +490,203 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     version = args.version
     out_path = args.out
 
-    if lang == "go":
-        parser_path = Path(__file__).parent.parent / "parser" / "golang" / "main.go"
-        cmd = [
-            "go", "run", str(parser_path),
-            "--dir", args.path,
-            "--version", version,
-        ]
-        if out_path:
-            cmd += ["--out", out_path]
-    elif lang == "java":
-        # Without Maven we still can run by compiling in-place.
-        # We rely on snakeyaml being available via classpath only if user sets it up.
-        # For now we run the parser source directly if javac/java exist and snakeyaml jar is present.
-        java_dir = Path(__file__).parent.parent / "parser" / "java"
-        jar = java_dir / "lib" / "snakeyaml-2.2.jar"
-        src = java_dir / "main.java"
+    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
 
-        if not jar.exists():
-            _print_level(
-                "error",
-                f"Missing {jar}. Install snakeyaml jar or use Maven build. See parser/java/README.md",
-                use_color=use_color,
-            )
-            return EXIT_ERROR
-
-        # Compile
-        compile_cmd = ["javac", "-cp", str(jar), str(src)]
-        try:
-            subprocess.run(compile_cmd, check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            _print_level("error", f"javac failed: {e.stderr or e}", use_color=use_color)
-            return EXIT_ERROR
-
-        run_cmd = [
-            "java", "-cp", f"{jar}:{java_dir}", "main",
-            "--dir", args.path,
-            "--version", version,
-        ]
-        if out_path:
-            run_cmd += ["--out", out_path]
-        cmd = run_cmd
+    if out_path:
+        Path(out_path).write_text(yaml_str)
+        _print_level("info", f"Wrote snapshot to {out_path}", use_color=use_color)
     else:
-        _print_level("error", f"Unsupported language: {args.lang}", use_color=use_color)
+        print(yaml_str, end="")
+
+    return EXIT_OK
+
+
+def cmd_xl_init(args: argparse.Namespace) -> int:
+    """Initialize semver-dredd for a Go/Java project."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    config_path = Path(DEFAULT_CONFIG_FILE)
+    baked_path = Path(DEFAULT_BAKED_FILE)
+    version_path = Path(DEFAULT_VERSION_FILE)
+
+    lang = args.lang.lower()
+    version = args.version or f"0.1.{generate_patch()}"
+
+    # Create config if not exists
+    if not config_path.exists():
+        default_config = f"""# semver-dredd configuration
+schema_version: 1
+language: {lang}
+
+policies:
+  allow_breaking_changes: false
+
+output:
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+"""
+        config_path.write_text(default_config)
+        _print_level("info", f"Created {config_path}", use_color=use_color)
+    else:
+        _print_level("info", f"{config_path} already exists", use_color=use_color)
+
+    # Generate snapshot
+    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
+
+    baked_path.write_text(yaml_str)
+    _print_level("info", f"Created {baked_path} with version {version}", use_color=use_color)
+
+    # Create VERSION file
+    save_version_file(version, version_path)
+    _print_level("info", f"Created {version_path}", use_color=use_color)
+
+    return EXIT_OK
+
+
+def cmd_xl_status(args: argparse.Namespace) -> int:
+    """Show current API status for Go/Java project compared to baked baseline."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    baked_path = Path(DEFAULT_BAKED_FILE)
+    current_path = Path(DEFAULT_CURRENT_FILE)
+
+    if not baked_path.exists():
+        _print_level("warn", f"No {baked_path} found. Run 'xl-init' first.", use_color=use_color)
         return EXIT_ERROR
 
-    try:
-        res = subprocess.run(cmd, check=True)
-    except FileNotFoundError as e:
-        _print_level("error", f"Missing tool: {e}", use_color=use_color)
-        return EXIT_ERROR
-    except subprocess.CalledProcessError as e:
-        return e.returncode or EXIT_ERROR
+    lang = args.lang.lower()
+
+    # Load baked snapshot
+    from semverdredd.snapshot_io import load_snapshot
+    from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
+
+    baked = load_snapshot(baked_path)
+
+    # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
+    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, "0.0.0", use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
+
+    from semverdredd.snapshot_io import NormalizedSnapshot
+    current = NormalizedSnapshot.from_yaml_str(yaml_str)
+
+    # Compare
+    change, diff = compare_snapshots(baked, current)
+
+    # Compute suggested version
+    current_version = Version.parse(baked.version)
+    # Map XLChangeType to semverdredd.ChangeType for version increment
+    change_map = {
+        XLChangeType.NONE: ChangeType.NONE,
+        XLChangeType.PATCH: ChangeType.PATCH,
+        XLChangeType.MINOR: ChangeType.MINOR,
+        XLChangeType.MAJOR: ChangeType.MAJOR,
+    }
+    suggested_version = current_version.increment(change_map[change])
+
+    change_descriptions = {
+        XLChangeType.NONE: "No API changes detected",
+        XLChangeType.PATCH: "Implementation changes only (patch bump)",
+        XLChangeType.MINOR: "New features added (minor bump)",
+        XLChangeType.MAJOR: "Breaking changes detected (major bump)",
+    }
+
+    severity = _severity_for_change(change_map[change])
+    allow_breaking = getattr(args, "allow_breaking", False)
+    if change == XLChangeType.MAJOR and allow_breaking:
+        severity = "warn"
+
+    _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
+    print(f"Baked version: {baked.version}")
+    print(f"Suggested version: {suggested_version}")
+
+    if getattr(args, "details", False):
+        if diff.breaking:
+            print("Breaking changes:")
+            for item in diff.breaking:
+                print(f"  - {item}")
+        if diff.added:
+            print("Added changes:")
+            for item in diff.added:
+                print(f"  - {item}")
+        if not diff.breaking and not diff.added:
+            print("No API additions or breaking changes detected.")
+
+    # Update current.yaml with suggested version
+    current_dict = current.to_dict()
+    current_dict["version"] = str(suggested_version)
+    import yaml
+    current_path.write_text(yaml.dump(current_dict, default_flow_style=False, sort_keys=False))
+    _print_level("info", f"Updated {current_path}", use_color=use_color)
+
+    # Policy gate
+    if change == XLChangeType.MAJOR and not allow_breaking:
+        _print_level(
+            "error",
+            "Breaking changes are not allowed (use --allow-breaking to override)",
+            use_color=use_color,
+        )
+        return EXIT_BREAKING_CHANGES_DETECTED
+
+    return EXIT_OK
+
+
+def cmd_xl_bake(args: argparse.Namespace) -> int:
+    """Bake current API state as the new baseline for Go/Java project."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    baked_path = Path(DEFAULT_BAKED_FILE)
+    version_path = Path(DEFAULT_VERSION_FILE)
+
+    lang = args.lang.lower()
+
+    # Determine version
+    if args.version:
+        version = args.version
+    elif baked_path.exists():
+        # Load existing and compute next version
+        from semverdredd.snapshot_io import load_snapshot, NormalizedSnapshot
+        from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
+
+        baked = load_snapshot(baked_path)
+
+        # Generate current snapshot
+        exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, "0.0.0", use_color)
+        if exit_code != EXIT_OK:
+            return exit_code
+
+        current = NormalizedSnapshot.from_yaml_str(yaml_str)
+        change, _ = compare_snapshots(baked, current)
+
+        current_version = Version.parse(baked.version)
+        change_map = {
+            XLChangeType.NONE: ChangeType.NONE,
+            XLChangeType.PATCH: ChangeType.PATCH,
+            XLChangeType.MINOR: ChangeType.MINOR,
+            XLChangeType.MAJOR: ChangeType.MAJOR,
+        }
+        version = str(current_version.increment(change_map[change]))
+    else:
+        version = f"0.1.{generate_patch()}"
+
+    # Generate and save snapshot with final version
+    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
+
+    baked_path.write_text(yaml_str)
+    _print_level("info", f"Baked API to {baked_path} with version {version}", use_color=use_color)
+
+    # Update VERSION file
+    save_version_file(version, version_path)
+    _print_level("info", f"Updated {version_path}", use_color=use_color)
 
     return EXIT_OK
 
@@ -744,14 +943,125 @@ def main(argv: list[str] | None = None) -> int:
     )
     snapshot_parser.set_defaults(func=cmd_snapshot)
 
+    # Cross-language init command
+    xl_init_parser = subparsers.add_parser(
+        "xl-init",
+        help="Initialize semver-dredd for a Go/Java project",
+    )
+    xl_init_parser.add_argument(
+        "--lang",
+        required=True,
+        choices=["go", "java"],
+        help="Language of the project",
+    )
+    xl_init_parser.add_argument(
+        "--path",
+        required=True,
+        help="Path to the source directory/package",
+    )
+    xl_init_parser.add_argument(
+        "--version",
+        help="Initial version (default: 0.1.YYYYMMDD001)",
+    )
+    xl_init_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    xl_init_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    xl_init_parser.set_defaults(func=cmd_xl_init)
+
+    # Cross-language status command
+    xl_status_parser = subparsers.add_parser(
+        "xl-status",
+        help="Show current API status for Go/Java project compared to baked baseline",
+    )
+    xl_status_parser.add_argument(
+        "--lang",
+        required=True,
+        choices=["go", "java"],
+        help="Language of the project",
+    )
+    xl_status_parser.add_argument(
+        "--path",
+        required=True,
+        help="Path to the source directory/package",
+    )
+    xl_status_parser.add_argument(
+        "--details",
+        action="store_true",
+        help="List breaking and added API items",
+    )
+    xl_status_parser.add_argument(
+        "--allow-breaking",
+        action="store_true",
+        help="Allow breaking changes without failing",
+    )
+    xl_status_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    xl_status_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    xl_status_parser.set_defaults(func=cmd_xl_status)
+
+    # Cross-language bake command
+    xl_bake_parser = subparsers.add_parser(
+        "xl-bake",
+        help="Bake current API state as the new baseline for Go/Java project",
+    )
+    xl_bake_parser.add_argument(
+        "--lang",
+        required=True,
+        choices=["go", "java"],
+        help="Language of the project",
+    )
+    xl_bake_parser.add_argument(
+        "--path",
+        required=True,
+        help="Path to the source directory/package",
+    )
+    xl_bake_parser.add_argument(
+        "--version",
+        help="Explicit version to bake (default: auto-computed)",
+    )
+    xl_bake_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    xl_bake_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    xl_bake_parser.set_defaults(func=cmd_xl_bake)
+
     args = parser.parse_args(argv)
 
     # Load config and apply defaults
     config = _load_config()
     policies = config.get("policies", {})
 
-    # For compare/status: set default allow_breaking from config if not explicitly set
-    if getattr(args, "command", None) in ("compare", "status"):
+    # For compare/status/xl-status: set default allow_breaking from config if not explicitly set
+    if getattr(args, "command", None) in ("compare", "status", "xl-status"):
         allow = getattr(args, "allow_breaking", False)
         disallow = getattr(args, "disallow_breaking", False)
         if not allow and not disallow:

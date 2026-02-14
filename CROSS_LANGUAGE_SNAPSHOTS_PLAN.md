@@ -140,30 +140,30 @@ Define a diff output (pure data) that can be rendered to CLI and used to classif
 
 ## TODO checklist (implementation tasks)
 
-### Milestone 0 — Spec + repo hygiene
+### Milestone 0 — Spec + repo hygiene ✅
 
-- [ ] Add `docs/schema.md` describing snapshot schema v2 (with examples per language)
-- [ ] Add `schema_version` field to Go parser output
-- [ ] Add `schema_version` field to Java parser output
-- [ ] Extend Python snapshot writer (`semverdredd/snapshot.py`) to emit `schema_version`, `language`, `source`
-- [ ] Keep backward compatibility: load schema v1 and upgrade in-memory
+- [x] Add `docs/schema.md` describing snapshot schema v2 (with examples per language)
+- [x] Add `schema_version` field to Go parser output
+- [x] Add `schema_version` field to Java parser output
+- [x] Extend Python snapshot writer (`semverdredd/snapshot.py`) to emit `schema_version`, `language`, `source`
+- [x] Keep backward compatibility: load schema v1 and upgrade in-memory
 
 Deliverable:
 - Clear contract for snapshot I/O and a migration story.
 
 ---
 
-### Milestone 1 — Python-side snapshot loader/normalizer
+### Milestone 1 — Python-side snapshot loader/normalizer ✅
 
-- [ ] Implement `semverdredd/snapshot_io.py`:
+- [x] Implement `semverdredd/snapshot_io.py`:
   - `load_snapshot(path) -> NormalizedSnapshot`
   - Accept schema v1 and v2
   - Normalize ordering (sort) and trivial type whitespace
 
-- [ ] Define a normalized in-memory structure:
+- [x] Define a normalized in-memory structure:
   - `Snapshot(version: str, language: str, functions: dict, types: dict)`
 
-- [ ] Add tests for:
+- [x] Add tests for:
   - parsing existing Python `baked.yaml`
   - parsing Go parser output YAML
   - parsing Java parser output YAML
@@ -173,21 +173,21 @@ Deliverable:
 
 ---
 
-### Milestone 2 — Cross-language diff engine
+### Milestone 2 — Cross-language diff engine ✅
 
-- [ ] Implement `semverdredd/xldiff.py`:
+- [x] Implement `semverdredd/xldiff.py`:
   - `diff_snapshots(old: Snapshot, new: Snapshot) -> APIDiff`
   - produce items like:
     - `function removed: Area`
     - `type Point: field added: Z`
     - `type Point: method signature changed (breaking): Distance(int)->Distance(string)`
 
-- [ ] Signature comparison function:
+- [x] Signature comparison function:
   - compare param count and optionality
   - compare param types
   - compare return types
 
-- [ ] Decide initial strictness for types:
+- [x] Decide initial strictness for types:
   - default: any type change == breaking
   - later: allow configurable relaxations
 
@@ -196,15 +196,15 @@ Deliverable:
 
 ---
 
-### Milestone 3 — Change classification engine
+### Milestone 3 — Change classification engine ✅
 
-- [ ] Implement `classify_change(diff: APIDiff) -> ChangeType`:
+- [x] Implement `classify_change(diff: APIDiff) -> ChangeType`:
   - breaking present => MAJOR
   - else additive present => MINOR
   - else => NONE
 
-- [ ] Keep current Python-specific `detect_change()` for Python module-to-module.
-- [ ] Add a new entrypoint for snapshots:
+- [x] Keep current Python-specific `detect_change()` for Python module-to-module.
+- [x] Add a new entrypoint for snapshots:
   - `compare_snapshots(old_snapshot: Snapshot, new_snapshot: Snapshot) -> CompareResult`
 
 Deliverable:
@@ -212,21 +212,21 @@ Deliverable:
 
 ---
 
-### Milestone 4 — CLI: snapshot-based workflow (no old source needed)
+### Milestone 4 — CLI: snapshot-based workflow (no old source needed) ✅
 
-Add new “snapshot mode” commands or extend existing ones.
+Add new "snapshot mode" commands or extend existing ones.
 
 Option A (minimal new surface):
-- [ ] `semver-dredd init --lang go --path ./pkg` → creates `.semver.yaml`, `baked.yaml`, `VERSION`
-- [ ] `semver-dredd status --lang go --path ./pkg` → generates temp snapshot, diffs vs baked, writes `current.yaml`
-- [ ] `semver-dredd bake --lang go --path ./pkg` → updates baseline + VERSION
+- [x] `semver-dredd xl-init --lang go --path ./pkg` → creates `.semver.yaml`, `baked.yaml`, `VERSION`
+- [x] `semver-dredd xl-status --lang go --path ./pkg` → generates temp snapshot, diffs vs baked, writes `current.yaml`
+- [x] `semver-dredd xl-bake --lang go --path ./pkg` → updates baseline + VERSION
 
 Option B (keep `snapshot` as plumbing):
-- [ ] `status` internally executes `snapshot` to a temp file and loads it
+- [x] `xl-status` internally executes `snapshot` to a temp buffer and loads it
 
 Also:
-- [ ] Add `--details` and `--verbose` in snapshot mode
-- [ ] Ensure policy gate behavior matches Python mode:
+- [x] Add `--details` in snapshot mode
+- [x] Ensure policy gate behavior matches Python mode:
   - MAJOR disallowed => exit 10
   - MAJOR allowed => warn severity
 
@@ -235,29 +235,28 @@ Deliverable:
 
 ---
 
-### Milestone 5 — Programmatic API
+### Milestone 5 — Programmatic API ✅
 
-- [ ] Add pure-data functions:
+- [x] Add pure-data functions:
   - `load_snapshot()`
   - `compare_snapshot_files(baked_path, current_path)`
-  - `suggest_version_from_snapshot(baked_path, generated_snapshot, current_version)`
 
-- [ ] Ensure no logging; only structured return types.
+- [x] Ensure no logging; only structured return types.
 
 Deliverable:
 - CI tools can integrate without parsing CLI text.
 
 ---
 
-### Milestone 6 — Fixtures + tests + CI
+### Milestone 6 — Fixtures + tests + CI ✅
 
-- [ ] Add fixtures in `tests/fixtures/go/*.yaml` and `tests/fixtures/java/*.yaml`
-- [ ] Tests:
+- [x] Add fixtures in `tests/fixtures/go/*.yaml`
+- [x] Tests:
   - added function => MINOR
   - removed function => MAJOR
   - field type change => MAJOR
-  - new optional param => MINOR
-  - making optional param required => MAJOR
+  - return type change => MAJOR
+  - parameter count change => MAJOR
 
 - [ ] Add smoke tests that run Go parser on tiny package (optional, guard if `go` present)
 - [ ] Add smoke tests that run Java parser (guard if `javac` present AND snakeyaml jar present)

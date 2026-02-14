@@ -37,9 +37,17 @@ type TypeDef struct {
 	Methods map[string]FuncSig `yaml:"methods,omitempty"`
 }
 
+type Source struct {
+	Kind string `yaml:"kind"`
+	Path string `yaml:"path"`
+}
+
 type Snapshot struct {
-	Version string `yaml:"version"`
-	API     struct {
+	SchemaVersion int              `yaml:"schema_version"`
+	Version       string           `yaml:"version"`
+	Language      string           `yaml:"language"`
+	Source        Source           `yaml:"source"`
+	API           struct {
 		Functions map[string]FuncSig `yaml:"functions"`
 		Types     map[string]TypeDef `yaml:"types"`
 	} `yaml:"api"`
@@ -110,7 +118,15 @@ func parseDir(dir string, version string) (*Snapshot, error) {
 
 	pkg := pkgs[pkgNames[0]]
 
-	snap := &Snapshot{Version: version}
+	snap := &Snapshot{
+		SchemaVersion: 2,
+		Version:       version,
+		Language:      "go",
+		Source: Source{
+			Kind: "package",
+			Path: dir,
+		},
+	}
 	snap.API.Functions = map[string]FuncSig{}
 	snap.API.Types = map[string]TypeDef{}
 

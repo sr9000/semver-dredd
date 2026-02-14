@@ -125,8 +125,15 @@ public class main {
         api.put("functions", functions);
         api.put("types", types);
 
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("kind", "directory");
+        source.put("path", dir.toString());
+
         Map<String, Object> snap = new LinkedHashMap<>();
+        snap.put("schema_version", 2);
         snap.put("version", version);
+        snap.put("language", "java");
+        snap.put("source", source);
         snap.put("api", api);
         return snap;
     }

@@ -1,0 +1,37 @@
+schema_version: 2
+version: "1.0.0"
+language: go
+source:
+  kind: package
+  path: /example/geom
+api:
+  functions:
+    Area:
+      parameters:
+        - name: w
+          type: float64
+          optional: false
+        - name: h
+          type: float64
+          optional: false
+      returns:
+        - name: ""
+          type: float64
+          optional: false
+  types:
+    Point:
+      fields:
+        - name: X
+          type: float64
+        - name: Y
+          type: float64
+      methods:
+        Distance:
+          parameters:
+            - name: other
+              type: "*Point"
+              optional: true
+          returns:
+            - name: ""
+              type: float64
+              optional: false
