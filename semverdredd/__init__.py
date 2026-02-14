@@ -22,7 +22,7 @@ from typing import Any
 from semverdredd.version import Version, generate_patch
 
 # Structured result types (pure data)
-from semverdredd.result import CompareResult, SuggestVersionResult
+from semverdredd.result import APIDiff, CompareResult, SuggestVersionResult
 
 
 class ChangeType(Enum):
@@ -240,14 +240,18 @@ def compare(old_module: ModuleType, new_module: ModuleType) -> CompareResult:
         new_module: new module object
 
     Returns:
-        CompareResult with change_type/description/severity
+        CompareResult with change_type/description/severity/diff
     """
+    # Import here to avoid circular import at module load time
+    from semverdredd.diff import diff_module_objects
 
     change = detect_change(old_module, new_module)
+    diff = diff_module_objects(old_module, new_module)
     return CompareResult(
         change_type=change,
         description=_description_for_change(change),
         severity=_severity_for_change(change),
+        diff=diff,
     )
 
 
@@ -281,6 +285,7 @@ def compare_and_suggest(
         severity=base.severity,
         current_version=current,
         suggested_version=suggested,
+        diff=base.diff,
     )
 
 
@@ -295,6 +300,7 @@ __all__ = [
     "detect_change",
     "Version",
     "generate_patch",
+    "APIDiff",
     "CompareResult",
     "SuggestVersionResult",
     "compare",

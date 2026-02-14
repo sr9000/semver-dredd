@@ -12,7 +12,6 @@ No logging/printing in this module.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from types import ModuleType
 
 from semverdredd import (
@@ -22,12 +21,7 @@ from semverdredd import (
     ModuleAPI,
     compare_signatures,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class APIDiff:
-    breaking: list[str]
-    added: list[str]
+from semverdredd.result import APIDiff
 
 
 def _fmt_sig(sig: APISignature) -> str:
@@ -78,7 +72,7 @@ def diff_modules(old: ModuleAPI, new: ModuleAPI) -> APIDiff:
         for a in added_cls:
             added.append(f"class {class_name}: {a}")
 
-    return APIDiff(breaking=breaking, added=added)
+    return APIDiff(breaking=tuple(breaking), added=tuple(added))
 
 
 def diff_classes(old: ClassAPI, new: ClassAPI) -> tuple[list[str], list[str]]:
