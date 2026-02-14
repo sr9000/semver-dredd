@@ -778,6 +778,86 @@ def cmd_xl_bake(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_template(args: argparse.Namespace) -> int:
+    """Generate a comprehensive .semver.yaml template with all options and comments"""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    config_path = Path(DEFAULT_CONFIG_FILE)
+
+    # Comprehensive template content with all options and comments
+    template = """# semver-dredd configuration file
+# This file configures semver-dredd behavior for your project.
+# Place this file in your project root as '.semver.yaml'
+
+# Schema version for this configuration file
+# Currently supported: 1
+schema_version: 1
+
+# Project language (optional, defaults to 'python')
+# Supported: python, go, java
+# language: python
+
+# Policies section controls semver-dredd behavior
+policies:
+  # Whether to allow breaking changes (MAJOR version bumps)
+  # If false, semver-dredd will exit with error code 10 when breaking changes are detected
+  # If true, breaking changes are allowed but logged as warnings
+  allow_breaking_changes: false
+
+# Output configuration
+output:
+  # Severity levels for different change types
+  # Controls the log level (info/warn/error) for each change type
+  severity_by_change:
+    # NONE: No API changes detected (but patch bump still occurs)
+    none: info
+    # PATCH: Implementation changes only
+    patch: info
+    # MINOR: New features added (backward compatible)
+    minor: warn
+    # MAJOR: Breaking changes detected
+    major: error
+
+# Module paths for Python projects (optional)
+# Specify additional module paths to include in API analysis
+# module_paths:
+#   - mypackage
+#   - ../anotherpackage
+
+# Go-specific configuration (optional)
+# go:
+#   # Go module name (from go.mod)
+#   module: mymodule
+#   # Output directory for generated files
+#   output: ./gen
+
+# Java-specific configuration (optional)
+# java:
+#   # Source directory for Java files
+#   source: ./src/main/java
+#   # Output directory for generated files
+#   output: ./gen
+
+# Advanced options (experimental)
+# advanced:
+#   # Whether to include private API in snapshots (default: false)
+#   include_private: false
+#   # Custom ignore patterns for API elements
+#   ignore_patterns:
+#     - "test_*"
+#     - "*_internal"
+"""
+
+    # Write to file or print to stdout
+    if args.out:
+        Path(args.out).write_text(template)
+        _print_level("info", f"Wrote template to {args.out}", use_color=use_color)
+    else:
+        print(template)
+
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
@@ -1051,6 +1131,31 @@ def main(argv: list[str] | None = None) -> int:
         help="Disable colored log output",
     )
     snapshot_parser.set_defaults(func=cmd_snapshot)
+
+    # Template command
+    template_parser = subparsers.add_parser(
+        "template",
+        help="Generate a comprehensive .semver.yaml template with all options and comments",
+    )
+    template_parser.add_argument(
+        "--out",
+        default="",
+        help="Output file (default: stdout)",
+    )
+    template_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    template_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    template_parser.set_defaults(func=cmd_template)
 
 
     args = parser.parse_args(argv)
