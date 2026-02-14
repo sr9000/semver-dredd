@@ -6,6 +6,7 @@ import argparse
 import importlib
 import sys
 from pathlib import Path
+from typing import Any
 
 from semverdredd import ChangeType, Version, detect_change, generate_patch
 
@@ -13,6 +14,25 @@ from semverdredd import ChangeType, Version, detect_change, generate_patch
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_BREAKING_CHANGES_DETECTED = 10
+
+
+def _load_meta_config() -> dict[str, Any]:
+    """Load configuration from meta.yaml if it exists in the current directory."""
+    meta_path = Path("meta.yaml")
+    if not meta_path.exists():
+        return {}
+
+    try:
+        import yaml
+        with open(meta_path, 'r') as f:
+            config = yaml.safe_load(f)
+        return config or {}
+    except ImportError:
+        # yaml not available, skip
+        return {}
+    except Exception:
+        # Invalid yaml or other error, skip
+        return {}
 
 
 def _should_use_color(color_flag: bool | None) -> bool:
@@ -318,9 +338,17 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    # For compare: by default breaking changes are disallowed.
+    # Load meta config and apply defaults
+    meta_config = _load_meta_config()
+    policies = meta_config.get("policies", {})
+
+    # For compare: set default allow_breaking from meta.yaml if not explicitly set
     if getattr(args, "command", None) == "compare":
-        if args.allow_breaking and args.disallow_breaking:
+        if not args.allow_breaking and not args.disallow_breaking:
+            # Use meta.yaml default if available
+            default_allow = policies.get("allow_breaking_changes", False)
+            args.allow_breaking = bool(default_allow)
+        elif args.allow_breaking and args.disallow_breaking:
             _print_level("error", "--allow-breaking and --disallow-breaking are mutually exclusive")
             return EXIT_ERROR
         args.allow_breaking = bool(args.allow_breaking) and not bool(args.disallow_breaking)

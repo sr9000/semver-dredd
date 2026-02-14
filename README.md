@@ -52,6 +52,38 @@ semver-dredd compare old_module new_module
 semver-dredd bump --current 1.0.0 --change minor
 ```
 
+## Configuration
+
+semver-dredd can be configured via a `meta.yaml` file in the project root:
+
+```yaml
+schema_version: 1
+
+policies:
+  allow_breaking_changes: false  # Default policy for breaking changes
+
+output:
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+```
+
+### CLI Options
+
+```bash
+# Allow breaking changes (overrides meta.yaml default)
+semver-dredd compare old_module new_module --allow-breaking
+
+# Disallow breaking changes (overrides meta.yaml default)
+semver-dredd compare old_module new_module --disallow-breaking
+
+# Colored output (auto-detected, can be forced)
+semver-dredd compare old_module new_module --color
+semver-dredd compare old_module new_module --no-color
+```
+
 ## Versioning Scheme
 
 `semver-dredd` uses a specific versioning strategy:
