@@ -91,6 +91,36 @@ class TestCLICompare:
         # MINOR emits a WARN line on stderr
         assert "[WARN]" in captured.err
 
+    def test_compare_pygeometry_details_lists_added(self, capsys):
+        result = main(["compare", "example.pygeometry1", "example.pygeometry2", "--details"])
+        assert result == 0
+        captured = capsys.readouterr()
+        # Should list at least one added item (volume, translate)
+        assert "Added changes:" in captured.out
+        assert "function added: volume" in captured.out
+        assert "method added: translate" in captured.out
+
+    def test_compare_pygeometry_breaking_details(self, capsys):
+        # v2 -> v1 is breaking (removes volume/translate and changes signatures)
+        result = main([
+            "compare",
+            "example.pygeometry2",
+            "example.pygeometry1",
+            "--details",
+            "--allow-breaking",
+        ])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Breaking changes:" in captured.out
+        assert "function removed: volume" in captured.out
+        assert "method removed: translate" in captured.out
+
+    def test_compare_verbose_explains_inspected_api(self, capsys):
+        result = main(["compare", "example.pygeometry1", "example.pygeometry2", "--verbose"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Inspecting public module API" in captured.err or "Inspecting public module API" in captured.out
+
     def test_compare_same_module(self, capsys):
         """Test comparing same module."""
         result = main(["compare", "example.pygeometry1", "example.pygeometry1"])

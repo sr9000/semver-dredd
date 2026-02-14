@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from semverdredd import ChangeType, Version, detect_change, generate_patch
+from semverdredd.diff import diff_module_objects
 
 
 EXIT_OK = 0
@@ -125,6 +126,14 @@ def cmd_compare(args: argparse.Namespace) -> int:
     """Compare two modules and report change type."""
     use_color = _should_use_color(getattr(args, "color", None))
 
+    if getattr(args, "verbose", False):
+        _print_level(
+            "info",
+            "Inspecting public module API: exported functions/classes from dir(module) excluding '_' names; "
+            "for classes: methods from dir(class) excluding '_' names (except __init__) and comparing call signatures.",
+            use_color=use_color,
+        )
+
     try:
         old_module = import_module_from_path(args.old_module)
         new_module = import_module_from_path(args.new_module)
@@ -154,6 +163,19 @@ def cmd_compare(args: argparse.Namespace) -> int:
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
     print(f"Change type: {change.name}")
     print(f"Description: {change_descriptions[change]}")
+
+    if getattr(args, "details", False):
+        diff = diff_module_objects(old_module, new_module)
+        if diff.breaking:
+            print("Breaking changes:")
+            for item in diff.breaking:
+                print(f"- {item}")
+        if diff.added:
+            print("Added changes:")
+            for item in diff.added:
+                print(f"- {item}")
+        if not diff.breaking and not diff.added:
+            print("No API additions or breaking changes detected.")
 
     if args.current:
         try:
@@ -275,6 +297,16 @@ def main(argv: list[str] | None = None) -> int:
         "--disallow-breaking",
         action="store_true",
         help="Explicitly disallow breaking changes (MAJOR) and fail the command",
+    )
+    compare_parser.add_argument(
+        "--details",
+        action="store_true",
+        help="List breaking and added API items detected during comparison",
+    )
+    compare_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Explain what parts of the API are being inspected",
     )
     compare_parser.set_defaults(func=cmd_compare)
 
