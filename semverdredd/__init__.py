@@ -58,11 +58,15 @@ class ClassAPI:
     """Represents the public API of a class."""
     name: str
     methods: dict[str, APISignature]
+    fields: set[str]  # Public fields (for structured types only)
 
     @classmethod
     def from_class(cls, name: str, klass: type) -> "ClassAPI":
         """Extract public API from a class."""
         methods = {}
+        fields = set()
+
+        # Extract methods
         for attr_name in dir(klass):
             if attr_name.startswith("_") and not attr_name == "__init__":
                 continue
@@ -72,7 +76,46 @@ class ClassAPI:
                     methods[attr_name] = APISignature.from_callable(attr_name, attr)
                 except (ValueError, TypeError):
                     pass
-        return cls(name=name, methods=methods)
+
+        # Extract fields for structured types
+        if _is_namedtuple(klass):
+            fields = set(getattr(klass, '_fields', ()))
+        elif _is_dataclass(klass):
+            fields = set(getattr(klass, '__dataclass_fields__', {}).keys())
+        elif _is_pydantic_model(klass):
+            # Support both Pydantic v1 and v2
+            if hasattr(klass, '__fields__'):  # v1
+                fields = set(klass.__fields__.keys())
+            elif hasattr(klass, 'model_fields'):  # v2
+                fields = set(klass.model_fields.keys())
+        elif hasattr(klass, '__slots__'):
+            # __slots__ defines allowed attributes
+            slots = getattr(klass, '__slots__', ())
+            if isinstance(slots, str):
+                fields = {slots}
+            else:
+                fields = set(slots)
+
+        return cls(name=name, methods=methods, fields=fields)
+
+
+def _is_namedtuple(klass: type) -> bool:
+    """Check if class is a namedtuple."""
+    return (
+        hasattr(klass, '_fields') and
+        hasattr(klass, '_field_defaults') and
+        issubclass(klass, tuple)
+    )
+
+
+def _is_dataclass(klass: type) -> bool:
+    """Check if class is a dataclass."""
+    return hasattr(klass, '__dataclass_fields__')
+
+
+def _is_pydantic_model(klass: type) -> bool:
+    """Check if class is a Pydantic model."""
+    return hasattr(klass, '__fields__') or hasattr(klass, 'model_fields')
 
 
 @dataclass
@@ -152,6 +195,17 @@ def compare_classes(old: ClassAPI, new: ClassAPI) -> ChangeType:
     # Check for added methods (minor)
     for method_name in new.methods:
         if method_name not in old.methods:
+            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
+                max_change = ChangeType.MINOR
+
+    # Check for removed fields (breaking - for structured types)
+    for field_name in old.fields:
+        if field_name not in new.fields:
+            return ChangeType.MAJOR
+
+    # Check for added fields (minor - for structured types)
+    for field_name in new.fields:
+        if field_name not in old.fields:
             if change_rank[max_change] < change_rank[ChangeType.MINOR]:
                 max_change = ChangeType.MINOR
 

@@ -6,9 +6,10 @@ Automatically increments semver number based on interface changes.
 
 - **API Introspection**: Extracts public API from Python modules (functions, classes, methods)
 - **Change Detection**: Compares two module versions and detects the type of change
-  - **MAJOR**: Breaking changes (removed functions/classes, added required parameters)
-  - **MINOR**: New features (new functions/classes, new optional parameters)
+  - **MAJOR**: Breaking changes (removed functions/classes/methods/fields, added required parameters)
+  - **MINOR**: New features (new functions/classes/methods/fields, new optional parameters)
   - **PATCH**: No API changes, only implementation changes
+- **Field Detection**: Detects fields in structured types (dataclasses, named tuples, pydantic models, __slots__)
 - **Version Management**: Handles semantic versioning with custom patch format
 - **API Snapshots**: Save/load API state to track changes over time
 - **CLI Tool**: Command-line interface for version management
@@ -273,3 +274,29 @@ semver-dredd/
 ## License
 
 MIT
+
+### Core Classes
+
+- `ChangeType` - Enum: NONE, PATCH, MINOR, MAJOR
+- `APISignature` - Represents a function/method signature
+- `ClassAPI` - Represents a class's public API (methods + fields for structured types)
+- `ModuleAPI` - Represents a module's public API
+- `Version` - Semantic version with custom patch format
+
+### Core Functions
+
+- `detect_change(old_module, new_module)` - Detect change type between modules
+- `compare_modules(old_api, new_api)` - Compare two ModuleAPI objects
+- `compare_classes(old_api, new_api)` - Compare two ClassAPI objects
+- `compare_signatures(old_sig, new_sig)` - Compare two APISignature objects
+
+### Field Detection
+
+semver-dredd detects fields in structured types:
+
+- **Dataclasses**: Fields from `__dataclass_fields__`
+- **Named Tuples**: Fields from `_fields`
+- **Pydantic Models**: Fields from `__fields__` (v1) or `model_fields` (v2)
+- **__slots__ Classes**: Fields from `__slots__`
+
+Adding/removing fields in these types is treated as MINOR/MAJOR changes respectively.

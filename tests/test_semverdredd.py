@@ -134,8 +134,8 @@ class TestCompareClasses:
 
     def test_removed_method_is_major(self):
         """Test that removing a method is a major change."""
-        old_api = ClassAPI("Test", {"method1": APISignature("method1", ["self"], 0)})
-        new_api = ClassAPI("Test", {})
+        old_api = ClassAPI("Test", {"method1": APISignature("method1", ["self"], 0)}, set())
+        new_api = ClassAPI("Test", {}, set())
         assert compare_classes(old_api, new_api) == ChangeType.MAJOR
 
 
@@ -164,7 +164,7 @@ class TestCompareModules:
         """Test that removing a class is a major change."""
         old_api = ModuleAPI(
             functions={},
-            classes={"MyClass": ClassAPI("MyClass", {})}
+            classes={"MyClass": ClassAPI("MyClass", {}, set())}
         )
         new_api = ModuleAPI(functions={}, classes={})
         assert compare_modules(old_api, new_api) == ChangeType.MAJOR

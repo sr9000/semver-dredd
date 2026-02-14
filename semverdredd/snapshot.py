@@ -44,7 +44,10 @@ class APISnapshot:
                     "parameters": method_sig.parameters,
                     "defaults_count": method_sig.defaults_count,
                 }
-            classes[name] = {"methods": methods}
+            classes[name] = {
+                "methods": methods,
+                "fields": list(class_api.fields),  # Convert set to list for YAML
+            }
 
         return cls(version=version, functions=functions, classes=classes)
 
@@ -73,7 +76,8 @@ class APISnapshot:
                     parameters=method_data["parameters"],
                     defaults_count=method_data["defaults_count"],
                 )
-            classes[name] = ClassAPI(name=name, methods=methods)
+            fields = set(data.get("fields", []))  # Convert list back to set
+            classes[name] = ClassAPI(name=name, methods=methods, fields=fields)
 
         return ModuleAPI(functions=functions, classes=classes)
 

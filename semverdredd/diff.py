@@ -98,6 +98,15 @@ def diff_classes(old: ClassAPI, new: ClassAPI) -> tuple[list[str], list[str]]:
         elif change == ChangeType.MINOR:
             added.append(f"method signature changed (compatible): {_fmt_sig(old_sig)} -> {_fmt_sig(new_sig)}")
 
+    # Field changes
+    for field_name in sorted(old.fields):
+        if field_name not in new.fields:
+            breaking.append(f"field removed: {field_name}")
+
+    for field_name in sorted(new.fields):
+        if field_name not in old.fields:
+            added.append(f"field added: {field_name}")
+
     return breaking, added
 
 
