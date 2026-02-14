@@ -162,21 +162,62 @@ old_api = loaded.to_module_api()
 
 ## Configuration
 
-`.semver.yaml` file:
+semver-dredd supports multiple configuration sources with the following priority (lowest to highest):
+
+1. **`.semver.yaml`** - Project configuration file (lowest priority)
+2. **`.env`** - Environment file in project root
+3. **Environment variables** - Real shell environment
+4. **CLI arguments** - Command-line flags (highest priority)
+
+> **Note**: This priority system only applies to CLI usage. Programmatic API calls ignore all config files and use only the arguments passed directly to functions.
+
+### `.semver.yaml` file
 
 ```yaml
 schema_version: 1
+
+# Language (python, go, java)
+language: python
 
 policies:
   allow_breaking_changes: false  # Fail on MAJOR by default
 
 output:
+  color: null  # null = auto-detect, true = always, false = never
   severity_by_change:
     none: info     # Green
     patch: info    # Green
     minor: warn    # Yellow
     major: error   # Red (changes to warn when --allow-breaking)
+
+files:
+  baked: baked.yaml
+  current: current.yaml
+  version: VERSION
 ```
+
+### `.env` file
+
+```bash
+# Override .semver.yaml values
+SEMVER_DREDD_ALLOW_BREAKING=true
+SEMVER_DREDD_COLOR=false
+SEMVER_DREDD_LANG=go
+SEMVER_DREDD_BAKED_FILE=api/baked.yaml
+SEMVER_DREDD_CURRENT_FILE=api/current.yaml
+SEMVER_DREDD_VERSION_FILE=api/VERSION
+```
+
+### Environment Variables
+
+| Variable | Description | Values |
+|----------|-------------|--------|
+| `SEMVER_DREDD_ALLOW_BREAKING` | Allow breaking changes | `true`, `false` |
+| `SEMVER_DREDD_COLOR` | Color output mode | `true`, `false` |
+| `SEMVER_DREDD_LANG` | Project language | `python`, `go`, `java` |
+| `SEMVER_DREDD_BAKED_FILE` | Path to baked.yaml | File path |
+| `SEMVER_DREDD_CURRENT_FILE` | Path to current.yaml | File path |
+| `SEMVER_DREDD_VERSION_FILE` | Path to VERSION file | File path |
 
 ### CLI Options
 
@@ -185,10 +226,25 @@ output:
 --allow-breaking      # Allow MAJOR changes (exit 0)
 --disallow-breaking   # Fail on MAJOR changes (exit 10)
 
+# File paths
+--baked PATH         # Custom baked.yaml path
+--current-file PATH  # Custom current.yaml path
+--version-file PATH  # Custom VERSION file path
+
 # Output control
 --details            # List added/removed/changed API items
 --verbose            # Explain what parts of API are inspected
 --color / --no-color # Control colored output (auto-detected)
+```
+
+### Generate Configuration Template
+
+```bash
+# Print comprehensive template to stdout
+semver-dredd template
+
+# Save to file
+semver-dredd template --out .semver.yaml
 ```
 
 ## Versioning Scheme

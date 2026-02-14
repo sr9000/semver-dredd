@@ -6,12 +6,12 @@ import argparse
 import importlib
 import sys
 from pathlib import Path
-from typing import Any
 import subprocess
 
 from semverdredd import ChangeType, Version, detect_change, generate_patch, ModuleAPI, compare_modules
 from semverdredd.diff import diff_module_objects, diff_modules
 from semverdredd.snapshot import APISnapshot, save_version_file
+from cli.config import load_config, apply_config_defaults, Config
 
 
 EXIT_OK = 0
@@ -23,24 +23,6 @@ DEFAULT_BAKED_FILE = "baked.yaml"
 DEFAULT_CURRENT_FILE = "current.yaml"
 DEFAULT_VERSION_FILE = "VERSION"
 
-
-def _load_config() -> dict[str, Any]:
-    """Load configuration from .semver.yaml if it exists in the current directory."""
-    config_path = Path(DEFAULT_CONFIG_FILE)
-    if not config_path.exists():
-        return {}
-
-    try:
-        import yaml
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        return config or {}
-    except ImportError:
-        # yaml not available, skip
-        return {}
-    except Exception:
-        # Invalid yaml or other error, skip
-        return {}
 
 
 def _should_use_color(color_flag: bool | None) -> bool:
@@ -225,9 +207,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     else:
         target_date = date_type.today()
 
-    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
-    current_path = Path(getattr(args, "current_file", DEFAULT_CURRENT_FILE))
-    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
+    current_path = Path(args.current_file or DEFAULT_CURRENT_FILE)
+    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
 
     # Check if baked.yaml exists
     if not baked_path.exists():
@@ -332,8 +314,8 @@ def cmd_bake(args: argparse.Namespace) -> int:
         args.path = args.module
         return cmd_xl_bake(args)
 
-    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
-    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
+    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
 
     # Load module
     try:
@@ -383,8 +365,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         return cmd_xl_init(args)
 
     config_path = Path(DEFAULT_CONFIG_FILE)
-    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
-    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
+    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
 
     # Create config if not exists
     if not config_path.exists():
@@ -481,7 +463,6 @@ def cmd_patch(args: argparse.Namespace) -> int:
 
 def _generate_snapshot_yaml(lang: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
     """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
-    import tempfile
 
     if lang == "go":
         parser_dir = Path(__file__).parent.parent / "parser" / "golang"
@@ -788,6 +769,15 @@ def cmd_template(args: argparse.Namespace) -> int:
     template = """# semver-dredd configuration file
 # This file configures semver-dredd behavior for your project.
 # Place this file in your project root as '.semver.yaml'
+#
+# Configuration Priority (lowest to highest):
+# 1. .semver.yaml (this file) - lowest priority
+# 2. .env file - overrides .semver.yaml
+# 3. Environment variables - override .env
+# 4. CLI arguments - highest priority (always win)
+#
+# Note: This priority system only applies to CLI usage.
+# Programmatic API calls ignore all config files.
 
 # Schema version for this configuration file
 # Currently supported: 1
@@ -795,6 +785,7 @@ schema_version: 1
 
 # Project language (optional, defaults to 'python')
 # Supported: python, go, java
+# Can be overridden by SEMVER_DREDD_LANG env var or --lang CLI arg
 # language: python
 
 # Policies section controls semver-dredd behavior
@@ -802,10 +793,18 @@ policies:
   # Whether to allow breaking changes (MAJOR version bumps)
   # If false, semver-dredd will exit with error code 10 when breaking changes are detected
   # If true, breaking changes are allowed but logged as warnings
+  # Can be overridden by SEMVER_DREDD_ALLOW_BREAKING env var or --allow-breaking CLI flag
   allow_breaking_changes: false
 
 # Output configuration
 output:
+  # Color mode for log output
+  # true: always use ANSI colors
+  # false: never use colors
+  # null/omit: auto-detect (color if stderr is a TTY)
+  # Can be overridden by SEMVER_DREDD_COLOR env var or --color/--no-color CLI flags
+  # color: null
+
   # Severity levels for different change types
   # Controls the log level (info/warn/error) for each change type
   severity_by_change:
@@ -817,6 +816,24 @@ output:
     minor: warn
     # MAJOR: Breaking changes detected
     major: error
+
+# File paths configuration
+# Can be overridden by environment variables or CLI arguments
+files:
+  # Baked API snapshot file
+  # Env var: SEMVER_DREDD_BAKED_FILE
+  # CLI: --baked
+  baked: baked.yaml
+
+  # Current API snapshot file (generated during status command)
+  # Env var: SEMVER_DREDD_CURRENT_FILE
+  # CLI: --current-file
+  current: current.yaml
+
+  # Version file
+  # Env var: SEMVER_DREDD_VERSION_FILE
+  # CLI: --version-file
+  version: VERSION
 
 # Module paths for Python projects (optional)
 # Specify additional module paths to include in API analysis
@@ -846,6 +863,21 @@ output:
 #   ignore_patterns:
 #     - "test_*"
 #     - "*_internal"
+
+# Environment Variables Reference:
+# ================================
+# SEMVER_DREDD_ALLOW_BREAKING - Set to 'true' or 'false'
+# SEMVER_DREDD_COLOR - Set to 'true' or 'false'
+# SEMVER_DREDD_LANG - Set to 'python', 'go', or 'java'
+# SEMVER_DREDD_BAKED_FILE - Path to baked.yaml
+# SEMVER_DREDD_CURRENT_FILE - Path to current.yaml
+# SEMVER_DREDD_VERSION_FILE - Path to VERSION file
+#
+# .env file example:
+# ------------------
+# SEMVER_DREDD_ALLOW_BREAKING=true
+# SEMVER_DREDD_COLOR=false
+# SEMVER_DREDD_BAKED_FILE=api/baked.yaml
 """
 
     # Write to file or print to stdout
@@ -887,6 +919,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Initial version (default: 0.1.YYYYMMDD001)",
     )
     init_parser.add_argument(
+        "--baked",
+        default=None,
+        help="Path to baked.yaml file (default: baked.yaml)",
+    )
+    init_parser.add_argument(
+        "--version-file",
+        default=None,
+        help="Path to VERSION file (default: VERSION)",
+    )
+    init_parser.add_argument(
         "--color",
         dest="color",
         action="store_true",
@@ -919,6 +961,21 @@ def main(argv: list[str] | None = None) -> int:
     status_parser.add_argument(
         "--date",
         help="Date to use for patch version (YYYY-MM-DD, default: today)",
+    )
+    status_parser.add_argument(
+        "--baked",
+        default=None,
+        help="Path to baked.yaml file (default: baked.yaml)",
+    )
+    status_parser.add_argument(
+        "--current-file",
+        default=None,
+        help="Path to current.yaml file (default: current.yaml)",
+    )
+    status_parser.add_argument(
+        "--version-file",
+        default=None,
+        help="Path to VERSION file (default: VERSION)",
     )
     status_parser.add_argument(
         "--details",
@@ -963,6 +1020,16 @@ def main(argv: list[str] | None = None) -> int:
     bake_parser.add_argument(
         "--version",
         help="Explicit version to bake (default: auto-computed)",
+    )
+    bake_parser.add_argument(
+        "--baked",
+        default=None,
+        help="Path to baked.yaml file (default: baked.yaml)",
+    )
+    bake_parser.add_argument(
+        "--version-file",
+        default=None,
+        help="Path to VERSION file (default: VERSION)",
     )
     bake_parser.add_argument(
         "--color",
@@ -1160,22 +1227,19 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    # Load config and apply defaults
-    config = _load_config()
-    policies = config.get("policies", {})
+    # Load config with priority: .semver.yaml < .env < env vars < CLI args
+    config = load_config()
 
-    # For compare/status: set default allow_breaking from config if not explicitly set
+    # Check for mutually exclusive flags before applying config
     if getattr(args, "command", None) in ("compare", "status"):
         allow = getattr(args, "allow_breaking", False)
         disallow = getattr(args, "disallow_breaking", False)
-        if not allow and not disallow:
-            default_allow = policies.get("allow_breaking_changes", False)
-            args.allow_breaking = bool(default_allow)
-        elif allow and disallow:
+        if allow and disallow:
             _print_level("error", "--allow-breaking and --disallow-breaking are mutually exclusive")
             return EXIT_ERROR
-        else:
-            args.allow_breaking = bool(allow) and not bool(disallow)
+
+    # Apply config defaults (respects CLI args as highest priority)
+    apply_config_defaults(args, config)
 
     return args.func(args)
 

@@ -2,7 +2,9 @@
 Tests for semver-dredd CLI.
 """
 
+import os
 from datetime import date
+from unittest.mock import patch
 
 from cli import main
 
@@ -185,3 +187,95 @@ class TestCLIBreakingPolicy:
         assert "MAJOR" in captured.out
         assert "[WARN]" in captured.err  # Severity should be WARN when allowed
         assert "Breaking changes are not allowed" not in captured.err  # No error message
+
+
+class TestConfigPriority:
+    """Tests for configuration priority system."""
+
+    def test_yaml_config_sets_allow_breaking(self, capsys, tmp_path, monkeypatch):
+        """Test .semver.yaml sets allow_breaking_changes."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create .semver.yaml with allow_breaking_changes: true
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("""
+schema_version: 1
+policies:
+  allow_breaking_changes: true
+""")
+
+        # v2 removes things compared to v1 => MAJOR
+        # Without config, this would fail (exit 10)
+        # With config allowing breaking, should exit 0
+        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "MAJOR" in captured.out
+        assert "[WARN]" in captured.err  # Should be WARN when allowed
+
+    def test_env_file_overrides_yaml(self, capsys, tmp_path, monkeypatch):
+        """Test .env file overrides .semver.yaml."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create .semver.yaml with allow_breaking: true
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("""
+schema_version: 1
+policies:
+  allow_breaking_changes: true
+""")
+
+        # Create .env that sets allow_breaking: false
+        env_file = tmp_path / ".env"
+        env_file.write_text("SEMVER_DREDD_ALLOW_BREAKING=false\n")
+
+        # .env should override yaml, so breaking changes disallowed
+        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        assert result == 10  # Should fail because .env overrides yaml
+        captured = capsys.readouterr()
+        assert "Breaking changes are not allowed" in captured.err
+
+    def test_real_env_overrides_env_file(self, capsys, tmp_path, monkeypatch):
+        """Test real environment variables override .env file."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create .env that sets allow_breaking: false
+        env_file = tmp_path / ".env"
+        env_file.write_text("SEMVER_DREDD_ALLOW_BREAKING=false\n")
+
+        # Real env var overrides .env
+        with patch.dict(os.environ, {"SEMVER_DREDD_ALLOW_BREAKING": "true"}):
+            result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+            assert result == 0  # Should pass because real env overrides .env
+            captured = capsys.readouterr()
+            assert "MAJOR" in captured.out
+            assert "[WARN]" in captured.err
+
+    def test_cli_arg_overrides_all(self, capsys, tmp_path, monkeypatch):
+        """Test CLI arguments override all config sources."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create .semver.yaml with allow_breaking: true
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("""
+schema_version: 1
+policies:
+  allow_breaking_changes: true
+""")
+
+        # Create .env that also sets allow_breaking: true
+        env_file = tmp_path / ".env"
+        env_file.write_text("SEMVER_DREDD_ALLOW_BREAKING=true\n")
+
+        # Real env var also sets allow_breaking: true
+        with patch.dict(os.environ, {"SEMVER_DREDD_ALLOW_BREAKING": "true"}):
+            # But CLI --disallow-breaking should override everything
+            result = main([
+                "compare",
+                "example.pygeometry2",
+                "example.pygeometry1",
+                "--disallow-breaking",
+            ])
+            assert result == 10  # Should fail because CLI overrides all
+            captured = capsys.readouterr()
+            assert "Breaking changes are not allowed" in captured.err
