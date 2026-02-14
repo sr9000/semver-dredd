@@ -21,9 +21,13 @@ from typing import Any
 # Re-export Version and generate_patch from version module
 from semverdredd.version import Version, generate_patch
 
+# Structured result types (pure data)
+from semverdredd.result import CompareResult, SuggestVersionResult
+
 
 class ChangeType(Enum):
     """Type of API change detected."""
+
     NONE = 0
     PATCH = 1
     MINOR = 2
@@ -124,6 +128,13 @@ def compare_signatures(old: APISignature, new: APISignature) -> ChangeType:
 
 def compare_classes(old: ClassAPI, new: ClassAPI) -> ChangeType:
     """Compare two class APIs for compatibility."""
+    change_rank = {
+        ChangeType.NONE: 0,
+        ChangeType.PATCH: 1,
+        ChangeType.MINOR: 2,
+        ChangeType.MAJOR: 3,
+    }
+
     max_change = ChangeType.NONE
 
     # Check for removed methods (breaking)
@@ -135,13 +146,13 @@ def compare_classes(old: ClassAPI, new: ClassAPI) -> ChangeType:
     for method_name, old_method in old.methods.items():
         if method_name in new.methods:
             change = compare_signatures(old_method, new.methods[method_name])
-            if change.value > max_change.value:
+            if change_rank[change] > change_rank[max_change]:
                 max_change = change
 
     # Check for added methods (minor)
     for method_name in new.methods:
         if method_name not in old.methods:
-            if max_change.value < ChangeType.MINOR.value:
+            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
                 max_change = ChangeType.MINOR
 
     return max_change
@@ -149,6 +160,13 @@ def compare_classes(old: ClassAPI, new: ClassAPI) -> ChangeType:
 
 def compare_modules(old: ModuleAPI, new: ModuleAPI) -> ChangeType:
     """Compare two module APIs and return the type of change."""
+    change_rank = {
+        ChangeType.NONE: 0,
+        ChangeType.PATCH: 1,
+        ChangeType.MINOR: 2,
+        ChangeType.MAJOR: 3,
+    }
+
     max_change = ChangeType.NONE
 
     # Check for removed functions (breaking)
@@ -165,26 +183,26 @@ def compare_modules(old: ModuleAPI, new: ModuleAPI) -> ChangeType:
     for func_name, old_func in old.functions.items():
         if func_name in new.functions:
             change = compare_signatures(old_func, new.functions[func_name])
-            if change.value > max_change.value:
+            if change_rank[change] > change_rank[max_change]:
                 max_change = change
 
     # Check for changed classes
     for class_name, old_class in old.classes.items():
         if class_name in new.classes:
             change = compare_classes(old_class, new.classes[class_name])
-            if change.value > max_change.value:
+            if change_rank[change] > change_rank[max_change]:
                 max_change = change
 
     # Check for added functions (minor)
     for func_name in new.functions:
         if func_name not in old.functions:
-            if max_change.value < ChangeType.MINOR.value:
+            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
                 max_change = ChangeType.MINOR
 
     # Check for added classes (minor)
     for class_name in new.classes:
         if class_name not in old.classes:
-            if max_change.value < ChangeType.MINOR.value:
+            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
                 max_change = ChangeType.MINOR
 
     return max_change
@@ -195,3 +213,90 @@ def detect_change(old_module: ModuleType, new_module: ModuleType) -> ChangeType:
     old_api = ModuleAPI.from_module(old_module)
     new_api = ModuleAPI.from_module(new_module)
     return compare_modules(old_api, new_api)
+
+
+def _description_for_change(change: ChangeType) -> str:
+    return {
+        ChangeType.NONE: "No API changes detected",
+        ChangeType.PATCH: "Implementation changes only (patch bump)",
+        ChangeType.MINOR: "New features added (minor bump)",
+        ChangeType.MAJOR: "Breaking changes detected (major bump)",
+    }[change]
+
+
+def _severity_for_change(change: ChangeType) -> str:
+    if change in (ChangeType.NONE, ChangeType.PATCH):
+        return "info"
+    if change == ChangeType.MINOR:
+        return "warn"
+    return "error"
+
+
+def compare(old_module: ModuleType, new_module: ModuleType) -> CompareResult:
+    """Programmatic compare that returns structured data (no printing).
+
+    Args:
+        old_module: old module object
+        new_module: new module object
+
+    Returns:
+        CompareResult with change_type/description/severity
+    """
+
+    change = detect_change(old_module, new_module)
+    return CompareResult(
+        change_type=change,
+        description=_description_for_change(change),
+        severity=_severity_for_change(change),
+    )
+
+
+def compare_and_suggest(
+    old_module: ModuleType,
+    new_module: ModuleType,
+    current_version: Version | str,
+) -> SuggestVersionResult:
+    """Compare two modules and compute a suggested next version.
+
+    This is the recommended pure-data entry point for other tools.
+
+    Args:
+        old_module: old module object
+        new_module: new module object
+        current_version: Version or version string
+
+    Returns:
+        SuggestVersionResult
+
+    Raises:
+        ValueError: if current_version cannot be parsed
+    """
+
+    current = current_version if isinstance(current_version, Version) else Version.parse(str(current_version))
+    base = compare(old_module, new_module)
+    suggested = current.increment(base.change_type)
+    return SuggestVersionResult(
+        change_type=base.change_type,
+        description=base.description,
+        severity=base.severity,
+        current_version=current,
+        suggested_version=suggested,
+    )
+
+
+__all__ = [
+    "ChangeType",
+    "APISignature",
+    "ClassAPI",
+    "ModuleAPI",
+    "compare_signatures",
+    "compare_classes",
+    "compare_modules",
+    "detect_change",
+    "Version",
+    "generate_patch",
+    "CompareResult",
+    "SuggestVersionResult",
+    "compare",
+    "compare_and_suggest",
+]
