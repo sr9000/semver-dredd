@@ -148,10 +148,13 @@ class TestVersionIncrement:
         assert new_v.patch == 20260214002
 
     def test_increment_none(self):
-        """Test no increment for NONE change type."""
+        """Test that NONE change type still bumps patch (any code change = new release)."""
         v = Version(1, 2, 20260214001)
         new_v = v.increment(ChangeType.NONE, today=date(2026, 2, 14))
-        assert new_v == v
+        # NONE now triggers a patch bump since any code change warrants a new release
+        assert new_v.major == 1
+        assert new_v.minor == 2
+        assert new_v.patch == 20260214002
 
 
 class TestVersionComparison:

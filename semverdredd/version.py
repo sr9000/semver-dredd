@@ -117,17 +117,14 @@ class Version:
                 minor=self.minor + 1,
                 patch=generate_patch(today=today)
             )
-        elif change_name == "PATCH":
-            # Patch bump: new patch version
+        else:
+            # PATCH or NONE: new patch version (any code change = new release)
             current_patch = self.patch if self.patch_date == today else None
             return Version(
                 major=self.major,
                 minor=self.minor,
                 patch=generate_patch(current_patch=current_patch, today=today)
             )
-        else:
-            # No change
-            return self
 
     def __lt__(self, other: Self) -> bool:
         """Compare versions for sorting."""

@@ -1,0 +1,13 @@
+schema_version: 2
+version: 1.0.20260214001
+language: go
+source:
+  kind: package
+  path: /tmp/patchtest
+api:
+  functions: {}
+  types:
+    P:
+      fields:
+      - name: X
+        type: int

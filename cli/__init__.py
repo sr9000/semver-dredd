@@ -206,8 +206,24 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    """Show current API status by comparing baked.yaml with current module."""
+    """Show current API status compared to baked baseline."""
     use_color = _should_use_color(getattr(args, "color", None))
+
+    # If lang is not python, delegate to xl logic
+    if hasattr(args, "lang") and args.lang != "python":
+        args.path = args.module
+        return cmd_xl_status(args)
+
+    # Parse --date if provided
+    from datetime import date as date_type
+    if getattr(args, "date", None):
+        try:
+            target_date = date_type.fromisoformat(args.date)
+        except ValueError:
+            _print_level("error", f"Invalid date format: {args.date}. Use YYYY-MM-DD.", use_color=use_color)
+            return EXIT_ERROR
+    else:
+        target_date = date_type.today()
 
     baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
     current_path = Path(getattr(args, "current_file", DEFAULT_CURRENT_FILE))
@@ -236,10 +252,34 @@ def cmd_status(args: argparse.Namespace) -> int:
     # Compare
     change = compare_modules(baked_api, current_api)
     current_version = Version.parse(baked.version)
-    suggested_version = current_version.increment(change)
+
+    # Check for patch date warnings/errors
+    baked_patch_date = current_version.patch_date
+    if baked_patch_date and baked_patch_date > target_date:
+        _print_level(
+            "warn",
+            f"Baked version patch date ({baked_patch_date}) is in the future compared to target date ({target_date}). "
+            "This suggests clock skew or incorrect date override.",
+            use_color=use_color,
+        )
+    elif baked_patch_date and baked_patch_date == target_date:
+        # Check if we're about to overflow
+        if current_version.patch_increment >= 999:
+            _print_level(
+                "error",
+                f"Maximum daily releases (999) reached for {target_date}. Cannot increment patch.",
+                use_color=use_color,
+            )
+            return EXIT_ERROR
+
+    try:
+        suggested_version = current_version.increment(change, today=target_date)
+    except ValueError as e:
+        _print_level("error", str(e), use_color=use_color)
+        return EXIT_ERROR
 
     change_descriptions = {
-        ChangeType.NONE: "No API changes detected",
+        ChangeType.NONE: "No API changes detected (patch bump)",
         ChangeType.PATCH: "Implementation changes only (patch bump)",
         ChangeType.MINOR: "New features added (minor bump)",
         ChangeType.MAJOR: "Breaking changes detected (major bump)",
@@ -287,6 +327,11 @@ def cmd_bake(args: argparse.Namespace) -> int:
     """Bake current API state as the new baseline."""
     use_color = _should_use_color(getattr(args, "color", None))
 
+    # If lang is not python, delegate to xl logic
+    if hasattr(args, "lang") and args.lang != "python":
+        args.path = args.module
+        return cmd_xl_bake(args)
+
     baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
     version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
 
@@ -330,6 +375,12 @@ def cmd_bake(args: argparse.Namespace) -> int:
 def cmd_init(args: argparse.Namespace) -> int:
     """Initialize semver-dredd for a project."""
     use_color = _should_use_color(getattr(args, "color", None))
+
+    # If lang is not python, delegate to xl logic
+    if hasattr(args, "lang") and args.lang != "python":
+        # Remap args for delegation
+        args.path = args.module
+        return cmd_xl_init(args)
 
     config_path = Path(DEFAULT_CONFIG_FILE)
     baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
@@ -551,14 +602,25 @@ output:
 
 
 def cmd_xl_status(args: argparse.Namespace) -> int:
-    """Show current API status for Go/Java project compared to baked baseline."""
+    """Show current API status for Go/Java project compared to baked baseline"""
     use_color = _should_use_color(getattr(args, "color", None))
+
+    # Parse --date if provided
+    from datetime import date as date_type
+    if getattr(args, "date", None):
+        try:
+            target_date = date_type.fromisoformat(args.date)
+        except ValueError:
+            _print_level("error", f"Invalid date format: {args.date}. Use YYYY-MM-DD.", use_color=use_color)
+            return EXIT_ERROR
+    else:
+        target_date = date_type.today()
 
     baked_path = Path(DEFAULT_BAKED_FILE)
     current_path = Path(DEFAULT_CURRENT_FILE)
 
     if not baked_path.exists():
-        _print_level("warn", f"No {baked_path} found. Run 'xl-init' first.", use_color=use_color)
+        _print_level("warn", f"No {baked_path} found. Run 'init' first.", use_color=use_color)
         return EXIT_ERROR
 
     lang = args.lang.lower()
@@ -582,6 +644,26 @@ def cmd_xl_status(args: argparse.Namespace) -> int:
 
     # Compute suggested version
     current_version = Version.parse(baked.version)
+
+    # Check for patch date warnings/errors
+    baked_patch_date = current_version.patch_date
+    if baked_patch_date and baked_patch_date > target_date:
+        _print_level(
+            "warn",
+            f"Baked version patch date ({baked_patch_date}) is in the future compared to target date ({target_date}). "
+            "This suggests clock skew or incorrect date override.",
+            use_color=use_color,
+        )
+    elif baked_patch_date and baked_patch_date == target_date:
+        # Check if we're about to overflow
+        if current_version.patch_increment >= 999:
+            _print_level(
+                "error",
+                f"Maximum daily releases (999) reached for {target_date}. Cannot increment patch.",
+                use_color=use_color,
+            )
+            return EXIT_ERROR
+
     # Map XLChangeType to semverdredd.ChangeType for version increment
     change_map = {
         XLChangeType.NONE: ChangeType.NONE,
@@ -589,10 +671,15 @@ def cmd_xl_status(args: argparse.Namespace) -> int:
         XLChangeType.MINOR: ChangeType.MINOR,
         XLChangeType.MAJOR: ChangeType.MAJOR,
     }
-    suggested_version = current_version.increment(change_map[change])
+
+    try:
+        suggested_version = current_version.increment(change_map[change], today=target_date)
+    except ValueError as e:
+        _print_level("error", str(e), use_color=use_color)
+        return EXIT_ERROR
 
     change_descriptions = {
-        XLChangeType.NONE: "No API changes detected",
+        XLChangeType.NONE: "No API changes detected (patch bump)",
         XLChangeType.PATCH: "Implementation changes only (patch bump)",
         XLChangeType.MINOR: "New features added (minor bump)",
         XLChangeType.MAJOR: "Breaking changes detected (major bump)",
@@ -707,7 +794,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     init_parser.add_argument(
         "module",
-        help="Path or name of the module to track",
+        help="Module name (Python) or source path (Go/Java)",
+    )
+    init_parser.add_argument(
+        "--lang",
+        choices=["python", "go", "java"],
+        default="python",
+        help="Project language (default: python)",
     )
     init_parser.add_argument(
         "--version", "-v",
@@ -735,7 +828,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     status_parser.add_argument(
         "module",
-        help="Path or name of the module to check",
+        help="Module name (Python) or source path (Go/Java)",
+    )
+    status_parser.add_argument(
+        "--lang",
+        choices=["python", "go", "java"],
+        default="python",
+        help="Project language (default: python)",
+    )
+    status_parser.add_argument(
+        "--date",
+        help="Date to use for patch version (YYYY-MM-DD, default: today)",
     )
     status_parser.add_argument(
         "--details",
@@ -769,7 +872,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     bake_parser.add_argument(
         "module",
-        help="Path or name of the module to bake",
+        help="Module name (Python) or source path (Go/Java)",
+    )
+    bake_parser.add_argument(
+        "--lang",
+        choices=["python", "go", "java"],
+        default="python",
+        help="Project language (default: python)",
     )
     bake_parser.add_argument(
         "--version",
@@ -943,116 +1052,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     snapshot_parser.set_defaults(func=cmd_snapshot)
 
-    # Cross-language init command
-    xl_init_parser = subparsers.add_parser(
-        "xl-init",
-        help="Initialize semver-dredd for a Go/Java project",
-    )
-    xl_init_parser.add_argument(
-        "--lang",
-        required=True,
-        choices=["go", "java"],
-        help="Language of the project",
-    )
-    xl_init_parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to the source directory/package",
-    )
-    xl_init_parser.add_argument(
-        "--version",
-        help="Initial version (default: 0.1.YYYYMMDD001)",
-    )
-    xl_init_parser.add_argument(
-        "--color",
-        dest="color",
-        action="store_true",
-        default=None,
-        help="Force colored log output",
-    )
-    xl_init_parser.add_argument(
-        "--no-color",
-        dest="color",
-        action="store_false",
-        help="Disable colored log output",
-    )
-    xl_init_parser.set_defaults(func=cmd_xl_init)
-
-    # Cross-language status command
-    xl_status_parser = subparsers.add_parser(
-        "xl-status",
-        help="Show current API status for Go/Java project compared to baked baseline",
-    )
-    xl_status_parser.add_argument(
-        "--lang",
-        required=True,
-        choices=["go", "java"],
-        help="Language of the project",
-    )
-    xl_status_parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to the source directory/package",
-    )
-    xl_status_parser.add_argument(
-        "--details",
-        action="store_true",
-        help="List breaking and added API items",
-    )
-    xl_status_parser.add_argument(
-        "--allow-breaking",
-        action="store_true",
-        help="Allow breaking changes without failing",
-    )
-    xl_status_parser.add_argument(
-        "--color",
-        dest="color",
-        action="store_true",
-        default=None,
-        help="Force colored log output",
-    )
-    xl_status_parser.add_argument(
-        "--no-color",
-        dest="color",
-        action="store_false",
-        help="Disable colored log output",
-    )
-    xl_status_parser.set_defaults(func=cmd_xl_status)
-
-    # Cross-language bake command
-    xl_bake_parser = subparsers.add_parser(
-        "xl-bake",
-        help="Bake current API state as the new baseline for Go/Java project",
-    )
-    xl_bake_parser.add_argument(
-        "--lang",
-        required=True,
-        choices=["go", "java"],
-        help="Language of the project",
-    )
-    xl_bake_parser.add_argument(
-        "--path",
-        required=True,
-        help="Path to the source directory/package",
-    )
-    xl_bake_parser.add_argument(
-        "--version",
-        help="Explicit version to bake (default: auto-computed)",
-    )
-    xl_bake_parser.add_argument(
-        "--color",
-        dest="color",
-        action="store_true",
-        default=None,
-        help="Force colored log output",
-    )
-    xl_bake_parser.add_argument(
-        "--no-color",
-        dest="color",
-        action="store_false",
-        help="Disable colored log output",
-    )
-    xl_bake_parser.set_defaults(func=cmd_xl_bake)
 
     args = parser.parse_args(argv)
 
@@ -1060,8 +1059,8 @@ def main(argv: list[str] | None = None) -> int:
     config = _load_config()
     policies = config.get("policies", {})
 
-    # For compare/status/xl-status: set default allow_breaking from config if not explicitly set
-    if getattr(args, "command", None) in ("compare", "status", "xl-status"):
+    # For compare/status: set default allow_breaking from config if not explicitly set
+    if getattr(args, "command", None) in ("compare", "status"):
         allow = getattr(args, "allow_breaking", False)
         disallow = getattr(args, "disallow_breaking", False)
         if not allow and not disallow:

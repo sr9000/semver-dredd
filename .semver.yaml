@@ -1,0 +1,13 @@
+# semver-dredd configuration
+schema_version: 1
+language: go
+
+policies:
+  allow_breaking_changes: false
+
+output:
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
