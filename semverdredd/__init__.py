@@ -84,10 +84,10 @@ class ClassAPI:
             fields = set(getattr(klass, '__dataclass_fields__', {}).keys())
         elif _is_pydantic_model(klass):
             # Support both Pydantic v1 and v2
-            if hasattr(klass, '__fields__'):  # v1
-                fields = set(klass.__fields__.keys())
-            elif hasattr(klass, 'model_fields'):  # v2
+            if hasattr(klass, 'model_fields'):  # v2
                 fields = set(klass.model_fields.keys())
+            elif hasattr(klass, '__fields__'):  # v1
+                fields = set(klass.__fields__.keys())
         elif hasattr(klass, '__slots__'):
             # __slots__ defines allowed attributes
             slots = getattr(klass, '__slots__', ())
@@ -115,7 +115,7 @@ def _is_dataclass(klass: type) -> bool:
 
 def _is_pydantic_model(klass: type) -> bool:
     """Check if class is a Pydantic model."""
-    return hasattr(klass, '__fields__') or hasattr(klass, 'model_fields')
+    return hasattr(klass, 'model_fields') or hasattr(klass, '__fields__')
 
 
 @dataclass
