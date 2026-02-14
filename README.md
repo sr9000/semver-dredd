@@ -48,6 +48,12 @@ print(f"New version: {new_version}")  # e.g., "1.3.20260214001"
 # Compare two modules and suggest version bump
 semver-dredd compare old_module new_module
 
+# See detailed diff (breaking vs. added changes)
+semver-dredd compare old_module new_module --details
+
+# See what's being inspected (inspection logic)
+semver-dredd compare old_module new_module --verbose
+
 # Bump version based on detected changes
 semver-dredd bump --current 1.0.0 --change minor
 ```
@@ -79,6 +85,12 @@ semver-dredd compare old_module new_module --allow-breaking
 
 # Disallow breaking changes (overrides meta.yaml default)
 semver-dredd compare old_module new_module --disallow-breaking
+
+# List added/removed/changed API items
+semver-dredd compare old_module new_module --details
+
+# Explain which parts of the API are inspected
+semver-dredd compare old_module new_module --verbose
 
 # Colored output (auto-detected, can be forced)
 semver-dredd compare old_module new_module --color
