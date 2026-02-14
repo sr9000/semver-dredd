@@ -63,11 +63,12 @@ policies:
   allow_breaking_changes: false  # Default policy for breaking changes
 
 output:
+  # Default severity mapping used by the CLI; can be overridden by flags.
   severity_by_change:
     none: info
     patch: info
     minor: warn
-    major: error
+    major: error  # Changes to 'warn' when --allow-breaking is used
 ```
 
 ### CLI Options

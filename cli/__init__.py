@@ -146,6 +146,10 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
     severity = _severity_for_change(change)
 
+    # Adjust severity for MAJOR changes when breaking changes are allowed
+    if change == ChangeType.MAJOR and args.allow_breaking:
+        severity = "warn"
+
     # Keep existing human-friendly output, but route severity summary to stderr.
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
     print(f"Change type: {change.name}")

@@ -140,6 +140,7 @@ class TestCLIBreakingPolicy:
         assert result == 10
         captured = capsys.readouterr()
         assert "MAJOR" in captured.out
+        assert "[ERROR]" in captured.err  # Severity should be ERROR when not allowed
         assert "Breaking changes are not allowed" in captured.err
 
     def test_breaking_changes_allowed_with_flag(self, capsys):
@@ -152,3 +153,5 @@ class TestCLIBreakingPolicy:
         assert result == 0
         captured = capsys.readouterr()
         assert "MAJOR" in captured.out
+        assert "[WARN]" in captured.err  # Severity should be WARN when allowed
+        assert "Breaking changes are not allowed" not in captured.err  # No error message
