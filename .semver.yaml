@@ -30,16 +30,16 @@ features:
       - patch
 
 policies:
-  # If false, a detected ChangeType.MAJOR will cause `compare` to fail (non-zero exit).
+  # If false, a detected ChangeType.MAJOR will cause `status`/`compare` to fail (exit 10).
   allow_breaking_changes: false
 
 output:
-  # Default severity mapping used by the CLI; can be overridden by flags.
+  # Default severity mapping used by the CLI.
   severity_by_change:
-    none: info
-    patch: info
-    minor: warn
-    major: error
+    none: info     # Green - no changes
+    patch: info    # Green - implementation only
+    minor: warn    # Yellow - new features
+    major: error   # Red - breaking changes (becomes warn with --allow-breaking)
 
 exit_codes:
   ok: 0

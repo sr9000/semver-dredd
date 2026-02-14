@@ -8,24 +8,30 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from semverdredd import ChangeType, Version, detect_change, generate_patch
-from semverdredd.diff import diff_module_objects
+from semverdredd import ChangeType, Version, detect_change, generate_patch, ModuleAPI, compare_modules
+from semverdredd.diff import diff_module_objects, diff_modules
+from semverdredd.snapshot import APISnapshot, save_version_file
 
 
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_BREAKING_CHANGES_DETECTED = 10
 
+DEFAULT_CONFIG_FILE = ".semver.yaml"
+DEFAULT_BAKED_FILE = "baked.yaml"
+DEFAULT_CURRENT_FILE = "current.yaml"
+DEFAULT_VERSION_FILE = "VERSION"
 
-def _load_meta_config() -> dict[str, Any]:
-    """Load configuration from meta.yaml if it exists in the current directory."""
-    meta_path = Path("meta.yaml")
-    if not meta_path.exists():
+
+def _load_config() -> dict[str, Any]:
+    """Load configuration from .semver.yaml if it exists in the current directory."""
+    config_path = Path(DEFAULT_CONFIG_FILE)
+    if not config_path.exists():
         return {}
 
     try:
         import yaml
-        with open(meta_path, 'r') as f:
+        with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
         return config or {}
     except ImportError:
@@ -198,6 +204,179 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_status(args: argparse.Namespace) -> int:
+    """Show current API status by comparing baked.yaml with current module."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
+    current_path = Path(getattr(args, "current_file", DEFAULT_CURRENT_FILE))
+    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+
+    # Check if baked.yaml exists
+    if not baked_path.exists():
+        _print_level("warn", f"No {baked_path} found. Run 'init' or 'bake' first.", use_color=use_color)
+        return EXIT_ERROR
+
+    # Load module
+    try:
+        module = import_module_from_path(args.module)
+    except ImportError as e:
+        _print_level("error", f"Error importing module: {e}", use_color=use_color)
+        return EXIT_ERROR
+    except ValueError as e:
+        _print_level("error", f"Error: {e}", use_color=use_color)
+        return EXIT_ERROR
+
+    # Load baked API
+    baked = APISnapshot.load(baked_path)
+    baked_api = baked.to_module_api()
+    current_api = ModuleAPI.from_module(module)
+
+    # Compare
+    change = compare_modules(baked_api, current_api)
+    current_version = Version.parse(baked.version)
+    suggested_version = current_version.increment(change)
+
+    change_descriptions = {
+        ChangeType.NONE: "No API changes detected",
+        ChangeType.PATCH: "Implementation changes only (patch bump)",
+        ChangeType.MINOR: "New features added (minor bump)",
+        ChangeType.MAJOR: "Breaking changes detected (major bump)",
+    }
+
+    severity = _severity_for_change(change)
+    if change == ChangeType.MAJOR and args.allow_breaking:
+        severity = "warn"
+
+    _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
+    print(f"Baked version: {baked.version}")
+    print(f"Suggested version: {suggested_version}")
+
+    if getattr(args, "details", False):
+        diff = diff_modules(baked_api, current_api)
+        if diff.breaking:
+            print("Breaking changes:")
+            for item in diff.breaking:
+                print(f"- {item}")
+        if diff.added:
+            print("Added changes:")
+            for item in diff.added:
+                print(f"- {item}")
+        if not diff.breaking and not diff.added:
+            print("No API additions or breaking changes detected.")
+
+    # Update current.yaml
+    current_snapshot = APISnapshot.from_module_api(current_api, str(suggested_version))
+    current_snapshot.save(current_path)
+    _print_level("info", f"Updated {current_path}", use_color=use_color)
+
+    # Policy gate
+    if change == ChangeType.MAJOR and not args.allow_breaking:
+        _print_level(
+            "error",
+            "Breaking changes are not allowed (use --allow-breaking to override)",
+            use_color=use_color,
+        )
+        return EXIT_BREAKING_CHANGES_DETECTED
+
+    return EXIT_OK
+
+
+def cmd_bake(args: argparse.Namespace) -> int:
+    """Bake current API state as the new baseline."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
+    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+
+    # Load module
+    try:
+        module = import_module_from_path(args.module)
+    except ImportError as e:
+        _print_level("error", f"Error importing module: {e}", use_color=use_color)
+        return EXIT_ERROR
+    except ValueError as e:
+        _print_level("error", f"Error: {e}", use_color=use_color)
+        return EXIT_ERROR
+
+    # Determine version
+    if args.version:
+        version = args.version
+    elif baked_path.exists():
+        # Load existing and compute next version
+        baked = APISnapshot.load(baked_path)
+        baked_api = baked.to_module_api()
+        current_api = ModuleAPI.from_module(module)
+        change = compare_modules(baked_api, current_api)
+        current_version = Version.parse(baked.version)
+        version = str(current_version.increment(change))
+    else:
+        # Default initial version
+        version = f"0.1.{generate_patch()}"
+
+    # Create and save snapshot
+    snapshot = APISnapshot.from_module(module, version)
+    snapshot.save(baked_path)
+    _print_level("info", f"Baked API to {baked_path} with version {version}", use_color=use_color)
+
+    # Update VERSION file
+    save_version_file(version, version_path)
+    _print_level("info", f"Updated {version_path}", use_color=use_color)
+
+    return EXIT_OK
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Initialize semver-dredd for a project."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    config_path = Path(DEFAULT_CONFIG_FILE)
+    baked_path = Path(getattr(args, "baked", DEFAULT_BAKED_FILE))
+    version_path = Path(getattr(args, "version_file", DEFAULT_VERSION_FILE))
+
+    # Create config if not exists
+    if not config_path.exists():
+        default_config = """# semver-dredd configuration
+schema_version: 1
+
+policies:
+  allow_breaking_changes: false
+
+output:
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+"""
+        config_path.write_text(default_config)
+        _print_level("info", f"Created {config_path}", use_color=use_color)
+    else:
+        _print_level("info", f"{config_path} already exists", use_color=use_color)
+
+    # Load module and create initial baked.yaml
+    try:
+        module = import_module_from_path(args.module)
+    except ImportError as e:
+        _print_level("error", f"Error importing module: {e}", use_color=use_color)
+        return EXIT_ERROR
+    except ValueError as e:
+        _print_level("error", f"Error: {e}", use_color=use_color)
+        return EXIT_ERROR
+
+    version = args.version or f"0.1.{generate_patch()}"
+
+    snapshot = APISnapshot.from_module(module, version)
+    snapshot.save(baked_path)
+    _print_level("info", f"Created {baked_path} with version {version}", use_color=use_color)
+
+    # Create VERSION file
+    save_version_file(version, version_path)
+    _print_level("info", f"Created {version_path}", use_color=use_color)
+
+    return EXIT_OK
+
+
 def cmd_bump(args: argparse.Namespace) -> int:
     """Bump version based on change type."""
     use_color = _should_use_color(getattr(args, "color", None))
@@ -257,12 +436,101 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # Init command
+    init_parser = subparsers.add_parser(
+        "init",
+        help="Initialize semver-dredd for a project",
+    )
+    init_parser.add_argument(
+        "module",
+        help="Path or name of the module to track",
+    )
+    init_parser.add_argument(
+        "--version", "-v",
+        help="Initial version (default: 0.1.YYYYMMDD001)",
+    )
+    init_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    init_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    init_parser.set_defaults(func=cmd_init)
+
+    # Status command
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Show current API status compared to baked baseline",
+    )
+    status_parser.add_argument(
+        "module",
+        help="Path or name of the module to check",
+    )
+    status_parser.add_argument(
+        "--details",
+        action="store_true",
+        help="List breaking and added API items",
+    )
+    status_parser.add_argument(
+        "--allow-breaking",
+        action="store_true",
+        help="Allow breaking changes without failing",
+    )
+    status_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    status_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    status_parser.set_defaults(func=cmd_status)
+
+    # Bake command
+    bake_parser = subparsers.add_parser(
+        "bake",
+        help="Bake current API state as the new baseline",
+    )
+    bake_parser.add_argument(
+        "module",
+        help="Path or name of the module to bake",
+    )
+    bake_parser.add_argument(
+        "--version",
+        help="Explicit version to bake (default: auto-computed)",
+    )
+    bake_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    bake_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    bake_parser.set_defaults(func=cmd_bake)
+
     # Compare command
     compare_parser = subparsers.add_parser(
         "compare",
         help="Compare two modules and detect change type",
     )
-
     compare_parser.add_argument(
         "--color",
         dest="color",
@@ -304,7 +572,7 @@ def main(argv: list[str] | None = None) -> int:
         help="List breaking and added API items detected during comparison",
     )
     compare_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
         action="store_true",
         help="Explain what parts of the API are being inspected",
     )
@@ -315,7 +583,6 @@ def main(argv: list[str] | None = None) -> int:
         "bump",
         help="Bump version based on change type",
     )
-
     bump_parser.add_argument(
         "--color",
         dest="color",
@@ -352,7 +619,6 @@ def main(argv: list[str] | None = None) -> int:
         "patch",
         help="Generate a new patch version number",
     )
-
     patch_parser.add_argument(
         "--color",
         dest="color",
@@ -374,20 +640,22 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    # Load meta config and apply defaults
-    meta_config = _load_meta_config()
-    policies = meta_config.get("policies", {})
+    # Load config and apply defaults
+    config = _load_config()
+    policies = config.get("policies", {})
 
-    # For compare: set default allow_breaking from meta.yaml if not explicitly set
-    if getattr(args, "command", None) == "compare":
-        if not args.allow_breaking and not args.disallow_breaking:
-            # Use meta.yaml default if available
+    # For compare/status: set default allow_breaking from config if not explicitly set
+    if getattr(args, "command", None) in ("compare", "status"):
+        allow = getattr(args, "allow_breaking", False)
+        disallow = getattr(args, "disallow_breaking", False)
+        if not allow and not disallow:
             default_allow = policies.get("allow_breaking_changes", False)
             args.allow_breaking = bool(default_allow)
-        elif args.allow_breaking and args.disallow_breaking:
+        elif allow and disallow:
             _print_level("error", "--allow-breaking and --disallow-breaking are mutually exclusive")
             return EXIT_ERROR
-        args.allow_breaking = bool(args.allow_breaking) and not bool(args.disallow_breaking)
+        else:
+            args.allow_breaking = bool(allow) and not bool(disallow)
 
     return args.func(args)
 
