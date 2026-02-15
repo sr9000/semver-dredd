@@ -137,8 +137,6 @@ java-17-acme-1.0.0/                       # distribution package
 
 ### Phase 1: Core Plugin Infrastructure
 
-**Duration:** 1-2 days
-
 #### 1.1 Create Plugin Base Class
 
 Create `semverdredd/plugin_base.py`:
@@ -385,8 +383,6 @@ java = "semver_dredd_java:JavaPlugin"
 
 ### Phase 2: Python Plugin Extraction
 
-**Duration:** 1-2 days
-
 #### 2.1 Create Python Plugin Package
 
 The Python plugin extracts the existing `ModuleAPI.from_module()` logic into a plugin.
@@ -525,8 +521,6 @@ build-backend = "setuptools.build_meta"
 ---
 
 ### Phase 3: Go Plugin Extraction
-
-**Duration:** 1-2 days
 
 #### 3.1 Create Go Plugin Package
 
@@ -680,8 +674,6 @@ semver_dredd_go = [
 ---
 
 ### Phase 4: Java Plugin Extraction
-
-**Duration:** 1-2 days
 
 #### 4.1 Create Java Plugin Package
 
@@ -858,8 +850,6 @@ semver_dredd_java = [
 ---
 
 ### Phase 5: CLI Plugin Management Commands
-
-**Duration:** 1 day
 
 #### 5.1 Add Plugin Commands
 
@@ -1044,8 +1034,6 @@ plugin_info_parser.set_defaults(func=cmd_plugin_info)
 
 ### Phase 6: Programmatic API Update
 
-**Duration:** 0.5 days
-
 #### 6.1 Add Plugin Registry to Programmatic API
 
 **File:** `semverdredd/__init__.py` (additions)
@@ -1103,8 +1091,6 @@ result = plugin.generate_snapshot("./my-crate", "1.0.0")
 ---
 
 ### Phase 7: Migration and Cleanup
-
-**Duration:** 1 day
 
 #### 7.1 Migration Steps
 
@@ -1229,18 +1215,17 @@ python_plugin = manager.get("python")
 
 ---
 
-## Timeline Summary
+## Brief Summary
 
-| Phase | Description | Duration |
-|-------|-------------|----------|
-| 1 | Core Plugin Infrastructure | 1-2 days |
-| 2 | Python Plugin Extraction | 1-2 days |
-| 3 | Go Plugin Extraction | 1-2 days |
-| 4 | Java Plugin Extraction | 1-2 days |
-| 5 | CLI Plugin Management | 1 day |
-| 6 | Programmatic API Update | 0.5 days |
-| 7 | Migration and Cleanup | 1 day |
-| **Total** | | **7-11 days** |
+| Phase | Description                |
+|-------|----------------------------|
+| 1     | Core Plugin Infrastructure |
+| 2     | Python Plugin Extraction   |
+| 3     | Go Plugin Extraction       |
+| 4     | Java Plugin Extraction     |
+| 5     | CLI Plugin Management      |
+| 6     | Programmatic API Update    |
+| 7     | Migration and Cleanup      |
 
 ---
 
