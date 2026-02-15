@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Self
+# from typing import Self  # Removed to support Python 3.10 without typing_extensions
 
 
 @dataclass
@@ -27,7 +27,7 @@ class Version:
     patch: int
 
     @classmethod
-    def parse(cls, version_str: str) -> Self:
+    def parse(cls, version_str: str) -> Version:
         """
         Parse a version string into a Version object.
 
@@ -86,7 +86,7 @@ class Version:
             return 0
         return int(patch_str[8:])
 
-    def increment(self, change_type, today: date | None = None) -> Self:
+    def increment(self, change_type, today: date | None = None) -> Version:
         """
         Increment version based on change type.
 
@@ -126,21 +126,21 @@ class Version:
                 patch=generate_patch(current_patch=current_patch, today=today)
             )
 
-    def __lt__(self, other: Self) -> bool:
+    def __lt__(self, other: Version) -> bool:
         """Compare versions for sorting."""
         if not isinstance(other, Version):
             return NotImplemented
         return (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
 
-    def __le__(self, other: Self) -> bool:
+    def __le__(self, other: Version) -> bool:
         return self == other or self < other
 
-    def __gt__(self, other: Self) -> bool:
+    def __gt__(self, other: Version) -> bool:
         if not isinstance(other, Version):
             return NotImplemented
         return (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
 
-    def __ge__(self, other: Self) -> bool:
+    def __ge__(self, other: Version) -> bool:
         return self == other or self > other
 
 

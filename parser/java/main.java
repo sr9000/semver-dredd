@@ -108,7 +108,7 @@ public class main {
         if (Files.isRegularFile(dir) && dir.toString().endsWith(".java")) {
             files.add(dir);
         } else {
-            try (var walk = Files.walk(dir)) {
+            try (java.util.stream.Stream<Path> walk = Files.walk(dir)) {
                 walk.filter(p -> p.toString().endsWith(".java"))
                         .filter(p -> !p.getFileName().toString().endsWith("Test.java"))
                         .forEach(files::add);
