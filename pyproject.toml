@@ -14,6 +14,12 @@ dependencies = [
 [project.scripts]
 semver-dredd = "cli:main"
 
+# Built-in plugins (core distribution). These can later move to separate packages.
+[project.entry-points."semver_dredd.plugins"]
+python = "semverdredd.plugins.python:PythonPlugin"
+go = "semverdredd.plugins.go:GoPlugin"
+java = "semverdredd.plugins.java:JavaPlugin"
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

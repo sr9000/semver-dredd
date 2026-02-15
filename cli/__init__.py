@@ -464,21 +464,25 @@ def cmd_patch(args: argparse.Namespace) -> int:
 def _generate_snapshot_yaml(lang: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
     """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
 
-    from cli.languages import get_plugin
+    from semverdredd.plugin_manager import get_plugin
 
     plugin = get_plugin(lang)
     if not plugin:
         _print_level("error", f"Unsupported language: {lang}", use_color=use_color)
         return EXIT_ERROR, ""
 
-    exit_code, output = plugin.generate_snapshot(path, version, use_color)
+    ok, msg = plugin.validate_path(path)
+    if not ok:
+        _print_level("error", msg, use_color=use_color)
+        return EXIT_ERROR, ""
 
-    if exit_code != EXIT_OK:
-        # If there's an error, the output contains the error message
-        _print_level("error", output, use_color=use_color)
-        return exit_code, ""
+    result = plugin.generate_snapshot(path, version, options={"use_color": use_color})
 
-    return EXIT_OK, output
+    if not result.success:
+        _print_level("error", result.error_message or "Snapshot generation failed", use_color=use_color)
+        return EXIT_ERROR, ""
+
+    return EXIT_OK, result.yaml_content
 
 
 def cmd_snapshot(args: argparse.Namespace) -> int:
@@ -498,6 +502,27 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
         _print_level("info", f"Wrote snapshot to {out_path}", use_color=use_color)
     else:
         print(yaml_str, end="")
+
+    return EXIT_OK
+
+
+def cmd_plugin_list(args: argparse.Namespace) -> int:
+    """List discovered plugins."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    from semverdredd.plugin_manager import list_plugins
+
+    plugins = list_plugins()
+    if not plugins:
+        _print_level("info", "No plugins found", use_color=use_color)
+        return EXIT_OK
+
+    for info in sorted(plugins, key=lambda i: i.name):
+        p = info.plugin
+        line = f"{info.name}\t{p.version}\t{p.description}"
+        if info.origin:
+            line += f"\t[{info.origin}]"
+        _print_level("info", line, use_color=use_color)
 
     return EXIT_OK
 
@@ -1128,13 +1153,12 @@ def main(argv: list[str] | None = None) -> int:
     # Snapshot command
     snapshot_parser = subparsers.add_parser(
         "snapshot",
-        help="Generate an API snapshot for a Go/Java project (baked.yaml-like)",
+        help="Generate an API snapshot (baked.yaml-like) using language plugins",
     )
     snapshot_parser.add_argument(
         "--lang",
         required=True,
-        choices=["go", "java"],
-        help="Language parser to use",
+        help="Language plugin to use (e.g. python, go, java)",
     )
     snapshot_parser.add_argument(
         "--path",
@@ -1166,30 +1190,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     snapshot_parser.set_defaults(func=cmd_snapshot)
 
-    # Template command
-    template_parser = subparsers.add_parser(
-        "template",
-        help="Generate a comprehensive .semver.yaml template with all options and comments",
+    # Plugin management
+    plugin_parser = subparsers.add_parser(
+        "plugin",
+        help="Manage semver-dredd language plugins",
     )
-    template_parser.add_argument(
-        "--out",
-        default="",
-        help="Output file (default: stdout)",
+    plugin_sub = plugin_parser.add_subparsers(dest="plugin_cmd")
+
+    plugin_list = plugin_sub.add_parser(
+        "list",
+        help="List discovered plugins",
     )
-    template_parser.add_argument(
-        "--color",
-        dest="color",
-        action="store_true",
-        default=None,
-        help="Force colored log output",
-    )
-    template_parser.add_argument(
-        "--no-color",
-        dest="color",
-        action="store_false",
-        help="Disable colored log output",
-    )
-    template_parser.set_defaults(func=cmd_template)
+    plugin_list.set_defaults(func=cmd_plugin_list)
 
 
     args = parser.parse_args(argv)
