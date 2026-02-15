@@ -527,6 +527,99 @@ def cmd_plugin_list(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_plugin_install(args: argparse.Namespace) -> int:
+    """Install a plugin distribution into the user plugin directory."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    import shutil
+
+    from semverdredd.plugin_manager import get_plugin_manager
+
+    mgr = get_plugin_manager()
+    target_dir = mgr.ensure_plugin_dir()
+
+    pip = [str(sys.executable), "-m", "pip"]
+    if shutil.which(str(sys.executable)) is None:
+        _print_level("error", "Python executable not found (cannot install plugins)", use_color=use_color)
+        return EXIT_ERROR
+
+    cmd = pip + [
+        "install",
+        "--upgrade",
+        "--target",
+        str(target_dir),
+        args.source,
+    ]
+
+    _print_level("info", f"Installing plugin into {target_dir}: {args.source}", use_color=use_color)
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        _print_level("error", "Plugin installation failed", use_color=use_color)
+        return EXIT_ERROR
+
+    mgr.load_plugins(force=True)
+    _print_level("info", "Plugin installed", use_color=use_color)
+    return EXIT_OK
+
+
+def cmd_plugin_remove(args: argparse.Namespace) -> int:
+    """Remove a plugin installed in the user plugin directory."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    import shutil
+
+    from semverdredd.plugin_manager import get_plugin_manager
+
+    mgr = get_plugin_manager()
+    plugin_name = args.name.lower()
+
+    target_dir = mgr.user_plugin_dir
+    if not target_dir.exists():
+        _print_level("error", f"Plugin directory does not exist: {target_dir}", use_color=use_color)
+        return EXIT_ERROR
+
+    # Best-effort removal by deleting matching package directories and dist-info.
+    removed_any = False
+
+    candidates = [
+        target_dir / plugin_name,
+        target_dir / f"semver_dredd_{plugin_name}",
+        target_dir / f"semverdredd_{plugin_name}",
+    ]
+
+    for c in candidates:
+        if c.exists() and c.is_dir():
+            shutil.rmtree(c)
+            removed_any = True
+
+    # dist-info dirs
+    patterns = [
+        f"{plugin_name}-*.dist-info",
+        f"semver_dredd_{plugin_name}-*.dist-info",
+        f"semverdredd_{plugin_name}-*.dist-info",
+        f"semver-dredd-{plugin_name}-*.dist-info",
+    ]
+    for pat in patterns:
+        for dist in target_dir.glob(pat):
+            if dist.is_dir():
+                shutil.rmtree(dist)
+                removed_any = True
+
+    if not removed_any:
+        _print_level(
+            "error",
+            f"Plugin '{plugin_name}' not found in {target_dir} (note: system-installed plugins can't be removed here)",
+            use_color=use_color,
+        )
+        return EXIT_ERROR
+
+    mgr.unregister(plugin_name)
+    mgr.load_plugins(force=True)
+
+    _print_level("info", f"Removed plugin '{plugin_name}' from {target_dir}", use_color=use_color)
+    return EXIT_OK
+
+
 def cmd_xl_init(args: argparse.Namespace) -> int:
     """Initialize semver-dredd for a Go/Java project."""
     use_color = _should_use_color(getattr(args, "color", None))
@@ -1202,6 +1295,26 @@ def main(argv: list[str] | None = None) -> int:
         help="List discovered plugins",
     )
     plugin_list.set_defaults(func=cmd_plugin_list)
+
+    plugin_install = plugin_sub.add_parser(
+        "install",
+        help="Install a plugin distribution into the user plugin directory",
+    )
+    plugin_install.add_argument(
+        "source",
+        help="Anything pip install accepts (path, wheel, sdist, or package spec)",
+    )
+    plugin_install.set_defaults(func=cmd_plugin_install)
+
+    plugin_remove = plugin_sub.add_parser(
+        "remove",
+        help="Remove a plugin from the user plugin directory (best-effort)",
+    )
+    plugin_remove.add_argument(
+        "name",
+        help="Plugin name to remove (e.g. 'go', 'java', 'python' or vendor plugin name)",
+    )
+    plugin_remove.set_defaults(func=cmd_plugin_remove)
 
 
     args = parser.parse_args(argv)

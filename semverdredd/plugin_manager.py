@@ -44,6 +44,16 @@ class PluginManager:
         self._registry: dict[str, PluginInfo] = {}
         self._loaded = False
 
+        # Register built-ins immediately so the core CLI works in editable/dev installs
+        # even when entry point metadata isn't available.
+        try:
+            from semverdredd.plugins.builtin import register_builtin_plugins
+
+            register_builtin_plugins(self)
+        except Exception:
+            # Never make plugin discovery fatal.
+            pass
+
     def ensure_plugin_dir(self) -> Path:
         self.user_plugin_dir.mkdir(parents=True, exist_ok=True)
         return self.user_plugin_dir
@@ -54,7 +64,7 @@ class PluginManager:
 
         # Reset on force reload
         if force:
-            self._registry = {k: v for k, v in self._registry.items() if v.origin == "manual"}
+            self._registry = {k: v for k, v in self._registry.items() if v.origin in ("manual", "builtin")}
 
         # Add user plugin dir to sys.path for import resolution (if present)
         try:

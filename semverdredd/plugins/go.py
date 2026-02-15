@@ -6,6 +6,31 @@ from typing import Any, Optional
 
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 
+try:
+    from importlib.resources import files
+except ImportError:  # pragma: no cover
+    files = None  # type: ignore[assignment]
+
+
+def _resource_parser_dir(*parts: str) -> Path | None:
+    """Resolve a parser directory shipped inside the core distribution.
+
+    In this repo we keep parsers under the top-level `parser/` folder, which is
+    included as package data for the `semverdredd` package.
+    """
+    if files is None:
+        return None
+    try:
+        candidate = files("semverdredd").joinpath(*parts)
+        return Path(str(candidate))
+    except Exception:
+        return None
+
+
+def _dev_parser_dir(*parts: str) -> Path:
+    # semverdredd/plugins/go.py -> semverdredd -> repo root
+    return Path(__file__).resolve().parents[2].joinpath(*parts)
+
 
 class GoPlugin(LanguagePlugin):
     @property
@@ -21,8 +46,12 @@ class GoPlugin(LanguagePlugin):
         return "Analyzes Go packages using bundled parser (go run)"
 
     def generate_snapshot(self, path: str, version: str, options: Optional[dict[str, Any]] = None) -> SnapshotResult:
-        # NOTE: For now we keep the existing dev-tree behavior.
-        parser_dir = Path(__file__).resolve().parents[2] / "parser" / "golang"
+        parser_dir = _resource_parser_dir("parser", "golang")
+        if not parser_dir or not parser_dir.exists():
+            parser_dir = _dev_parser_dir("parser", "golang")
+
+        if not parser_dir.exists():
+            return SnapshotResult(False, "", "Go parser not found in package resources.")
 
         cmd = [
             "go",
@@ -58,7 +87,10 @@ class JavaPlugin(LanguagePlugin):
         return "Analyzes Java source using bundled parser (javac/java)"
 
     def generate_snapshot(self, path: str, version: str, options: Optional[dict[str, Any]] = None) -> SnapshotResult:
-        java_dir = Path(__file__).resolve().parents[2] / "parser" / "java"
+        java_dir = _resource_parser_dir("parser", "java")
+        if not java_dir or not java_dir.exists():
+            java_dir = _dev_parser_dir("parser", "java")
+
         jar = java_dir / "lib" / "snakeyaml-2.2.jar"
         src = java_dir / "main.java"
 
