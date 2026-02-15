@@ -86,7 +86,7 @@ class TestCLICompare:
 
     def test_compare_pygeometry(self, capsys):
         """Test comparing pygeometry1 and pygeometry2."""
-        result = main(["compare", "example.pygeometry1", "example.pygeometry2"])
+        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2"])
         assert result == 0
         captured = capsys.readouterr()
         assert "MINOR" in captured.out
@@ -94,7 +94,7 @@ class TestCLICompare:
         assert "[WARN]" in captured.err
 
     def test_compare_pygeometry_details_lists_added(self, capsys):
-        result = main(["compare", "example.pygeometry1", "example.pygeometry2", "--details"])
+        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--details"])
         assert result == 0
         captured = capsys.readouterr()
         # Should list at least one added item (volume, translate)
@@ -106,8 +106,8 @@ class TestCLICompare:
         # v2 -> v1 is breaking (removes volume/translate and changes signatures)
         result = main([
             "compare",
-            "example.pygeometry2",
-            "example.pygeometry1",
+            "example.py.pygeometry2",
+            "example.py.pygeometry1",
             "--details",
             "--allow-breaking",
         ])
@@ -118,14 +118,14 @@ class TestCLICompare:
         assert "method removed: translate" in captured.out
 
     def test_compare_verbose_explains_inspected_api(self, capsys):
-        result = main(["compare", "example.pygeometry1", "example.pygeometry2", "--verbose"])
+        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--verbose"])
         assert result == 0
         captured = capsys.readouterr()
         assert "Inspecting public module API" in captured.err or "Inspecting public module API" in captured.out
 
     def test_compare_same_module(self, capsys):
         """Test comparing same module."""
-        result = main(["compare", "example.pygeometry1", "example.pygeometry1"])
+        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry1"])
         assert result == 0
         captured = capsys.readouterr()
         assert "NONE" in captured.out
@@ -135,8 +135,8 @@ class TestCLICompare:
         """Test compare with current version suggestion."""
         result = main([
             "compare",
-            "example.pygeometry1",
-            "example.pygeometry2",
+            "example.py.pygeometry1",
+            "example.py.pygeometry2",
             "--current", "1.0.20260213001"
         ])
         assert result == 0
@@ -145,7 +145,7 @@ class TestCLICompare:
 
     def test_compare_invalid_module(self, capsys):
         """Test error for invalid module."""
-        result = main(["compare", "nonexistent.module", "example.pygeometry1"])
+        result = main(["compare", "nonexistent.module", "example.py.pygeometry1"])
         assert result == 1
         err = capsys.readouterr().err
         assert "Error" in err
@@ -153,8 +153,8 @@ class TestCLICompare:
     def test_compare_mutually_exclusive_breaking_flags(self, capsys):
         result = main([
             "compare",
-            "example.pygeometry1",
-            "example.pygeometry1",
+            "example.py.pygeometry1",
+            "example.py.pygeometry1",
             "--allow-breaking",
             "--disallow-breaking",
         ])
@@ -168,7 +168,7 @@ class TestCLIBreakingPolicy:
 
     def test_breaking_changes_disallowed_by_default(self, capsys):
         # v2 removes things compared to v1 => MAJOR
-        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
         assert result == 10
         captured = capsys.readouterr()
         assert "MAJOR" in captured.out
@@ -178,8 +178,8 @@ class TestCLIBreakingPolicy:
     def test_breaking_changes_allowed_with_flag(self, capsys):
         result = main([
             "compare",
-            "example.pygeometry2",
-            "example.pygeometry1",
+            "example.py.pygeometry2",
+            "example.py.pygeometry1",
             "--allow-breaking",
         ])
         assert result == 0
@@ -207,7 +207,7 @@ policies:
         # v2 removes things compared to v1 => MAJOR
         # Without config, this would fail (exit 10)
         # With config allowing breaking, should exit 0
-        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
         assert result == 0
         captured = capsys.readouterr()
         assert "MAJOR" in captured.out
@@ -230,7 +230,7 @@ policies:
         env_file.write_text("SEMVER_DREDD_ALLOW_BREAKING=false\n")
 
         # .env should override yaml, so breaking changes disallowed
-        result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+        result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
         assert result == 10  # Should fail because .env overrides yaml
         captured = capsys.readouterr()
         assert "Breaking changes are not allowed" in captured.err
@@ -245,7 +245,7 @@ policies:
 
         # Real env var overrides .env
         with patch.dict(os.environ, {"SEMVER_DREDD_ALLOW_BREAKING": "true"}):
-            result = main(["compare", "example.pygeometry2", "example.pygeometry1"])
+            result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
             assert result == 0  # Should pass because real env overrides .env
             captured = capsys.readouterr()
             assert "MAJOR" in captured.out
@@ -272,8 +272,8 @@ policies:
             # But CLI --disallow-breaking should override everything
             result = main([
                 "compare",
-                "example.pygeometry2",
-                "example.pygeometry1",
+                "example.py.pygeometry2",
+                "example.py.pygeometry1",
                 "--disallow-breaking",
             ])
             assert result == 10  # Should fail because CLI overrides all

@@ -12,7 +12,7 @@ from semverdredd import (
     compare_modules,
     detect_change,
 )
-from example import pygeometry2
+from example.py import pygeometry2
 from example.py import pygeometry1
 
 

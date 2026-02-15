@@ -6,7 +6,7 @@ from pathlib import Path
 from cli import main
 from semverdredd.snapshot import APISnapshot, save_version_file, load_version_file
 from semverdredd import ModuleAPI
-from example import pygeometry2
+from example.py import pygeometry2
 from example.py import pygeometry1
 
 
@@ -60,7 +60,7 @@ class TestCLIInit:
 
     def test_init_creates_files(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        result = main(["init", "example.pygeometry1", "--version", "1.0.0"])
+        result = main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
         assert result == 0
         assert (tmp_path / ".semver.yaml").exists()
         assert (tmp_path / "baked.yaml").exists()
@@ -74,9 +74,9 @@ class TestCLIStatus:
     def test_status_detects_changes(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         # Init with pygeometry1
-        main(["init", "example.pygeometry1", "--version", "1.0.0"])
+        main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
         # Check status with pygeometry2 (has additions)
-        result = main(["status", "example.pygeometry2", "--details"])
+        result = main(["status", "example.py.pygeometry2", "--details"])
         assert result == 0
         captured = capsys.readouterr()
         assert "MINOR" in captured.err  # Severity goes to stderr
@@ -90,9 +90,9 @@ class TestCLIBake:
     def test_bake_updates_version(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         # Init with pygeometry1
-        main(["init", "example.pygeometry1", "--version", "1.0.0"])
+        main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
         # Bake pygeometry2
-        result = main(["bake", "example.pygeometry2"])
+        result = main(["bake", "example.py.pygeometry2"])
         assert result == 0
         # VERSION should be updated
         version = (tmp_path / "VERSION").read_text().strip()
