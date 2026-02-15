@@ -24,6 +24,15 @@ from semverdredd.version import Version, generate_patch
 # Structured result types (pure data)
 from semverdredd.result import APIDiff, CompareResult, SuggestVersionResult
 
+# Plugin system (programmatic API)
+from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+from semverdredd.plugin_manager import (
+    PluginManager,
+    get_plugin_manager,
+    get_plugin,
+    list_plugins,
+)
+
 
 class ChangeType(Enum):
     """Type of API change detected."""
@@ -359,4 +368,12 @@ __all__ = [
     "SuggestVersionResult",
     "compare",
     "compare_and_suggest",
+
+    # Plugin system
+    "LanguagePlugin",
+    "SnapshotResult",
+    "PluginManager",
+    "get_plugin_manager",
+    "get_plugin",
+    "list_plugins",
 ]

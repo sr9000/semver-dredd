@@ -531,17 +531,12 @@ def cmd_plugin_install(args: argparse.Namespace) -> int:
     """Install a plugin distribution into the user plugin directory."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    import shutil
-
     from semverdredd.plugin_manager import get_plugin_manager
 
     mgr = get_plugin_manager()
     target_dir = mgr.ensure_plugin_dir()
 
     pip = [str(sys.executable), "-m", "pip"]
-    if shutil.which(str(sys.executable)) is None:
-        _print_level("error", "Python executable not found (cannot install plugins)", use_color=use_color)
-        return EXIT_ERROR
 
     cmd = pip + [
         "install",
@@ -617,6 +612,38 @@ def cmd_plugin_remove(args: argparse.Namespace) -> int:
     mgr.load_plugins(force=True)
 
     _print_level("info", f"Removed plugin '{plugin_name}' from {target_dir}", use_color=use_color)
+    return EXIT_OK
+
+
+def cmd_plugin_info(args: argparse.Namespace) -> int:
+    """Show details about a discovered plugin."""
+    use_color = _should_use_color(getattr(args, "color", None))
+
+    from semverdredd.plugin_manager import get_plugin_manager
+
+    mgr = get_plugin_manager()
+    mgr.load_plugins()
+
+    name = args.name.lower()
+    info = next((i for i in mgr.list_plugins() if i.name == name), None)
+    if info is None:
+        _print_level("error", f"Plugin '{args.name}' not found", use_color=use_color)
+        return EXIT_ERROR
+
+    p = info.plugin
+    print(f"Name: {info.name}")
+    print(f"Display: {p.display_name}")
+    print(f"Version: {p.version}")
+    print(f"Origin: {info.origin}")
+    if info.entry_point:
+        print(f"Entry point: {info.entry_point}")
+    print(f"Description: {p.description}")
+
+    # Optional: parser assets location
+    parser_path = getattr(p, "get_parser_resource_path", lambda: None)()
+    if parser_path:
+        print(f"Parser path: {parser_path}")
+
     return EXIT_OK
 
 
@@ -1315,6 +1342,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Plugin name to remove (e.g. 'go', 'java', 'python' or vendor plugin name)",
     )
     plugin_remove.set_defaults(func=cmd_plugin_remove)
+
+    plugin_info = plugin_sub.add_parser(
+        "info",
+        help="Show details about a discovered plugin",
+    )
+    plugin_info.add_argument(
+        "name",
+        help="Plugin name to inspect",
+    )
+    plugin_info.set_defaults(func=cmd_plugin_info)
 
 
     args = parser.parse_args(argv)
