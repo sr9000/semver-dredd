@@ -1,0 +1,43 @@
+schema_version: 2
+version: "2.0.0"
+language: java
+source:
+  kind: directory
+  path: /example/java/javageometry_breaking
+api:
+  functions:
+    Geometry.area:
+      parameters:
+        - name: size
+          type: double
+          optional: false
+      returns:
+        - name: ""
+          type: double
+          optional: false
+  types:
+    Geometry:
+      methods:
+        area:
+          parameters:
+            - name: size
+              type: double
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
+    Point:
+      fields:
+        - name: x
+          type: double
+      methods:
+        distance:
+          parameters:
+            - name: other
+              type: Point
+              optional: false
+          returns:
+            - name: ""
+              type: int
+              optional: false

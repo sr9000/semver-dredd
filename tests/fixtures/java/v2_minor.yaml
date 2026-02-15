@@ -1,0 +1,94 @@
+schema_version: 2
+version: "1.1.0"
+language: java
+source:
+  kind: directory
+  path: /example/java/javageometry2
+api:
+  functions:
+    Geometry.area:
+      parameters:
+        - name: width
+          type: double
+          optional: false
+        - name: height
+          type: double
+          optional: false
+      returns:
+        - name: ""
+          type: double
+          optional: false
+    Geometry.volume:
+      parameters:
+        - name: width
+          type: double
+          optional: false
+        - name: height
+          type: double
+          optional: false
+        - name: depth
+          type: double
+          optional: false
+      returns:
+        - name: ""
+          type: double
+          optional: false
+  types:
+    Geometry:
+      methods:
+        area:
+          parameters:
+            - name: width
+              type: double
+              optional: false
+            - name: height
+              type: double
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
+        volume:
+          parameters:
+            - name: width
+              type: double
+              optional: false
+            - name: height
+              type: double
+              optional: false
+            - name: depth
+              type: double
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
+    Point:
+      fields:
+        - name: x
+          type: double
+        - name: y
+          type: double
+        - name: z
+          type: double
+      methods:
+        distance:
+          parameters:
+            - name: other
+              type: Point
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
+        translate:
+          parameters:
+            - name: dx
+              type: double
+              optional: false
+            - name: dy
+              type: double
+              optional: false
+            - name: dz
+              type: double
+              optional: false

@@ -70,7 +70,7 @@ public class main {
         DumperOptions opts = new DumperOptions();
         opts.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         opts.setPrettyFlow(true);
-        opts.setSortKeys(false);
+        // setSortKeys is not available in snakeyaml 2.2
 
         Yaml yaml = new Yaml(opts);
         String outYaml = yaml.dump(snapshot);

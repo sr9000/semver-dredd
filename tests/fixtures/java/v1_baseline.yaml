@@ -1,0 +1,51 @@
+schema_version: 2
+version: "1.0.0"
+language: java
+source:
+  kind: directory
+  path: /example/java/javageometry1
+api:
+  functions:
+    Geometry.area:
+      parameters:
+        - name: width
+          type: double
+          optional: false
+        - name: height
+          type: double
+          optional: false
+      returns:
+        - name: ""
+          type: double
+          optional: false
+  types:
+    Geometry:
+      methods:
+        area:
+          parameters:
+            - name: width
+              type: double
+              optional: false
+            - name: height
+              type: double
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
+    Point:
+      fields:
+        - name: x
+          type: double
+        - name: y
+          type: double
+      methods:
+        distance:
+          parameters:
+            - name: other
+              type: Point
+              optional: false
+          returns:
+            - name: ""
+              type: double
+              optional: false
