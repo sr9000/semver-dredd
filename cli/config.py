@@ -22,7 +22,7 @@ ENV_VAR_PREFIX = "SEMVER_DREDD_"
 ENV_VAR_MAPPING = {
     "SEMVER_DREDD_ALLOW_BREAKING": ("policies", "allow_breaking_changes"),
     "SEMVER_DREDD_COLOR": ("output", "color"),
-    "SEMVER_DREDD_LANG": ("language",),
+    "SEMVER_DREDD_PLUGIN": ("plugin",),
     "SEMVER_DREDD_BAKED_FILE": ("files", "baked"),
     "SEMVER_DREDD_CURRENT_FILE": ("files", "current"),
     "SEMVER_DREDD_VERSION_FILE": ("files", "version"),
@@ -39,8 +39,8 @@ class Config:
     # Output
     color: bool | None = None  # None means auto-detect
 
-    # Language
-    language: str = "python"
+    # Plugin
+    plugin: str = "python"
 
     # Files
     baked_file: str = "baked.yaml"
@@ -187,8 +187,8 @@ def load_config(
     color_raw = output.get("color")
     color = _parse_bool(color_raw)  # None means auto-detect
 
-    # Parse language
-    language = str(merged.get("language", "python"))
+    # Parse plugin
+    plugin = str(merged.get("plugin", "python"))
 
     # Parse files
     baked_file = str(files.get("baked", "baked.yaml"))
@@ -198,7 +198,7 @@ def load_config(
     return Config(
         allow_breaking_changes=allow_breaking,
         color=color,
-        language=language,
+        plugin=plugin,
         baked_file=baked_file,
         current_file=current_file,
         version_file=version_file,
@@ -228,13 +228,9 @@ def apply_config_defaults(args: Any, config: Config) -> None:
     if hasattr(args, "color") and args.color is None:
         args.color = config.color
 
-    # lang: only set if not explicitly set via CLI
-    if hasattr(args, "lang"):
-        # Check if lang was explicitly provided or is still the argparse default
-        # We can detect this by checking if it's the default "python"
-        # But since we want explicit CLI to override, we check _explicit_lang
-        if getattr(args, "_lang_from_config", False) or getattr(args, "lang", None) is None:
-            args.lang = config.language
+    # plugin: only set if not explicitly set via CLI
+    if hasattr(args, "plugin") and args.plugin is None:
+        args.plugin = config.plugin
 
     # File paths: apply config defaults
     if hasattr(args, "baked"):

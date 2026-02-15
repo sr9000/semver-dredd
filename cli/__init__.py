@@ -191,8 +191,12 @@ def cmd_status(args: argparse.Namespace) -> int:
     """Show current API status compared to baked baseline."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # If lang is not python, delegate to xl logic
-    if hasattr(args, "lang") and args.lang != "python":
+    # Handle default
+    if not getattr(args, "plugin", None):
+        args.plugin = "python"
+
+    # If plugin is not python, delegate to xl logic
+    if getattr(args, "plugin", "python") != "python":
         args.path = args.module
         return cmd_xl_status(args)
 
@@ -309,8 +313,12 @@ def cmd_bake(args: argparse.Namespace) -> int:
     """Bake current API state as the new baseline."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # If lang is not python, delegate to xl logic
-    if hasattr(args, "lang") and args.lang != "python":
+    # Handle default
+    if not getattr(args, "plugin", None):
+        args.plugin = "python"
+
+    # If plugin is not python, delegate to xl logic
+    if getattr(args, "plugin", "python") != "python":
         args.path = args.module
         return cmd_xl_bake(args)
 
@@ -358,8 +366,12 @@ def cmd_init(args: argparse.Namespace) -> int:
     """Initialize semver-dredd for a project."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # If lang is not python, delegate to xl logic
-    if hasattr(args, "lang") and args.lang != "python":
+    # Handle default
+    if not getattr(args, "plugin", None):
+        args.plugin = "python"
+
+    # If plugin is not python, delegate to xl logic
+    if getattr(args, "plugin", "python") != "python":
         # Remap args for delegation
         args.path = args.module
         return cmd_xl_init(args)
@@ -461,14 +473,14 @@ def cmd_patch(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
 
-def _generate_snapshot_yaml(lang: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
+def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
     """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
 
     from semverdredd.plugin_manager import get_plugin
 
-    plugin = get_plugin(lang)
+    plugin = get_plugin(plugin_name)
     if not plugin:
-        _print_level("error", f"Unsupported language: {lang}", use_color=use_color)
+        _print_level("error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color)
         return EXIT_ERROR, ""
 
     ok, msg = plugin.validate_path(path)
@@ -489,11 +501,11 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     """Generate a baked.yaml-like snapshot using language-specific parsers."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    lang = args.lang.lower()
+    plugin_name = args.plugin.lower()
     version = args.version
     out_path = args.out
 
-    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -655,14 +667,14 @@ def cmd_xl_init(args: argparse.Namespace) -> int:
     baked_path = Path(DEFAULT_BAKED_FILE)
     version_path = Path(DEFAULT_VERSION_FILE)
 
-    lang = args.lang.lower()
+    plugin_name = args.plugin.lower()
     version = args.version or f"0.1.{generate_patch()}"
 
     # Create config if not exists
     if not config_path.exists():
         default_config = f"""# semver-dredd configuration
 schema_version: 1
-language: {lang}
+plugin: {plugin_name}
 
 policies:
   allow_breaking_changes: false
@@ -680,7 +692,7 @@ output:
         _print_level("info", f"{config_path} already exists", use_color=use_color)
 
     # Generate snapshot
-    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -716,7 +728,7 @@ def cmd_xl_status(args: argparse.Namespace) -> int:
         _print_level("warn", f"No {baked_path} found. Run 'init' first.", use_color=use_color)
         return EXIT_ERROR
 
-    lang = args.lang.lower()
+    plugin_name = args.plugin.lower()
 
     # Load baked snapshot
     from semverdredd.snapshot_io import load_snapshot
@@ -725,7 +737,7 @@ def cmd_xl_status(args: argparse.Namespace) -> int:
     baked = load_snapshot(baked_path)
 
     # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
-    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, "0.0.0", use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, "0.0.0", use_color)
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -825,7 +837,7 @@ def cmd_xl_bake(args: argparse.Namespace) -> int:
     baked_path = Path(DEFAULT_BAKED_FILE)
     version_path = Path(DEFAULT_VERSION_FILE)
 
-    lang = args.lang.lower()
+    plugin_name = args.plugin.lower()
 
     # Determine version
     if args.version:
@@ -838,7 +850,7 @@ def cmd_xl_bake(args: argparse.Namespace) -> int:
         baked = load_snapshot(baked_path)
 
         # Generate current snapshot
-        exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, "0.0.0", use_color)
+        exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, "0.0.0", use_color)
         if exit_code != EXIT_OK:
             return exit_code
 
@@ -857,7 +869,7 @@ def cmd_xl_bake(args: argparse.Namespace) -> int:
         version = f"0.1.{generate_patch()}"
 
     # Generate and save snapshot with final version
-    exit_code, yaml_str = _generate_snapshot_yaml(lang, args.path, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -895,10 +907,10 @@ def cmd_template(args: argparse.Namespace) -> int:
 # Currently supported: 1
 schema_version: 1
 
-# Project language (optional, defaults to 'python')
-# Supported: python, go, java
-# Can be overridden by SEMVER_DREDD_LANG env var or --lang CLI arg
-# language: python
+# Project plugin (optional, defaults to 'python')
+# Supported: python, go, java (or any installed plugin)
+# Can be overridden by SEMVER_DREDD_PLUGIN env var or --plugin CLI arg
+# plugin: python
 
 # Policies section controls semver-dredd behavior
 policies:
@@ -980,7 +992,7 @@ files:
 # ================================
 # SEMVER_DREDD_ALLOW_BREAKING - Set to 'true' or 'false'
 # SEMVER_DREDD_COLOR - Set to 'true' or 'false'
-# SEMVER_DREDD_LANG - Set to 'python', 'go', or 'java'
+# SEMVER_DREDD_PLUGIN - Set to 'python', 'go', or 'java' (or plugin name)
 # SEMVER_DREDD_BAKED_FILE - Path to baked.yaml
 # SEMVER_DREDD_CURRENT_FILE - Path to current.yaml
 # SEMVER_DREDD_VERSION_FILE - Path to VERSION file
@@ -1021,10 +1033,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Module name (Python) or source path (Go/Java)",
     )
     init_parser.add_argument(
-        "--lang",
-        choices=["python", "go", "java"],
-        default="python",
-        help="Project language (default: python)",
+        "--plugin",
+        help="Language plugin to use (default: python)",
     )
     init_parser.add_argument(
         "--version", "-v",
@@ -1065,10 +1075,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Module name (Python) or source path (Go/Java)",
     )
     status_parser.add_argument(
-        "--lang",
-        choices=["python", "go", "java"],
-        default="python",
-        help="Project language (default: python)",
+        "--plugin",
+        help="Language plugin to use (default: python)",
     )
     status_parser.add_argument(
         "--date",
@@ -1124,10 +1132,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Module name (Python) or source path (Go/Java)",
     )
     bake_parser.add_argument(
-        "--lang",
-        choices=["python", "go", "java"],
-        default="python",
-        help="Project language (default: python)",
+        "--plugin",
+        help="Language plugin to use (default: python)",
     )
     bake_parser.add_argument(
         "--version",
@@ -1301,7 +1307,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Generate an API snapshot (baked.yaml-like) using language plugins",
     )
     snapshot_parser.add_argument(
-        "--lang",
+        "--plugin",
         required=True,
         help="Language plugin to use (e.g. python, go, java)",
     )

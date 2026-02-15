@@ -94,13 +94,13 @@ class TestLoadYamlConfig:
         config_file = tmp_path / ".semver.yaml"
         config_file.write_text("""
 schema_version: 1
-language: go
+plugin: go
 policies:
   allow_breaking_changes: true
 """)
         result = _load_yaml_config(config_file)
         assert result["schema_version"] == 1
-        assert result["language"] == "go"
+        assert result["plugin"] == "go"
         assert result["policies"]["allow_breaking_changes"] is True
 
     def test_load_yaml_config_missing(self, tmp_path):
@@ -123,7 +123,7 @@ class TestLoadConfig:
         config = load_config(cwd=tmp_path)
         assert config.allow_breaking_changes is False
         assert config.color is None
-        assert config.language == "python"
+        assert config.plugin == "python"
         assert config.baked_file == "baked.yaml"
         assert config.current_file == "current.yaml"
         assert config.version_file == "VERSION"
@@ -133,7 +133,7 @@ class TestLoadConfig:
         config_file = tmp_path / ".semver.yaml"
         config_file.write_text("""
 schema_version: 1
-language: go
+plugin: go
 policies:
   allow_breaking_changes: true
 output:
@@ -146,7 +146,7 @@ files:
         config = load_config(cwd=tmp_path)
         assert config.allow_breaking_changes is True
         assert config.color is True
-        assert config.language == "go"
+        assert config.plugin == "go"
         assert config.baked_file == "custom_baked.yaml"
         assert config.current_file == "custom_current.yaml"
         assert config.version_file == "CUSTOM_VERSION"
@@ -155,40 +155,40 @@ files:
         """Test .env file overrides .semver.yaml."""
         config_file = tmp_path / ".semver.yaml"
         config_file.write_text("""
-language: python
+plugin: python
 policies:
   allow_breaking_changes: false
 """)
         env_file = tmp_path / ".env"
         env_file.write_text("""
 SEMVER_DREDD_ALLOW_BREAKING=true
-SEMVER_DREDD_LANG=java
+SEMVER_DREDD_PLUGIN=java
 """)
         config = load_config(cwd=tmp_path)
         assert config.allow_breaking_changes is True
-        assert config.language == "java"
+        assert config.plugin == "java"
 
     def test_load_config_real_env_overrides_env_file(self, tmp_path):
         """Test real environment variables override .env file."""
         env_file = tmp_path / ".env"
         env_file.write_text("""
 SEMVER_DREDD_ALLOW_BREAKING=false
-SEMVER_DREDD_LANG=go
+SEMVER_DREDD_PLUGIN=go
 """)
         with patch.dict(os.environ, {
             "SEMVER_DREDD_ALLOW_BREAKING": "true",
-            "SEMVER_DREDD_LANG": "java",
+            "SEMVER_DREDD_PLUGIN": "java",
         }):
             config = load_config(cwd=tmp_path)
             assert config.allow_breaking_changes is True
-            assert config.language == "java"
+            assert config.plugin == "java"
 
     def test_load_config_priority_chain(self, tmp_path):
         """Test full priority chain: yaml < .env < env vars."""
         # Layer 1: .semver.yaml sets everything to one value
         config_file = tmp_path / ".semver.yaml"
         config_file.write_text("""
-language: python
+plugin: python
 policies:
   allow_breaking_changes: false
 output:
@@ -202,8 +202,8 @@ SEMVER_DREDD_ALLOW_BREAKING=true
         # Layer 3: real env var overrides again
         with patch.dict(os.environ, {"SEMVER_DREDD_COLOR": "true"}):
             config = load_config(cwd=tmp_path)
-            # language stays from yaml (not overridden)
-            assert config.language == "python"
+            # plugin stays from yaml (not overridden)
+            assert config.plugin == "python"
             # allow_breaking comes from .env
             assert config.allow_breaking_changes is True
             # color comes from real env var
@@ -237,6 +237,25 @@ class TestApplyConfigDefaults:
         config = Config(color=True)
         apply_config_defaults(args, config)
         assert args.color is True
+
+    def test_apply_config_defaults_plugin(self):
+        """Test plugin is applied from config."""
+        import argparse
+        # Case 1: CLI arg not set (None) -> use config
+        args = argparse.Namespace(plugin=None)
+        config = Config(plugin="go")
+        apply_config_defaults(args, config)
+        assert args.plugin == "go"
+
+        # Case 2: CLI arg set "python" (user explicit) -> keep user value
+        # Wait, my logic in config.py respects explicit "python" if passed,
+        # but argparse default is usually "python".
+        # I changed CLI default to None, so if user types `init` (no --plugin), args.plugin is None.
+        # If user types `init --plugin python`, args.plugin is "python".
+        args = argparse.Namespace(plugin="python")
+        config = Config(plugin="go")
+        apply_config_defaults(args, config)
+        assert args.plugin == "python"
 
     def test_apply_config_defaults_file_paths(self):
         """Test file paths are applied from config."""
