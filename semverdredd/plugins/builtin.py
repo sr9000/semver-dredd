@@ -10,7 +10,8 @@ still override these defaults.
 
 from __future__ import annotations
 
-from semverdredd.plugins.go import GoPlugin, JavaPlugin
+from semverdredd.plugins.go import GoPlugin
+from semverdredd.plugins.java import JavaPlugin
 from semverdredd.plugins.python import PythonPlugin
 
 

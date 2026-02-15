@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from semverdredd.snapshot import APISnapshot
 
@@ -48,7 +46,7 @@ class PythonPlugin(LanguagePlugin):
 
         try:
             snapshot = APISnapshot.from_module(module, version)
-            yaml_content = yaml.safe_dump(snapshot.__dict__, sort_keys=False)
+            yaml_content = snapshot.to_yaml()
             return SnapshotResult(True, yaml_content)
         except Exception as e:
             return SnapshotResult(False, "", f"Failed to generate snapshot: {e}")

@@ -1270,6 +1270,31 @@ def main(argv: list[str] | None = None) -> int:
     )
     patch_parser.set_defaults(func=cmd_patch)
 
+    # Template command
+    template_parser = subparsers.add_parser(
+        "template",
+        help="Generate a comprehensive .semver.yaml configuration template",
+    )
+    template_parser.add_argument(
+        "--out", "-o",
+        default="",
+        help="Output file path (default: stdout)",
+    )
+    template_parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        default=None,
+        help="Force colored log output",
+    )
+    template_parser.add_argument(
+        "--no-color",
+        dest="color",
+        action="store_false",
+        help="Disable colored log output",
+    )
+    template_parser.set_defaults(func=cmd_template)
+
     # Snapshot command
     snapshot_parser = subparsers.add_parser(
         "snapshot",
