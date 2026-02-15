@@ -464,54 +464,21 @@ def cmd_patch(args: argparse.Namespace) -> int:
 def _generate_snapshot_yaml(lang: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
     """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
 
-    if lang == "go":
-        parser_dir = Path(__file__).parent.parent / "parser" / "golang"
-        cmd = [
-            "go", "run", ".",
-            "--dir", str(Path(path).absolute()),
-            "--version", version,
-        ]
-        cwd = str(parser_dir)
-    elif lang == "java":
-        java_dir = Path(__file__).parent.parent / "parser" / "java"
-        jar = java_dir / "lib" / "snakeyaml-2.2.jar"
-        src = java_dir / "main.java"
+    from cli.languages import get_plugin
 
-        if not jar.exists():
-            _print_level(
-                "error",
-                f"Missing {jar}. Install snakeyaml jar or use Maven build.",
-                use_color=use_color,
-            )
-            return EXIT_ERROR, ""
-
-        # Compile
-        compile_cmd = ["javac", "-cp", str(jar), str(src)]
-        try:
-            subprocess.run(compile_cmd, check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            _print_level("error", f"javac failed: {e.stderr or e}", use_color=use_color)
-            return EXIT_ERROR, ""
-
-        cmd = [
-            "java", "-cp", f"{jar}:{java_dir}", "main",
-            "--dir", str(Path(path).absolute()),
-            "--version", version,
-        ]
-        cwd = None
-    else:
+    plugin = get_plugin(lang)
+    if not plugin:
         _print_level("error", f"Unsupported language: {lang}", use_color=use_color)
         return EXIT_ERROR, ""
 
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=cwd)
-        return EXIT_OK, result.stdout
-    except FileNotFoundError as e:
-        _print_level("error", f"Missing tool: {e}", use_color=use_color)
-        return EXIT_ERROR, ""
-    except subprocess.CalledProcessError as e:
-        _print_level("error", f"Parser failed: {e.stderr or e}", use_color=use_color)
-        return e.returncode or EXIT_ERROR, ""
+    exit_code, output = plugin.generate_snapshot(path, version, use_color)
+
+    if exit_code != EXIT_OK:
+        # If there's an error, the output contains the error message
+        _print_level("error", output, use_color=use_color)
+        return exit_code, ""
+
+    return EXIT_OK, output
 
 
 def cmd_snapshot(args: argparse.Namespace) -> int:
