@@ -1190,8 +1190,8 @@ semver-dredd plugin install ./plugins/go-1.20-gogen-1.0.0
 semver-dredd plugin remove go
 
 # Use a plugin
-semver-dredd init --lang go ./mypackage
-semver-dredd status --lang python ./mylib
+semver-dredd init --plugin go ./mypackage
+semver-dredd status --plugin python ./mylib
 ```
 
 ### Programmatic API
