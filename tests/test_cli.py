@@ -121,7 +121,8 @@ class TestCLICompare:
         result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--verbose"])
         assert result == 0
         captured = capsys.readouterr()
-        assert "Inspecting public module API" in captured.err or "Inspecting public module API" in captured.out
+        # Unified plugin-based approach shows "Using plugin" message
+        assert "Using plugin" in captured.err or "Using plugin" in captured.out
 
     def test_compare_same_module(self, capsys):
         """Test comparing same module."""
@@ -148,7 +149,7 @@ class TestCLICompare:
         result = main(["compare", "nonexistent.module", "example.py.pygeometry1"])
         assert result == 1
         err = capsys.readouterr().err
-        assert "Error" in err
+        assert "[ERROR]" in err or "error" in err.lower()
 
     def test_compare_mutually_exclusive_breaking_flags(self, capsys):
         result = main([

@@ -3,14 +3,14 @@ CLI tool for semver-dredd that compares modules and manages versions.
 """
 
 import argparse
-import importlib
 import sys
 from pathlib import Path
 import subprocess
 
-from semverdredd import ChangeType, Version, detect_change, generate_patch, ModuleAPI, compare_modules
-from semverdredd.diff import diff_module_objects, diff_modules
-from semverdredd.snapshot import APISnapshot, save_version_file
+from semverdredd import ChangeType, Version, generate_patch
+from semverdredd.snapshot import save_version_file
+from semverdredd.snapshot_io import load_snapshot, NormalizedSnapshot
+from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
 from cli.config import load_config, apply_config_defaults, Config
 
 
@@ -66,117 +66,130 @@ def _print_level(level: str, message: str, *, use_color: bool = False) -> None:
     print(f"[{styled}] {message}", file=stream)
 
 
-def _severity_for_change(change: ChangeType) -> str:
+def _severity_for_change(change: ChangeType | XLChangeType) -> str:
     # Default mapping (can be expanded later via meta.yaml/config)
-    if change in (ChangeType.NONE, ChangeType.PATCH):
+    if change in (ChangeType.NONE, ChangeType.PATCH, XLChangeType.NONE, XLChangeType.PATCH):
         return "info"
-    if change == ChangeType.MINOR:
+    if change in (ChangeType.MINOR, XLChangeType.MINOR):
         return "warn"
     return "error"
 
 
-def import_module_from_path(module_path: str):
-    """
-    Import a module from a file path or module name.
+def _get_change_type_map() -> dict[XLChangeType, ChangeType]:
+    """Map XLChangeType to ChangeType for version increment."""
+    return {
+        XLChangeType.NONE: ChangeType.NONE,
+        XLChangeType.PATCH: ChangeType.PATCH,
+        XLChangeType.MINOR: ChangeType.MINOR,
+        XLChangeType.MAJOR: ChangeType.MAJOR,
+    }
 
-    Args:
-        module_path: Either a dotted module name (e.g., 'example.gogeometry1')
-                     or a file path (e.g., './mymodule/__init__.py')
 
-    Returns:
-        Imported module object
-    """
-    path = Path(module_path)
+def _get_change_descriptions() -> dict[XLChangeType, str]:
+    """Get human-readable descriptions for change types."""
+    return {
+        XLChangeType.NONE: "No API changes detected (patch bump)",
+        XLChangeType.PATCH: "Implementation changes only (patch bump)",
+        XLChangeType.MINOR: "New features added (minor bump)",
+        XLChangeType.MAJOR: "Breaking changes detected (major bump)",
+    }
 
-    if path.exists():
-        # It's a file path
-        if path.is_dir():
-            # Directory with __init__.py
-            init_file = path / "__init__.py"
-            if not init_file.exists():
-                raise ValueError(f"Directory {path} is not a package (no __init__.py)")
-            module_name = path.name
-            sys.path.insert(0, str(path.parent))
-        else:
-            # Single file
-            module_name = path.stem
-            sys.path.insert(0, str(path.parent))
 
-        try:
-            return importlib.import_module(module_name)
-        finally:
-            sys.path.pop(0)
-    else:
-        # Try as a dotted module name
-        return importlib.import_module(module_path)
+def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
+    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
+
+    from semverdredd.plugin_manager import get_plugin
+
+    plugin = get_plugin(plugin_name)
+    if not plugin:
+        _print_level("error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color)
+        return EXIT_ERROR, ""
+
+    ok, msg = plugin.validate_path(path)
+    if not ok:
+        _print_level("error", msg, use_color=use_color)
+        return EXIT_ERROR, ""
+
+    result = plugin.generate_snapshot(path, version, options={"use_color": use_color})
+
+    if not result.success:
+        _print_level("error", result.error_message or "Snapshot generation failed", use_color=use_color)
+        return EXIT_ERROR, ""
+
+    return EXIT_OK, result.yaml_content
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
-    """Compare two modules and report change type."""
+    """Compare two modules/paths and report change type.
+
+    This is the unified compare command that works with any plugin.
+    The plugin is responsible for extracting meta information and API state.
+    """
     use_color = _should_use_color(getattr(args, "color", None))
+
+    # Handle default plugin
+    plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     if getattr(args, "verbose", False):
         _print_level(
             "info",
-            "Inspecting public module API: exported functions/classes from dir(module) excluding '_' names; "
-            "for classes: methods from dir(class) excluding '_' names (except __init__) and comparing call signatures.",
+            f"Using plugin '{plugin_name}' to compare modules/paths.",
             use_color=use_color,
         )
 
-    try:
-        old_module = import_module_from_path(args.old_module)
-        new_module = import_module_from_path(args.new_module)
-    except ImportError as e:
-        _print_level("error", f"Error importing module: {e}", use_color=use_color)
-        return EXIT_ERROR
-    except ValueError as e:
-        _print_level("error", f"Error: {e}", use_color=use_color)
-        return EXIT_ERROR
+    # Generate snapshots for both old and new modules
+    exit_code, old_yaml = _generate_snapshot_yaml(plugin_name, args.old_module, "0.0.0", use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
 
-    change = detect_change(old_module, new_module)
+    exit_code, new_yaml = _generate_snapshot_yaml(plugin_name, args.new_module, "0.0.0", use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
 
-    change_descriptions = {
-        ChangeType.NONE: "No API changes detected",
-        ChangeType.PATCH: "Implementation changes only (patch bump)",
-        ChangeType.MINOR: "New features added (minor bump)",
-        ChangeType.MAJOR: "Breaking changes detected (major bump)",
-    }
+    old_snapshot = NormalizedSnapshot.from_yaml_str(old_yaml)
+    new_snapshot = NormalizedSnapshot.from_yaml_str(new_yaml)
+
+    # Compare snapshots
+    change, diff = compare_snapshots(old_snapshot, new_snapshot)
+
+    change_map = _get_change_type_map()
+    change_descriptions = _get_change_descriptions()
 
     severity = _severity_for_change(change)
 
     # Adjust severity for MAJOR changes when breaking changes are allowed
-    if change == ChangeType.MAJOR and args.allow_breaking:
+    allow_breaking = getattr(args, "allow_breaking", False)
+    if change == XLChangeType.MAJOR and allow_breaking:
         severity = "warn"
 
-    # Keep existing human-friendly output, but route severity summary to stderr.
+    # Output results
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
     print(f"Change type: {change.name}")
     print(f"Description: {change_descriptions[change]}")
 
     if getattr(args, "details", False):
-        diff = diff_module_objects(old_module, new_module)
         if diff.breaking:
             print("Breaking changes:")
             for item in diff.breaking:
-                print(f"- {item}")
+                print(f"  - {item}")
         if diff.added:
             print("Added changes:")
             for item in diff.added:
-                print(f"- {item}")
+                print(f"  - {item}")
         if not diff.breaking and not diff.added:
             print("No API additions or breaking changes detected.")
 
-    if args.current:
+    if getattr(args, "current", None):
         try:
             current = Version.parse(args.current)
-            new_version = current.increment(change)
+            new_version = current.increment(change_map[change])
             print(f"Current version: {current}")
             print(f"Suggested version: {new_version}")
         except ValueError as e:
             _print_level("warn", f"Could not parse current version: {e}", use_color=use_color)
 
     # Policy gate: fail if breaking changes are detected and not allowed.
-    if change == ChangeType.MAJOR and not args.allow_breaking:
+    if change == XLChangeType.MAJOR and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -188,17 +201,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    """Show current API status compared to baked baseline."""
+    """Show current API status compared to baked baseline.
+
+    This is the unified status command that works with any plugin.
+    The plugin is responsible for extracting meta information and API state.
+    """
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # Handle default
-    if not getattr(args, "plugin", None):
-        args.plugin = "python"
-
-    # If plugin is not python, delegate to xl logic
-    if getattr(args, "plugin", "python") != "python":
-        args.path = args.module
-        return cmd_xl_status(args)
+    # Handle default plugin
+    plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     # Parse --date if provided
     from datetime import date as date_type
@@ -211,32 +222,28 @@ def cmd_status(args: argparse.Namespace) -> int:
     else:
         target_date = date_type.today()
 
-    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
-    current_path = Path(args.current_file or DEFAULT_CURRENT_FILE)
-    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
+    baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
+    current_path = Path(getattr(args, "current_file", None) or DEFAULT_CURRENT_FILE)
 
     # Check if baked.yaml exists
     if not baked_path.exists():
         _print_level("warn", f"No {baked_path} found. Run 'init' or 'bake' first.", use_color=use_color)
         return EXIT_ERROR
 
-    # Load module
-    try:
-        module = import_module_from_path(args.module)
-    except ImportError as e:
-        _print_level("error", f"Error importing module: {e}", use_color=use_color)
-        return EXIT_ERROR
-    except ValueError as e:
-        _print_level("error", f"Error: {e}", use_color=use_color)
-        return EXIT_ERROR
+    # Load baked snapshot
+    baked = load_snapshot(baked_path)
 
-    # Load baked API
-    baked = APISnapshot.load(baked_path)
-    baked_api = baked.to_module_api()
-    current_api = ModuleAPI.from_module(module)
+    # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
+
+    current = NormalizedSnapshot.from_yaml_str(yaml_str)
 
     # Compare
-    change = compare_modules(baked_api, current_api)
+    change, diff = compare_snapshots(baked, current)
+
+    # Compute suggested version
     current_version = Version.parse(baked.version)
 
     # Check for patch date warnings/errors
@@ -258,21 +265,18 @@ def cmd_status(args: argparse.Namespace) -> int:
             )
             return EXIT_ERROR
 
+    change_map = _get_change_type_map()
+    change_descriptions = _get_change_descriptions()
+
     try:
-        suggested_version = current_version.increment(change, today=target_date)
+        suggested_version = current_version.increment(change_map[change], today=target_date)
     except ValueError as e:
         _print_level("error", str(e), use_color=use_color)
         return EXIT_ERROR
 
-    change_descriptions = {
-        ChangeType.NONE: "No API changes detected (patch bump)",
-        ChangeType.PATCH: "Implementation changes only (patch bump)",
-        ChangeType.MINOR: "New features added (minor bump)",
-        ChangeType.MAJOR: "Breaking changes detected (major bump)",
-    }
-
     severity = _severity_for_change(change)
-    if change == ChangeType.MAJOR and args.allow_breaking:
+    allow_breaking = getattr(args, "allow_breaking", False)
+    if change == XLChangeType.MAJOR and allow_breaking:
         severity = "warn"
 
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
@@ -280,25 +284,26 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"Suggested version: {suggested_version}")
 
     if getattr(args, "details", False):
-        diff = diff_modules(baked_api, current_api)
         if diff.breaking:
             print("Breaking changes:")
             for item in diff.breaking:
-                print(f"- {item}")
+                print(f"  - {item}")
         if diff.added:
             print("Added changes:")
             for item in diff.added:
-                print(f"- {item}")
+                print(f"  - {item}")
         if not diff.breaking and not diff.added:
             print("No API additions or breaking changes detected.")
 
-    # Update current.yaml
-    current_snapshot = APISnapshot.from_module_api(current_api, str(suggested_version))
-    current_snapshot.save(current_path)
+    # Update current.yaml with suggested version
+    import yaml
+    current_dict = current.to_dict()
+    current_dict["version"] = str(suggested_version)
+    current_path.write_text(yaml.dump(current_dict, default_flow_style=False, sort_keys=False))
     _print_level("info", f"Updated {current_path}", use_color=use_color)
 
     # Policy gate
-    if change == ChangeType.MAJOR and not args.allow_breaking:
+    if change == XLChangeType.MAJOR and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -310,49 +315,47 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_bake(args: argparse.Namespace) -> int:
-    """Bake current API state as the new baseline."""
+    """Bake current API state as the new baseline.
+
+    This is the unified bake command that works with any plugin.
+    The plugin is responsible for extracting meta information and API state.
+    """
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # Handle default
-    if not getattr(args, "plugin", None):
-        args.plugin = "python"
+    # Handle default plugin
+    plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
-    # If plugin is not python, delegate to xl logic
-    if getattr(args, "plugin", "python") != "python":
-        args.path = args.module
-        return cmd_xl_bake(args)
-
-    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
-    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
-
-    # Load module
-    try:
-        module = import_module_from_path(args.module)
-    except ImportError as e:
-        _print_level("error", f"Error importing module: {e}", use_color=use_color)
-        return EXIT_ERROR
-    except ValueError as e:
-        _print_level("error", f"Error: {e}", use_color=use_color)
-        return EXIT_ERROR
+    baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
+    version_path = Path(getattr(args, "version_file", None) or DEFAULT_VERSION_FILE)
 
     # Determine version
-    if args.version:
+    if getattr(args, "version", None):
         version = args.version
     elif baked_path.exists():
         # Load existing and compute next version
-        baked = APISnapshot.load(baked_path)
-        baked_api = baked.to_module_api()
-        current_api = ModuleAPI.from_module(module)
-        change = compare_modules(baked_api, current_api)
+        baked = load_snapshot(baked_path)
+
+        # Generate current snapshot
+        exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
+        if exit_code != EXIT_OK:
+            return exit_code
+
+        current = NormalizedSnapshot.from_yaml_str(yaml_str)
+        change, _ = compare_snapshots(baked, current)
+
         current_version = Version.parse(baked.version)
-        version = str(current_version.increment(change))
+        change_map = _get_change_type_map()
+        version = str(current_version.increment(change_map[change]))
     else:
         # Default initial version
         version = f"0.1.{generate_patch()}"
 
-    # Create and save snapshot
-    snapshot = APISnapshot.from_module(module, version)
-    snapshot.save(baked_path)
+    # Generate and save snapshot with final version
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, version, use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
+
+    baked_path.write_text(yaml_str)
     _print_level("info", f"Baked API to {baked_path} with version {version}", use_color=use_color)
 
     # Update VERSION file
@@ -363,27 +366,27 @@ def cmd_bake(args: argparse.Namespace) -> int:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    """Initialize semver-dredd for a project."""
+    """Initialize semver-dredd for a project.
+
+    This is the unified init command that works with any plugin.
+    The plugin is responsible for extracting meta information and API state.
+    """
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # Handle default
-    if not getattr(args, "plugin", None):
-        args.plugin = "python"
-
-    # If plugin is not python, delegate to xl logic
-    if getattr(args, "plugin", "python") != "python":
-        # Remap args for delegation
-        args.path = args.module
-        return cmd_xl_init(args)
+    # Handle default plugin
+    plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     config_path = Path(DEFAULT_CONFIG_FILE)
-    baked_path = Path(args.baked or DEFAULT_BAKED_FILE)
-    version_path = Path(args.version_file or DEFAULT_VERSION_FILE)
+    baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
+    version_path = Path(getattr(args, "version_file", None) or DEFAULT_VERSION_FILE)
+
+    version = getattr(args, "version", None) or f"0.1.{generate_patch()}"
 
     # Create config if not exists
     if not config_path.exists():
-        default_config = """# semver-dredd configuration
+        default_config = f"""# semver-dredd configuration
 schema_version: 1
+plugin: {plugin_name}
 
 policies:
   allow_breaking_changes: false
@@ -400,20 +403,12 @@ output:
     else:
         _print_level("info", f"{config_path} already exists", use_color=use_color)
 
-    # Load module and create initial baked.yaml
-    try:
-        module = import_module_from_path(args.module)
-    except ImportError as e:
-        _print_level("error", f"Error importing module: {e}", use_color=use_color)
-        return EXIT_ERROR
-    except ValueError as e:
-        _print_level("error", f"Error: {e}", use_color=use_color)
-        return EXIT_ERROR
+    # Generate snapshot using plugin
+    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, version, use_color)
+    if exit_code != EXIT_OK:
+        return exit_code
 
-    version = args.version or f"0.1.{generate_patch()}"
-
-    snapshot = APISnapshot.from_module(module, version)
-    snapshot.save(baked_path)
+    baked_path.write_text(yaml_str)
     _print_level("info", f"Created {baked_path} with version {version}", use_color=use_color)
 
     # Create VERSION file
@@ -472,29 +467,6 @@ def cmd_patch(args: argparse.Namespace) -> int:
         _print_level("error", f"Error: {e}", use_color=use_color)
         return EXIT_ERROR
 
-
-def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
-    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
-
-    from semverdredd.plugin_manager import get_plugin
-
-    plugin = get_plugin(plugin_name)
-    if not plugin:
-        _print_level("error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color)
-        return EXIT_ERROR, ""
-
-    ok, msg = plugin.validate_path(path)
-    if not ok:
-        _print_level("error", msg, use_color=use_color)
-        return EXIT_ERROR, ""
-
-    result = plugin.generate_snapshot(path, version, options={"use_color": use_color})
-
-    if not result.success:
-        _print_level("error", result.error_message or "Snapshot generation failed", use_color=use_color)
-        return EXIT_ERROR, ""
-
-    return EXIT_OK, result.yaml_content
 
 
 def cmd_snapshot(args: argparse.Namespace) -> int:
@@ -658,229 +630,6 @@ def cmd_plugin_info(args: argparse.Namespace) -> int:
 
     return EXIT_OK
 
-
-def cmd_xl_init(args: argparse.Namespace) -> int:
-    """Initialize semver-dredd for a Go/Java project."""
-    use_color = _should_use_color(getattr(args, "color", None))
-
-    config_path = Path(DEFAULT_CONFIG_FILE)
-    baked_path = Path(DEFAULT_BAKED_FILE)
-    version_path = Path(DEFAULT_VERSION_FILE)
-
-    plugin_name = args.plugin.lower()
-    version = args.version or f"0.1.{generate_patch()}"
-
-    # Create config if not exists
-    if not config_path.exists():
-        default_config = f"""# semver-dredd configuration
-schema_version: 1
-plugin: {plugin_name}
-
-policies:
-  allow_breaking_changes: false
-
-output:
-  severity_by_change:
-    none: info
-    patch: info
-    minor: warn
-    major: error
-"""
-        config_path.write_text(default_config)
-        _print_level("info", f"Created {config_path}", use_color=use_color)
-    else:
-        _print_level("info", f"{config_path} already exists", use_color=use_color)
-
-    # Generate snapshot
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
-    if exit_code != EXIT_OK:
-        return exit_code
-
-    baked_path.write_text(yaml_str)
-    _print_level("info", f"Created {baked_path} with version {version}", use_color=use_color)
-
-    # Create VERSION file
-    save_version_file(version, version_path)
-    _print_level("info", f"Created {version_path}", use_color=use_color)
-
-    return EXIT_OK
-
-
-def cmd_xl_status(args: argparse.Namespace) -> int:
-    """Show current API status for Go/Java project compared to baked baseline"""
-    use_color = _should_use_color(getattr(args, "color", None))
-
-    # Parse --date if provided
-    from datetime import date as date_type
-    if getattr(args, "date", None):
-        try:
-            target_date = date_type.fromisoformat(args.date)
-        except ValueError:
-            _print_level("error", f"Invalid date format: {args.date}. Use YYYY-MM-DD.", use_color=use_color)
-            return EXIT_ERROR
-    else:
-        target_date = date_type.today()
-
-    baked_path = Path(DEFAULT_BAKED_FILE)
-    current_path = Path(DEFAULT_CURRENT_FILE)
-
-    if not baked_path.exists():
-        _print_level("warn", f"No {baked_path} found. Run 'init' first.", use_color=use_color)
-        return EXIT_ERROR
-
-    plugin_name = args.plugin.lower()
-
-    # Load baked snapshot
-    from semverdredd.snapshot_io import load_snapshot
-    from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
-
-    baked = load_snapshot(baked_path)
-
-    # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, "0.0.0", use_color)
-    if exit_code != EXIT_OK:
-        return exit_code
-
-    from semverdredd.snapshot_io import NormalizedSnapshot
-    current = NormalizedSnapshot.from_yaml_str(yaml_str)
-
-    # Compare
-    change, diff = compare_snapshots(baked, current)
-
-    # Compute suggested version
-    current_version = Version.parse(baked.version)
-
-    # Check for patch date warnings/errors
-    baked_patch_date = current_version.patch_date
-    if baked_patch_date and baked_patch_date > target_date:
-        _print_level(
-            "warn",
-            f"Baked version patch date ({baked_patch_date}) is in the future compared to target date ({target_date}). "
-            "This suggests clock skew or incorrect date override.",
-            use_color=use_color,
-        )
-    elif baked_patch_date and baked_patch_date == target_date:
-        # Check if we're about to overflow
-        if current_version.patch_increment >= 999:
-            _print_level(
-                "error",
-                f"Maximum daily releases (999) reached for {target_date}. Cannot increment patch.",
-                use_color=use_color,
-            )
-            return EXIT_ERROR
-
-    # Map XLChangeType to semverdredd.ChangeType for version increment
-    change_map = {
-        XLChangeType.NONE: ChangeType.NONE,
-        XLChangeType.PATCH: ChangeType.PATCH,
-        XLChangeType.MINOR: ChangeType.MINOR,
-        XLChangeType.MAJOR: ChangeType.MAJOR,
-    }
-
-    try:
-        suggested_version = current_version.increment(change_map[change], today=target_date)
-    except ValueError as e:
-        _print_level("error", str(e), use_color=use_color)
-        return EXIT_ERROR
-
-    change_descriptions = {
-        XLChangeType.NONE: "No API changes detected (patch bump)",
-        XLChangeType.PATCH: "Implementation changes only (patch bump)",
-        XLChangeType.MINOR: "New features added (minor bump)",
-        XLChangeType.MAJOR: "Breaking changes detected (major bump)",
-    }
-
-    severity = _severity_for_change(change_map[change])
-    allow_breaking = getattr(args, "allow_breaking", False)
-    if change == XLChangeType.MAJOR and allow_breaking:
-        severity = "warn"
-
-    _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
-    print(f"Baked version: {baked.version}")
-    print(f"Suggested version: {suggested_version}")
-
-    if getattr(args, "details", False):
-        if diff.breaking:
-            print("Breaking changes:")
-            for item in diff.breaking:
-                print(f"  - {item}")
-        if diff.added:
-            print("Added changes:")
-            for item in diff.added:
-                print(f"  - {item}")
-        if not diff.breaking and not diff.added:
-            print("No API additions or breaking changes detected.")
-
-    # Update current.yaml with suggested version
-    current_dict = current.to_dict()
-    current_dict["version"] = str(suggested_version)
-    import yaml
-    current_path.write_text(yaml.dump(current_dict, default_flow_style=False, sort_keys=False))
-    _print_level("info", f"Updated {current_path}", use_color=use_color)
-
-    # Policy gate
-    if change == XLChangeType.MAJOR and not allow_breaking:
-        _print_level(
-            "error",
-            "Breaking changes are not allowed (use --allow-breaking to override)",
-            use_color=use_color,
-        )
-        return EXIT_BREAKING_CHANGES_DETECTED
-
-    return EXIT_OK
-
-
-def cmd_xl_bake(args: argparse.Namespace) -> int:
-    """Bake current API state as the new baseline for Go/Java project."""
-    use_color = _should_use_color(getattr(args, "color", None))
-
-    baked_path = Path(DEFAULT_BAKED_FILE)
-    version_path = Path(DEFAULT_VERSION_FILE)
-
-    plugin_name = args.plugin.lower()
-
-    # Determine version
-    if args.version:
-        version = args.version
-    elif baked_path.exists():
-        # Load existing and compute next version
-        from semverdredd.snapshot_io import load_snapshot, NormalizedSnapshot
-        from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
-
-        baked = load_snapshot(baked_path)
-
-        # Generate current snapshot
-        exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, "0.0.0", use_color)
-        if exit_code != EXIT_OK:
-            return exit_code
-
-        current = NormalizedSnapshot.from_yaml_str(yaml_str)
-        change, _ = compare_snapshots(baked, current)
-
-        current_version = Version.parse(baked.version)
-        change_map = {
-            XLChangeType.NONE: ChangeType.NONE,
-            XLChangeType.PATCH: ChangeType.PATCH,
-            XLChangeType.MINOR: ChangeType.MINOR,
-            XLChangeType.MAJOR: ChangeType.MAJOR,
-        }
-        version = str(current_version.increment(change_map[change]))
-    else:
-        version = f"0.1.{generate_patch()}"
-
-    # Generate and save snapshot with final version
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
-    if exit_code != EXIT_OK:
-        return exit_code
-
-    baked_path.write_text(yaml_str)
-    _print_level("info", f"Baked API to {baked_path} with version {version}", use_color=use_color)
-
-    # Update VERSION file
-    save_version_file(version, version_path)
-    _print_level("info", f"Updated {version_path}", use_color=use_color)
-
-    return EXIT_OK
 
 
 def cmd_template(args: argparse.Namespace) -> int:
@@ -1168,6 +917,10 @@ def main(argv: list[str] | None = None) -> int:
     compare_parser = subparsers.add_parser(
         "compare",
         help="Compare two modules and detect change type",
+    )
+    compare_parser.add_argument(
+        "--plugin",
+        help="Language plugin to use (default: python)",
     )
     compare_parser.add_argument(
         "--color",
