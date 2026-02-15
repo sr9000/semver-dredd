@@ -74,33 +74,56 @@ semver-dredd/                          # Core package (this repo)
 
 ### 2. Plugin Package Structure (Template)
 
-Each language plugin will be a separate installable package:
+Each language plugin will be a separate installable package. Distribution package names SHOULD follow one of the schemes below (preferred is the vendor-aware form):
 
 ```
-semver-dredd-python/                   # Python plugin (separate repo/package)
-├── pyproject.toml
-├── semver_dredd_python/
+# Preferred (supports multiple plugin vendors for the same language/version):
+language-<lang_version>-<plugin_source>-<plugin_version>[-extras]
+
+# Backwards-compatible simpler form (no vendor):
+language-<lang_version>-<plugin_version>[-extras]
+```
+
+- language: short language id (e.g. `python`, `go`, `java`)
+- lang_version: the target language/runtime version (e.g. `3.10`, `1.20`, `17`)
+- plugin_source: short vendor or distribution id (e.g. `core`, `official`, `acme`, `gogen`) to allow multiple implementations for the same language/runtime
+- plugin_version: semver for the plugin itself (e.g. `1.0.0`)
+- extras: optional qualifiers (platform, arch, debug) if needed
+
+Examples (vendor-aware):
+- `python-3.10-core-1.0.0` (official/core Python plugin targeting Python 3.10)
+- `go-1.20-gogen-1.0.0` (Go AST plugin from vendor `gogen` targeting Go 1.20)
+- `java-17-acme-1.0.0` (Java plugin from `acme` targeting Java 17)
+
+Note: the distribution (PyPI/package) name uses one of the above schemes. The importable Python module inside the distribution should still expose a stable entry point module (for example `semver_dredd_python.plugin:PythonPlugin`) and register an entry-point under `semver_dredd.plugins`. This keeps discovery stable while allowing simple, descriptive distribution names and multiple vendors.
+
+Example layout (distribution name + internal importable package) using the vendor-aware form:
+
+```
+python-3.10-core-1.0.0/                 # distribution package (PyPI name)
+├── pyproject.toml                        # project.name = "python-3.10-core-1.0.0"
+├── semver_dredd_python/                  # importable Python package (module name)
 │   ├── __init__.py
-│   ├── plugin.py                      # PythonPlugin(LanguagePlugin)
-│   └── analyzer.py                    # Python-specific analysis logic
+│   ├── plugin.py                        # PythonPlugin(LanguagePlugin)
+│   └── analyzer.py                      # Python-specific analysis logic
 └── tests/
 
-semver-dredd-go/                       # Go plugin (separate repo/package)
+go-1.20-gogen-1.0.0/                      # distribution package
 ├── pyproject.toml
-├── semver_dredd_go/
+├── semver_dredd_go/                      # importable Python package
 │   ├── __init__.py
-│   ├── plugin.py                      # GoPlugin(LanguagePlugin)
-│   └── parser/                        # Bundled Go source
+│   ├── plugin.py                        # GoPlugin(LanguagePlugin)
+│   └── parser/                          # Bundled Go source
 │       ├── go.mod
 │       ├── go.sum
 │       └── main.go
 └── tests/
 
-semver-dredd-java/                     # Java plugin (separate repo/package)
+java-17-acme-1.0.0/                       # distribution package
 ├── pyproject.toml
 ├── semver_dredd_java/
 │   ├── __init__.py
-│   ├── plugin.py                      # JavaPlugin(LanguagePlugin)
+│   ├── plugin.py                        # JavaPlugin(LanguagePlugin)
 │   └── parser/
 │       ├── main.java
 │       └── lib/
@@ -351,8 +374,10 @@ def list_plugins() -> List[LanguagePlugin]:
 [project.entry-points."semver_dredd.plugins"]
 # Built-in plugins (during transition period)
 # These will be removed once plugins are separate packages
+# Note: project.name (distribution) should follow the naming scheme: language-<lang_version>-<plugin_source>-<plugin_version>
+# Example distribution names: "python-3.10-core-1.0.0", "go-1.20-gogen-1.0.0", "java-17-acme-1.0.0"
 python = "semver_dredd_python:PythonPlugin"
-go = "semver_dredd_go:GoPlugin"
+go = "semver_dredd_go.plugin:GoPlugin"
 java = "semver_dredd_java:JavaPlugin"
 ```
 
@@ -480,7 +505,7 @@ class PythonPlugin(LanguagePlugin):
 
 ```toml
 [project]
-name = "semver-dredd-python"
+name = "python-3.10-core-1.0.0"  # distribution name following the recommended scheme
 version = "1.0.0"
 description = "Python language plugin for semver-dredd"
 requires-python = ">=3.10"
@@ -575,7 +600,10 @@ class GoPlugin(LanguagePlugin):
             return SnapshotResult(
                 success=False,
                 yaml_content="",
-                error_message="Go parser not found. Ensure semver-dredd-go is properly installed."
+                error_message=(
+                    "Go parser not found. Ensure the Go plugin distribution "
+                    "(name format: go-<lang_version>-<plugin_version>) is installed."
+                )
             )
         
         # Check if 'go' is available
@@ -626,7 +654,7 @@ class GoPlugin(LanguagePlugin):
 
 ```toml
 [project]
-name = "semver-dredd-go"
+name = "go-1.20-gogen-1.0.0"  # distribution name following the recommended scheme
 version = "1.0.0"
 description = "Go language plugin for semver-dredd"
 requires-python = ">=3.10"
@@ -753,7 +781,10 @@ class JavaPlugin(LanguagePlugin):
             return SnapshotResult(
                 success=False,
                 yaml_content="",
-                error_message="Java parser not found. Ensure semver-dredd-java is properly installed."
+                error_message=(
+                    "Java parser not found. Ensure the Java plugin distribution "
+                    "(name format: java-<lang_version>-<plugin_version>) is installed."
+                )
             )
         
         jar_path = self._get_jar_path()
@@ -802,7 +833,7 @@ class JavaPlugin(LanguagePlugin):
 
 ```toml
 [project]
-name = "semver-dredd-java"
+name = "java-17-acme-1.0.0"  # distribution name following the recommended scheme
 version = "1.0.0"
 description = "Java language plugin for semver-dredd"
 requires-python = ">=3.10"
@@ -1077,30 +1108,11 @@ result = plugin.generate_snapshot("./my-crate", "1.0.0")
 
 #### 7.1 Migration Steps
 
-1. **Create separate plugin packages** in a `plugins/` directory (or separate repos)
+1. **Create separate plugin packages** in a `plugins/` directory for predefined (official) plugins, or as separate repositories for third-party plugins. The project's `plugins/` folder will hold the official, pre-bundled distributions using the vendor-aware naming scheme `language-<lang_version>-<plugin_source>-<plugin_version>[-extras]`.
 2. **Move parser source files** from `parser/` to respective plugin packages
 3. **Update core package** to not include parsers
 4. **Update documentation** with plugin installation instructions
 5. **Add integration tests** for plugin discovery
-
-#### 7.2 Backward Compatibility
-
-During transition, provide a meta-package:
-
-**File:** `semver-dredd-all/pyproject.toml`
-
-```toml
-[project]
-name = "semver-dredd-all"
-version = "1.0.0"
-description = "Semver-dredd with all official language plugins"
-dependencies = [
-    "semver-dredd>=0.2.0",
-    "semver-dredd-python>=1.0.0",
-    "semver-dredd-go>=1.0.0",
-    "semver-dredd-java>=1.0.0",
-]
-```
 
 ---
 
@@ -1126,13 +1138,13 @@ semver-dredd/                          # Core (this repo after refactor)
 │       └── plugin.py                  # NEW
 └── tests/
 
-plugins/                               # Can be separate repos
-├── semver-dredd-python/
+plugins/                               # Predefined/official plugins (in-repo)
+├── python-3.10-core-1.0.0/
 │   ├── pyproject.toml
 │   └── semver_dredd_python/
 │       ├── __init__.py
 │       └── plugin.py
-├── semver-dredd-go/
+├── go-1.20-gogen-1.0.0/
 │   ├── pyproject.toml
 │   └── semver_dredd_go/
 │       ├── __init__.py
@@ -1141,7 +1153,7 @@ plugins/                               # Can be separate repos
 │           ├── go.mod
 │           ├── go.sum
 │           └── main.go
-└── semver-dredd-java/
+└── java-17-acme-1.0.0/
     ├── pyproject.toml
     └── semver_dredd_java/
         ├── __init__.py
@@ -1150,6 +1162,26 @@ plugins/                               # Can be separate repos
             ├── main.java
             └── lib/
                 └── snakeyaml-2.2.jar
+
+```
+
+---
+
+## Updated meta-package example
+
+**File:** `semver-dredd-all/pyproject.toml`
+
+```toml
+[project]
+name = "semver-dredd-all"  # meta-package; may also be replaced by a collection with explicit plugin names
+version = "1.0.0"
+description = "Semver-dredd with all official language plugins"
+dependencies = [
+    "semver-dredd>=0.2.0",
+    "python-3.10-core-1.0.0>=1.0.0",
+    "go-1.20-gogen-1.0.0>=1.0.0",
+    "java-17-acme-1.0.0>=1.0.0",
+]
 ```
 
 ---
@@ -1162,13 +1194,13 @@ plugins/                               # Can be separate repos
 # List available plugins
 semver-dredd plugin list
 
-# Install Go plugin
-semver-dredd plugin install semver-dredd-go
+# Install Go plugin (vendor-aware package name)
+semver-dredd plugin install go-1.20-gogen-1.0.0
 
 # Install from local path (development)
-semver-dredd plugin install ./plugins/semver-dredd-rust
+semver-dredd plugin install ./plugins/go-1.20-gogen-1.0.0
 
-# Remove a plugin
+# Remove a plugin (use language id)
 semver-dredd plugin remove go
 
 # Use a plugin
