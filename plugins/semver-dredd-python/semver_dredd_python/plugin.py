@@ -1,3 +1,5 @@
+"""Python plugin implementation for semver-dredd."""
+
 from __future__ import annotations
 
 import importlib
@@ -10,6 +12,11 @@ from semverdredd.snapshot import APISnapshot
 
 
 class PythonPlugin(LanguagePlugin):
+    """Python language support plugin for semver-dredd.
+
+    Analyzes Python modules using introspection (inspect module).
+    """
+
     @property
     def name(self) -> str:
         return "python"
@@ -23,6 +30,7 @@ class PythonPlugin(LanguagePlugin):
         return "Analyzes Python modules using introspection"
 
     def validate_path(self, path: str) -> tuple[bool, str]:
+        """Validate that the path is a valid Python module."""
         p = Path(path)
         if p.exists():
             if p.is_dir():
@@ -38,7 +46,10 @@ class PythonPlugin(LanguagePlugin):
 
         return False, f"'{path}' is not a valid Python module path or name"
 
-    def generate_snapshot(self, path: str, version: str, options: Optional[dict[str, Any]] = None) -> SnapshotResult:
+    def generate_snapshot(
+        self, path: str, version: str, options: Optional[dict[str, Any]] = None
+    ) -> SnapshotResult:
+        """Generate snapshot by importing and introspecting Python module."""
         try:
             module = self._import_module(path)
         except Exception as e:
@@ -52,6 +63,7 @@ class PythonPlugin(LanguagePlugin):
             return SnapshotResult(False, "", f"Failed to generate snapshot: {e}")
 
     def _import_module(self, module_path: str):
+        """Import a module from path or name."""
         module_fs_path = Path(module_path)
         if module_fs_path.exists():
             if module_fs_path.is_dir():

@@ -1,0 +1,26 @@
+[project]
+name = "semver-dredd-go"
+version = "1.0.0"
+description = "Go language plugin for semver-dredd"
+authors = [
+    {name = "sr9000", email = "no@mail.org"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "semver-dredd>=0.1.0",
+]
+
+[project.entry-points."semver_dredd.plugins"]
+go = "semver_dredd_go:GoPlugin"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+semver_dredd_go = [
+    "parser/*.go",
+    "parser/go.mod",
+    "parser/go.sum",
+]

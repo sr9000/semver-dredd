@@ -8,10 +8,10 @@ A snapshot captures the **public API surface** of a codebase at a specific versi
 
 ## Schema Version History
 
-| Version | Description |
-|---------|-------------|
-| 1 | Initial Python-only format (implicit) |
-| 2 | Cross-language format with explicit types |
+| Version | Description                               |
+|---------|-------------------------------------------|
+| 1       | Initial Python-only format (implicit)     |
+| 2       | Cross-language format with explicit types |
 
 ## Schema v2 Format
 
@@ -49,57 +49,57 @@ api:
 
 ### Root Level
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `schema_version` | integer | Yes | Schema version (currently `2`) |
-| `version` | string | Yes | Semantic version string |
-| `language` | string | Yes | Source language: `python`, `go`, or `java` |
-| `source` | object | No | Information about what was analyzed |
-| `api` | object | Yes | The API surface |
+| Field            | Type    | Required | Description                                |
+|------------------|---------|----------|--------------------------------------------|
+| `schema_version` | integer | Yes      | Schema version (currently `2`)             |
+| `version`        | string  | Yes      | Semantic version string                    |
+| `language`       | string  | Yes      | Source language: `python`, `go`, or `java` |
+| `source`         | object  | No       | Information about what was analyzed        |
+| `api`            | object  | Yes      | The API surface                            |
 
 ### Source Object
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `kind` | string | No | Type of source: `module`, `package`, `directory` |
-| `path` | string | No | Path that was analyzed |
+| Field  | Type   | Required | Description                                      |
+|--------|--------|----------|--------------------------------------------------|
+| `kind` | string | No       | Type of source: `module`, `package`, `directory` |
+| `path` | string | No       | Path that was analyzed                           |
 
 ### API Object
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `functions` | object | Yes | Map of function name → signature |
-| `types` | object | Yes | Map of type name → type definition |
+| Field       | Type   | Required | Description                        |
+|-------------|--------|----------|------------------------------------|
+| `functions` | object | Yes      | Map of function name → signature   |
+| `types`     | object | Yes      | Map of type name → type definition |
 
 ### Function/Method Signature
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `parameters` | array | Yes | List of parameters |
-| `returns` | array | No | List of return values (omit if void/none) |
+| Field        | Type  | Required | Description                               |
+|--------------|-------|----------|-------------------------------------------|
+| `parameters` | array | Yes      | List of parameters                        |
+| `returns`    | array | No       | List of return values (omit if void/none) |
 
 ### Parameter/Return Object
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Parameter name (empty string for unnamed returns) |
-| `type` | string | Yes | Type as string (language-specific) |
-| `optional` | boolean | Yes | Whether the parameter is optional |
+| Field      | Type    | Required | Description                                       |
+|------------|---------|----------|---------------------------------------------------|
+| `name`     | string  | Yes      | Parameter name (empty string for unnamed returns) |
+| `type`     | string  | Yes      | Type as string (language-specific)                |
+| `optional` | boolean | Yes      | Whether the parameter is optional                 |
 
 ### Type Definition
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `fields` | array | No | List of public fields |
-| `methods` | object | No | Map of method name → signature |
+| Field     | Type   | Required | Description                    |
+|-----------|--------|----------|--------------------------------|
+| `fields`  | array  | No       | List of public fields          |
+| `methods` | object | No       | Map of method name → signature |
 
 ### Field Object
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Field name |
-| `type` | string | Yes | Type as string |
-| `optional` | boolean | No | Whether field is optional (default: false) |
+| Field      | Type    | Required | Description                                |
+|------------|---------|----------|--------------------------------------------|
+| `name`     | string  | Yes      | Field name                                 |
+| `type`     | string  | Yes      | Type as string                             |
+| `optional` | boolean | No       | Whether field is optional (default: false) |
 
 ## Language-Specific Notes
 

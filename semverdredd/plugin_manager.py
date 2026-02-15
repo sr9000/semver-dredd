@@ -44,15 +44,6 @@ class PluginManager:
         self._registry: dict[str, PluginInfo] = {}
         self._loaded = False
 
-        # Register built-ins immediately so the core CLI works in editable/dev installs
-        # even when entry point metadata isn't available.
-        try:
-            from semverdredd.plugins.builtin import register_builtin_plugins
-
-            register_builtin_plugins(self)
-        except Exception:
-            # Never make plugin discovery fatal.
-            pass
 
     def ensure_plugin_dir(self) -> Path:
         self.user_plugin_dir.mkdir(parents=True, exist_ok=True)
