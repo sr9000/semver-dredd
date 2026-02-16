@@ -3,7 +3,8 @@
 import pytest
 from dataclasses import dataclass
 from collections import namedtuple
-from semverdredd import ClassAPI, compare_classes, ChangeType, APISignature
+from semverdredd.python_api import ClassAPI, compare_classes, APISignature
+from semverdredd import ChangeType
 
 try:
     from pydantic import BaseModel

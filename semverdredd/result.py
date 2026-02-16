@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from semverdredd.version import Version
 
 if TYPE_CHECKING:  # pragma: no cover
-    from semverdredd import ChangeType
+    from semverdredd.xldiff import ChangeType
 
 
 @dataclass(frozen=True, slots=True)

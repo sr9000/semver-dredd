@@ -2,8 +2,7 @@
 Tests for semver-dredd using gogeometry1 and gogeometry2 as test modules.
 """
 
-from semverdredd import (
-    ChangeType,
+from semverdredd.python_api import (
     APISignature,
     ClassAPI,
     ModuleAPI,
@@ -12,6 +11,7 @@ from semverdredd import (
     compare_modules,
     detect_change,
 )
+from semverdredd import ChangeType
 from example.py import pygeometry2
 from example.py import pygeometry1
 

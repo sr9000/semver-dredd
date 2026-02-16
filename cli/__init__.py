@@ -7,10 +7,10 @@ import sys
 from pathlib import Path
 import subprocess
 
-from semverdredd import ChangeType, Version, generate_patch
+from semverdredd import Version, generate_patch
 from semverdredd.snapshot import save_version_file
 from semverdredd.snapshot_io import load_snapshot, NormalizedSnapshot
-from semverdredd.xldiff import compare_snapshots, ChangeType as XLChangeType
+from semverdredd.xldiff import compare_snapshots, ChangeType
 from cli.config import load_config, apply_config_defaults, Config
 
 
@@ -66,32 +66,22 @@ def _print_level(level: str, message: str, *, use_color: bool = False) -> None:
     print(f"[{styled}] {message}", file=stream)
 
 
-def _severity_for_change(change: ChangeType | XLChangeType) -> str:
-    # Default mapping (can be expanded later via meta.yaml/config)
-    if change in (ChangeType.NONE, ChangeType.PATCH, XLChangeType.NONE, XLChangeType.PATCH):
+def _severity_for_change(change: ChangeType) -> str:
+    """Map change type to log severity level."""
+    if change in (ChangeType.NONE, ChangeType.PATCH):
         return "info"
-    if change in (ChangeType.MINOR, XLChangeType.MINOR):
+    if change == ChangeType.MINOR:
         return "warn"
     return "error"
 
 
-def _get_change_type_map() -> dict[XLChangeType, ChangeType]:
-    """Map XLChangeType to ChangeType for version increment."""
-    return {
-        XLChangeType.NONE: ChangeType.NONE,
-        XLChangeType.PATCH: ChangeType.PATCH,
-        XLChangeType.MINOR: ChangeType.MINOR,
-        XLChangeType.MAJOR: ChangeType.MAJOR,
-    }
-
-
-def _get_change_descriptions() -> dict[XLChangeType, str]:
+def _get_change_descriptions() -> dict[ChangeType, str]:
     """Get human-readable descriptions for change types."""
     return {
-        XLChangeType.NONE: "No API changes detected (patch bump)",
-        XLChangeType.PATCH: "Implementation changes only (patch bump)",
-        XLChangeType.MINOR: "New features added (minor bump)",
-        XLChangeType.MAJOR: "Breaking changes detected (major bump)",
+        ChangeType.NONE: "No API changes detected (patch bump)",
+        ChangeType.PATCH: "Implementation changes only (patch bump)",
+        ChangeType.MINOR: "New features added (minor bump)",
+        ChangeType.MAJOR: "Breaking changes detected (major bump)",
     }
 
 
@@ -152,14 +142,13 @@ def cmd_compare(args: argparse.Namespace) -> int:
     # Compare snapshots
     change, diff = compare_snapshots(old_snapshot, new_snapshot)
 
-    change_map = _get_change_type_map()
     change_descriptions = _get_change_descriptions()
 
     severity = _severity_for_change(change)
 
     # Adjust severity for MAJOR changes when breaking changes are allowed
     allow_breaking = getattr(args, "allow_breaking", False)
-    if change == XLChangeType.MAJOR and allow_breaking:
+    if change == ChangeType.MAJOR and allow_breaking:
         severity = "warn"
 
     # Output results
@@ -182,14 +171,14 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if getattr(args, "current", None):
         try:
             current = Version.parse(args.current)
-            new_version = current.increment(change_map[change])
+            new_version = current.increment(change)
             print(f"Current version: {current}")
             print(f"Suggested version: {new_version}")
         except ValueError as e:
             _print_level("warn", f"Could not parse current version: {e}", use_color=use_color)
 
     # Policy gate: fail if breaking changes are detected and not allowed.
-    if change == XLChangeType.MAJOR and not allow_breaking:
+    if change == ChangeType.MAJOR and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -265,18 +254,17 @@ def cmd_status(args: argparse.Namespace) -> int:
             )
             return EXIT_ERROR
 
-    change_map = _get_change_type_map()
     change_descriptions = _get_change_descriptions()
 
     try:
-        suggested_version = current_version.increment(change_map[change], today=target_date)
+        suggested_version = current_version.increment(change, today=target_date)
     except ValueError as e:
         _print_level("error", str(e), use_color=use_color)
         return EXIT_ERROR
 
     severity = _severity_for_change(change)
     allow_breaking = getattr(args, "allow_breaking", False)
-    if change == XLChangeType.MAJOR and allow_breaking:
+    if change == ChangeType.MAJOR and allow_breaking:
         severity = "warn"
 
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
@@ -303,7 +291,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     _print_level("info", f"Updated {current_path}", use_color=use_color)
 
     # Policy gate
-    if change == XLChangeType.MAJOR and not allow_breaking:
+    if change == ChangeType.MAJOR and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -344,8 +332,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
         change, _ = compare_snapshots(baked, current)
 
         current_version = Version.parse(baked.version)
-        change_map = _get_change_type_map()
-        version = str(current_version.increment(change_map[change]))
+        version = str(current_version.increment(change))
     else:
         # Default initial version
         version = f"0.1.{generate_patch()}"

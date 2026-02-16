@@ -5,7 +5,7 @@ from pathlib import Path
 
 from cli import main
 from semverdredd.snapshot import APISnapshot, save_version_file, load_version_file
-from semverdredd import ModuleAPI
+from semverdredd.python_api import ModuleAPI
 from example.py import pygeometry2
 from example.py import pygeometry1
 
