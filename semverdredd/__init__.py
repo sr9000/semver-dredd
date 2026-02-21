@@ -16,19 +16,23 @@ Patch version is equal YYYYMMDDZZZ.
 from semverdredd.version import Version, generate_patch
 
 # Structured result types (pure data)
-from semverdredd.result import APIDiff, CompareResult, SuggestVersionResult
+from semverdredd.result import CompareResult, SuggestVersionResult
 
-# Snapshot package (canonical home of snapshot types)
-from snapshot import (
-    ChangeKind,
-    ChangeType,      # backward-compat alias for ChangeKind
-    DiffResult,
-    DiffScorer,
-    SnapshotFormat,
-    NormalizedSnapshot,
-    SnapshotDiff,
+# Change severity enum (canonical home)
+from semverdredd.change_kind import ChangeKind
+
+# Protocols and diff types
+from semverdredd.protocols import DiffResult, DiffScorer, SnapshotFormat
+
+# Snapshot data models
+from semverdredd.models import NormalizedSnapshot, NORMALIZED_SNAPSHOT_TYPE_ID
+
+# Registry (canonical home)
+from semverdredd.registry import (
+    SnapshotRegistry,
     default_registry,
     load_snapshot,
+    load_snapshot_yaml,
 )
 
 # Plugin system (programmatic API)
@@ -44,8 +48,6 @@ from semverdredd.plugin_manager import (
 from semverdredd.xldiff import (
     compare_snapshots,
     DefaultDiffScorer,
-    change_type_to_kind,
-    change_kind_to_type,
 )
 
 
@@ -99,7 +101,7 @@ def compare(
         plugin: Language plugin to use (default: "python")
 
     Returns:
-        CompareResult with change_type/description/severity/diff
+        CompareResult with change_kind/description/severity/diff
 
     Raises:
         RuntimeError: if plugin not found or snapshot generation fails
@@ -138,10 +140,10 @@ def compare(
     change = diff_result.change_kind
 
     return CompareResult(
-        change_type=change,
+        change_kind=change,
         description=_description_for_change(change),
         severity=_severity_for_change(change),
-        diff=APIDiff(breaking=diff_result.breaking, added=diff_result.added),
+        diff=diff_result,
     )
 
 
@@ -171,9 +173,9 @@ def compare_and_suggest(
     """
     current = current_version if isinstance(current_version, Version) else Version.parse(str(current_version))
     base = compare(old_path, new_path, plugin=plugin)
-    suggested = current.increment(base.change_type)
+    suggested = current.increment(base.change_kind)
     return SuggestVersionResult(
-        change_type=base.change_type,
+        change_kind=base.change_kind,
         description=base.description,
         severity=base.severity,
         current_version=current,
@@ -185,12 +187,10 @@ def compare_and_suggest(
 __all__ = [
     # Core types
     "ChangeKind",
-    "ChangeType",
     "Version",
     "generate_patch",
 
     # Result types
-    "APIDiff",
     "CompareResult",
     "SuggestVersionResult",
 
@@ -200,8 +200,9 @@ __all__ = [
 
     # Snapshot types
     "NormalizedSnapshot",
-    "SnapshotDiff",
+    "NORMALIZED_SNAPSHOT_TYPE_ID",
     "load_snapshot",
+    "load_snapshot_yaml",
     "compare_snapshots",
 
     # Plugin system
@@ -215,9 +216,6 @@ __all__ = [
     "get_plugin_manager",
     "get_plugin",
     "list_plugins",
+    "SnapshotRegistry",
     "default_registry",
-
-    # Deprecated bridge helpers (identity functions)
-    "change_type_to_kind",
-    "change_kind_to_type",
 ]

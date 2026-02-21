@@ -5,7 +5,6 @@ Verifies that:
 - A plugin can provide a custom SnapshotFormat class.
 - A plugin can provide a custom DiffScorer.
 - The SnapshotFormat protocol is satisfied by NormalizedSnapshot.
-- ChangeKind has a MAJOR alias for backward compat.
 - The UUID-based snapshot registry works correctly.
 """
 
@@ -18,13 +17,12 @@ from typing import Any, Optional
 import pytest
 import yaml
 
-from snapshot import (
+from semverdredd import (
     ChangeKind,
     DiffResult,
     DiffScorer,
     NormalizedSnapshot,
     SnapshotFormat,
-    SnapshotDiff,
     SnapshotRegistry,
     default_registry,
     load_snapshot,
@@ -93,13 +91,8 @@ class TestChangeKind:
         assert ChangeKind.MINOR.value == 2
         assert ChangeKind.BREAKING.value == 3
 
-    def test_major_is_alias_for_breaking(self):
-        assert ChangeKind.MAJOR is ChangeKind.BREAKING
-        assert ChangeKind.MAJOR.value == 3
-
     def test_is_breaking(self):
         assert ChangeKind.BREAKING.is_breaking
-        assert ChangeKind.MAJOR.is_breaking
         assert not ChangeKind.NONE.is_breaking
         assert not ChangeKind.MINOR.is_breaking
 
@@ -197,8 +190,8 @@ class TestDefaultDiffScorer:
         new = NormalizedSnapshot.from_yaml_str(_YAML_V2_MINOR)
         scorer = DefaultDiffScorer()
         result = scorer.diff(old, new)
-        change, diff = compare_snapshots(old, new)
-        assert change == result.change_kind
+        diff = compare_snapshots(old, new)
+        assert diff.change_kind == result.change_kind
         assert diff.breaking == result.breaking
         assert diff.added == result.added
 

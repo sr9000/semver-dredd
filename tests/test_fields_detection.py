@@ -4,7 +4,7 @@ import pytest
 from dataclasses import dataclass
 from collections import namedtuple
 from semverdredd.python_api import ClassAPI, compare_classes, APISignature
-from semverdredd import ChangeType
+from semverdredd import ChangeKind
 
 try:
     from pydantic import BaseModel
@@ -96,14 +96,14 @@ class TestFieldComparison:
         new_api = create_class_api("Test", fields={"x", "y"})
 
         change = compare_classes(old_api, new_api)
-        assert change == ChangeType.MINOR
+        assert change == ChangeKind.MINOR
 
     def test_removed_field_is_major(self):
         old_api = create_class_api("Test", fields={"x", "y"})
         new_api = create_class_api("Test", fields={"x"})
 
         change = compare_classes(old_api, new_api)
-        assert change == ChangeType.MAJOR
+        assert change == ChangeKind.BREAKING
 
     def test_renamed_field_is_major(self):
         # Effectively remove 'x' and add 'z' -> MAJOR
@@ -111,11 +111,11 @@ class TestFieldComparison:
         new_api = create_class_api("Test", fields={"z"})
 
         change = compare_classes(old_api, new_api)
-        assert change == ChangeType.MAJOR
+        assert change == ChangeKind.BREAKING
 
     def test_no_field_changes(self):
         old_api = create_class_api("Test", fields={"x", "y"})
         new_api = create_class_api("Test", fields={"y", "x"})
 
         change = compare_classes(old_api, new_api)
-        assert change == ChangeType.NONE
+        assert change == ChangeKind.NONE

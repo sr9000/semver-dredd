@@ -14,12 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-# Re-export from the snapshot package for backward compatibility
-from snapshot.change_kind import ChangeKind
-from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
-
-# Backward-compat alias
-ChangeType = ChangeKind
+from semverdredd.change_kind import ChangeKind
+from semverdredd.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 
 @dataclass(frozen=True)

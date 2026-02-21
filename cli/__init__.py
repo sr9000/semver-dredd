@@ -9,13 +9,12 @@ import subprocess
 
 from semverdredd import Version, generate_patch
 from semverdredd.snapshot import save_version_file
-from snapshot import NormalizedSnapshot, ChangeKind, SnapshotDiff
+from semverdredd.models import NormalizedSnapshot
+from semverdredd.change_kind import ChangeKind
+from semverdredd.protocols import DiffResult
 from semverdredd.xldiff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin
 from cli.config import load_config, apply_config_defaults, Config
-
-# Backward-compat alias used throughout this module
-ChangeType = ChangeKind
 
 
 def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
@@ -34,13 +33,6 @@ def _resolve_diff_scorer(plugin: LanguagePlugin | None):
         if scorer is not None:
             return scorer
     return DefaultDiffScorer()
-
-
-def _diff_result_to_change_and_diff(diff_result):
-    """Convert a DiffResult to (ChangeKind, SnapshotDiff) for backward compat."""
-    change = diff_result.change_kind
-    diff = SnapshotDiff(breaking=diff_result.breaking, added=diff_result.added)
-    return change, diff
 
 
 EXIT_OK = 0
@@ -95,22 +87,22 @@ def _print_level(level: str, message: str, *, use_color: bool = False) -> None:
     print(f"[{styled}] {message}", file=stream)
 
 
-def _severity_for_change(change: ChangeType) -> str:
-    """Map change type to log severity level."""
-    if change in (ChangeType.NONE, ChangeType.PATCH):
+def _severity_for_change(change: ChangeKind) -> str:
+    """Map change kind to log severity level."""
+    if change in (ChangeKind.NONE, ChangeKind.PATCH):
         return "info"
-    if change == ChangeType.MINOR:
+    if change == ChangeKind.MINOR:
         return "warn"
     return "error"
 
 
-def _get_change_descriptions() -> dict[ChangeType, str]:
-    """Get human-readable descriptions for change types."""
+def _get_change_descriptions() -> dict[ChangeKind, str]:
+    """Get human-readable descriptions for change kinds."""
     return {
-        ChangeType.NONE: "No API changes detected (patch bump)",
-        ChangeType.PATCH: "Implementation changes only (patch bump)",
-        ChangeType.MINOR: "New features added (minor bump)",
-        ChangeType.MAJOR: "Breaking changes detected (major bump)",
+        ChangeKind.NONE: "No API changes detected (patch bump)",
+        ChangeKind.PATCH: "Implementation changes only (patch bump)",
+        ChangeKind.MINOR: "New features added (minor bump)",
+        ChangeKind.BREAKING: "Breaking changes detected (major bump)",
     }
 
 
@@ -153,8 +145,6 @@ def cmd_compare(args: argparse.Namespace) -> int:
     The plugin is responsible for extracting meta information and API state.
     """
     use_color = _should_use_color(getattr(args, "color", None))
-
-    # Handle default plugin
     plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     if getattr(args, "verbose", False):
@@ -164,7 +154,6 @@ def cmd_compare(args: argparse.Namespace) -> int:
             use_color=use_color,
         )
 
-    # Generate snapshots for both old and new modules
     exit_code, old_yaml = _generate_snapshot_yaml(plugin_name, args.old_module, "0.0.0", use_color)
     if exit_code != EXIT_OK:
         return exit_code
@@ -173,7 +162,6 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if exit_code != EXIT_OK:
         return exit_code
 
-    # Resolve plugin-specific snapshot class and diff scorer
     exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
     snap_cls = _resolve_snapshot_class(lang_plugin)
     scorer = _resolve_diff_scorer(lang_plugin)
@@ -181,17 +169,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
     old_snapshot = snap_cls.from_yaml_str(old_yaml)
     new_snapshot = snap_cls.from_yaml_str(new_yaml)
 
-    # Compare snapshots
     diff_result = scorer.diff(old_snapshot, new_snapshot)
-    change, diff = _diff_result_to_change_and_diff(diff_result)
+    change = diff_result.change_kind
 
     change_descriptions = _get_change_descriptions()
 
     severity = _severity_for_change(change)
 
-    # Adjust severity for MAJOR changes when breaking changes are allowed
     allow_breaking = getattr(args, "allow_breaking", False)
-    if change == ChangeType.MAJOR and allow_breaking:
+    if change == ChangeKind.BREAKING and allow_breaking:
         severity = "warn"
 
     # Output results
@@ -200,15 +186,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
     print(f"Description: {change_descriptions[change]}")
 
     if getattr(args, "details", False):
-        if diff.breaking:
+        if diff_result.breaking:
             print("Breaking changes:")
-            for item in diff.breaking:
+            for item in diff_result.breaking:
                 print(f"  - {item}")
-        if diff.added:
+        if diff_result.added:
             print("Added changes:")
-            for item in diff.added:
+            for item in diff_result.added:
                 print(f"  - {item}")
-        if not diff.breaking and not diff.added:
+        if not diff_result.breaking and not diff_result.added:
             print("No API additions or breaking changes detected.")
 
     if getattr(args, "current", None):
@@ -220,8 +206,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
         except ValueError as e:
             _print_level("warn", f"Could not parse current version: {e}", use_color=use_color)
 
-    # Policy gate: fail if breaking changes are detected and not allowed.
-    if change == ChangeType.MAJOR and not allow_breaking:
+    if change == ChangeKind.BREAKING and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -239,8 +224,6 @@ def cmd_status(args: argparse.Namespace) -> int:
     The plugin is responsible for extracting meta information and API state.
     """
     use_color = _should_use_color(getattr(args, "color", None))
-
-    # Handle default plugin
     plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     # Parse --date if provided
@@ -278,7 +261,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Compare
     diff_result = scorer.diff(baked, current)
-    change, diff = _diff_result_to_change_and_diff(diff_result)
+    change = diff_result.change_kind
 
     # Compute suggested version
     current_version = Version.parse(baked.version)
@@ -312,7 +295,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     severity = _severity_for_change(change)
     allow_breaking = getattr(args, "allow_breaking", False)
-    if change == ChangeType.MAJOR and allow_breaking:
+    if change == ChangeKind.BREAKING and allow_breaking:
         severity = "warn"
 
     _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
@@ -320,15 +303,15 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"Suggested version: {suggested_version}")
 
     if getattr(args, "details", False):
-        if diff.breaking:
+        if diff_result.breaking:
             print("Breaking changes:")
-            for item in diff.breaking:
+            for item in diff_result.breaking:
                 print(f"  - {item}")
-        if diff.added:
+        if diff_result.added:
             print("Added changes:")
-            for item in diff.added:
+            for item in diff_result.added:
                 print(f"  - {item}")
-        if not diff.breaking and not diff.added:
+        if not diff_result.breaking and not diff_result.added:
             print("No API additions or breaking changes detected.")
 
     # Update current.yaml with suggested version
@@ -339,7 +322,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     _print_level("info", f"Updated {current_path}", use_color=use_color)
 
     # Policy gate
-    if change == ChangeType.MAJOR and not allow_breaking:
+    if change == ChangeKind.BREAKING and not allow_breaking:
         _print_level(
             "error",
             "Breaking changes are not allowed (use --allow-breaking to override)",
@@ -357,8 +340,6 @@ def cmd_bake(args: argparse.Namespace) -> int:
     The plugin is responsible for extracting meta information and API state.
     """
     use_color = _should_use_color(getattr(args, "color", None))
-
-    # Handle default plugin
     plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
     baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
@@ -382,7 +363,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
 
         current = snap_cls.from_yaml_str(yaml_str)
         diff_result = scorer.diff(baked, current)
-        change, _ = _diff_result_to_change_and_diff(diff_result)
+        change = diff_result.change_kind
 
         current_version = Version.parse(baked.version)
         version = str(current_version.increment(change))
@@ -469,10 +450,10 @@ def cmd_bump(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
     change_map = {
-        "major": ChangeType.MAJOR,
-        "minor": ChangeType.MINOR,
-        "patch": ChangeType.PATCH,
-        "none": ChangeType.NONE,
+        "major": ChangeKind.BREAKING,
+        "minor": ChangeKind.MINOR,
+        "patch": ChangeKind.PATCH,
+        "none": ChangeKind.NONE,
     }
 
     change = change_map.get(args.change.lower())

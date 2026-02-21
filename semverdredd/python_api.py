@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from snapshot.change_kind import ChangeKind
+    from semverdredd.change_kind import ChangeKind
 
 
 @dataclass
@@ -126,49 +126,49 @@ class ModuleAPI:
         return cls(functions=functions, classes=classes)
 
 
-def compare_signatures(old: APISignature, new: APISignature) -> "ChangeType":
+def compare_signatures(old: APISignature, new: APISignature) -> "ChangeKind":
     """Compare two function/method signatures for compatibility."""
-    from snapshot.change_kind import ChangeKind as ChangeType
+    from semverdredd.change_kind import ChangeKind
 
     old_required = len(old.parameters) - old.defaults_count
     new_required = len(new.parameters) - new.defaults_count
 
     # If new version requires more parameters, it's a breaking change
     if new_required > old_required:
-        return ChangeType.MAJOR
+        return ChangeKind.BREAKING
 
     # If parameters were removed entirely, it's breaking
     if len(new.parameters) < len(old.parameters):
-        return ChangeType.MAJOR
+        return ChangeKind.BREAKING
 
     # If new optional parameters were added, it's a minor change
     if len(new.parameters) > len(old.parameters):
-        return ChangeType.MINOR
+        return ChangeKind.MINOR
 
     # If required count decreased (more defaults), it's minor
     if new_required < old_required:
-        return ChangeType.MINOR
+        return ChangeKind.MINOR
 
-    return ChangeType.NONE
+    return ChangeKind.NONE
 
 
-def compare_classes(old: ClassAPI, new: ClassAPI) -> "ChangeType":
+def compare_classes(old: ClassAPI, new: ClassAPI) -> "ChangeKind":
     """Compare two class APIs for compatibility."""
-    from snapshot.change_kind import ChangeKind as ChangeType
+    from semverdredd.change_kind import ChangeKind
 
     change_rank = {
-        ChangeType.NONE: 0,
-        ChangeType.PATCH: 1,
-        ChangeType.MINOR: 2,
-        ChangeType.MAJOR: 3,
+        ChangeKind.NONE: 0,
+        ChangeKind.PATCH: 1,
+        ChangeKind.MINOR: 2,
+        ChangeKind.BREAKING: 3,
     }
 
-    max_change = ChangeType.NONE
+    max_change = ChangeKind.NONE
 
     # Check for removed methods (breaking)
     for method_name in old.methods:
         if method_name not in new.methods:
-            return ChangeType.MAJOR
+            return ChangeKind.BREAKING
 
     # Check for changed methods
     for method_name, old_method in old.methods.items():
@@ -180,45 +180,45 @@ def compare_classes(old: ClassAPI, new: ClassAPI) -> "ChangeType":
     # Check for added methods (minor)
     for method_name in new.methods:
         if method_name not in old.methods:
-            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
-                max_change = ChangeType.MINOR
+            if change_rank[max_change] < change_rank[ChangeKind.MINOR]:
+                max_change = ChangeKind.MINOR
 
     # Check for removed fields (breaking - for structured types)
     for field_name in old.fields:
         if field_name not in new.fields:
-            return ChangeType.MAJOR
+            return ChangeKind.BREAKING
 
     # Check for added fields (minor - for structured types)
     for field_name in new.fields:
         if field_name not in old.fields:
-            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
-                max_change = ChangeType.MINOR
+            if change_rank[max_change] < change_rank[ChangeKind.MINOR]:
+                max_change = ChangeKind.MINOR
 
     return max_change
 
 
-def compare_modules(old: ModuleAPI, new: ModuleAPI) -> "ChangeType":
+def compare_modules(old: ModuleAPI, new: ModuleAPI) -> "ChangeKind":
     """Compare two module APIs and return the type of change."""
-    from snapshot.change_kind import ChangeKind as ChangeType
+    from semverdredd.change_kind import ChangeKind
 
     change_rank = {
-        ChangeType.NONE: 0,
-        ChangeType.PATCH: 1,
-        ChangeType.MINOR: 2,
-        ChangeType.MAJOR: 3,
+        ChangeKind.NONE: 0,
+        ChangeKind.PATCH: 1,
+        ChangeKind.MINOR: 2,
+        ChangeKind.BREAKING: 3,
     }
 
-    max_change = ChangeType.NONE
+    max_change = ChangeKind.NONE
 
     # Check for removed functions (breaking)
     for func_name in old.functions:
         if func_name not in new.functions:
-            return ChangeType.MAJOR
+            return ChangeKind.BREAKING
 
     # Check for removed classes (breaking)
     for class_name in old.classes:
         if class_name not in new.classes:
-            return ChangeType.MAJOR
+            return ChangeKind.BREAKING
 
     # Check for changed functions
     for func_name, old_func in old.functions.items():
@@ -237,19 +237,19 @@ def compare_modules(old: ModuleAPI, new: ModuleAPI) -> "ChangeType":
     # Check for added functions (minor)
     for func_name in new.functions:
         if func_name not in old.functions:
-            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
-                max_change = ChangeType.MINOR
+            if change_rank[max_change] < change_rank[ChangeKind.MINOR]:
+                max_change = ChangeKind.MINOR
 
     # Check for added classes (minor)
     for class_name in new.classes:
         if class_name not in old.classes:
-            if change_rank[max_change] < change_rank[ChangeType.MINOR]:
-                max_change = ChangeType.MINOR
+            if change_rank[max_change] < change_rank[ChangeKind.MINOR]:
+                max_change = ChangeKind.MINOR
 
     return max_change
 
 
-def detect_change(old_module: ModuleType, new_module: ModuleType) -> "ChangeType":
+def detect_change(old_module: ModuleType, new_module: ModuleType) -> "ChangeKind":
     """Detect the type of API change between two module versions."""
     old_api = ModuleAPI.from_module(old_module)
     new_api = ModuleAPI.from_module(new_module)

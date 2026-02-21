@@ -5,7 +5,7 @@ Tests for Version class and version management utilities.
 import pytest
 from datetime import date
 
-from semverdredd import ChangeType
+from semverdredd import ChangeKind
 from semverdredd.version import Version, generate_patch
 
 
@@ -118,7 +118,7 @@ class TestVersionIncrement:
     def test_increment_major(self):
         """Test major version increment."""
         v = Version(1, 2, 20260213001)
-        new_v = v.increment(ChangeType.MAJOR, today=date(2026, 2, 14))
+        new_v = v.increment(ChangeKind.BREAKING, today=date(2026, 2, 14))
         assert new_v.major == 2
         assert new_v.minor == 0
         assert new_v.patch == 20260214001
@@ -126,7 +126,7 @@ class TestVersionIncrement:
     def test_increment_minor(self):
         """Test minor version increment."""
         v = Version(1, 2, 20260213001)
-        new_v = v.increment(ChangeType.MINOR, today=date(2026, 2, 14))
+        new_v = v.increment(ChangeKind.MINOR, today=date(2026, 2, 14))
         assert new_v.major == 1
         assert new_v.minor == 3
         assert new_v.patch == 20260214001
@@ -134,7 +134,7 @@ class TestVersionIncrement:
     def test_increment_patch_new_day(self):
         """Test patch version increment on new day."""
         v = Version(1, 2, 20260213001)
-        new_v = v.increment(ChangeType.PATCH, today=date(2026, 2, 14))
+        new_v = v.increment(ChangeKind.PATCH, today=date(2026, 2, 14))
         assert new_v.major == 1
         assert new_v.minor == 2
         assert new_v.patch == 20260214001
@@ -142,7 +142,7 @@ class TestVersionIncrement:
     def test_increment_patch_same_day(self):
         """Test patch version increment on same day."""
         v = Version(1, 2, 20260214001)
-        new_v = v.increment(ChangeType.PATCH, today=date(2026, 2, 14))
+        new_v = v.increment(ChangeKind.PATCH, today=date(2026, 2, 14))
         assert new_v.major == 1
         assert new_v.minor == 2
         assert new_v.patch == 20260214002
@@ -150,7 +150,7 @@ class TestVersionIncrement:
     def test_increment_none(self):
         """Test that NONE change type still bumps patch (any code change = new release)."""
         v = Version(1, 2, 20260214001)
-        new_v = v.increment(ChangeType.NONE, today=date(2026, 2, 14))
+        new_v = v.increment(ChangeKind.NONE, today=date(2026, 2, 14))
         # NONE now triggers a patch bump since any code change warrants a new release
         assert new_v.major == 1
         assert new_v.minor == 2

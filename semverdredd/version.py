@@ -91,7 +91,7 @@ class Version:
         Increment version based on change type.
 
         Args:
-            change_type: Type of API change detected (ChangeType enum or compatible)
+            change_type: Type of API change detected (ChangeKind enum or compatible)
             today: Date to use for patch version (defaults to today)
 
         Returns:
@@ -103,7 +103,7 @@ class Version:
         # Use name comparison to avoid circular import issues
         change_name = change_type.name if hasattr(change_type, 'name') else str(change_type)
 
-        if change_name in ("MAJOR", "BREAKING"):
+        if change_name == "BREAKING":
             # Major bump: increment major, reset minor, new patch
             return Version(
                 major=self.major + 1,

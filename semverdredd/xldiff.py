@@ -8,25 +8,19 @@ Works with snapshots from any supported language (Python, Go, Java).
 
 from __future__ import annotations
 
-from snapshot.change_kind import ChangeKind
-from snapshot.protocols import DiffScorer, DiffResult
-from snapshot.models import (
+from semverdredd.change_kind import ChangeKind
+from semverdredd.protocols import DiffScorer, DiffResult
+from semverdredd.models import (
     NormalizedSnapshot,
     FunctionSignature,
     TypeDefinition,
     Parameter,
     Field,
-    SnapshotDiff,
 )
 
-# ---------------------------------------------------------------------------
-# Backward-compat alias: ChangeType is now ChangeKind
-# ---------------------------------------------------------------------------
-ChangeType = ChangeKind
 
-
-def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> SnapshotDiff:
-    """Compare two snapshots and return detailed diff."""
+def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
+    """Compare two snapshots and return a DiffResult."""
     breaking: list[str] = []
     added: list[str] = []
 
@@ -36,7 +30,15 @@ def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> Snapshot
     # Compare types
     _diff_types(old.types, new.types, breaking, added)
 
-    return SnapshotDiff(
+    if breaking:
+        change = ChangeKind.BREAKING
+    elif added:
+        change = ChangeKind.MINOR
+    else:
+        change = ChangeKind.NONE
+
+    return DiffResult(
+        change_kind=change,
         breaking=tuple(breaking),
         added=tuple(added),
     )
@@ -246,48 +248,23 @@ def _diff_signature(
         pass
 
 
-def classify_diff(diff: SnapshotDiff) -> ChangeKind:
-    """Classify a diff into a change kind."""
-    if diff.breaking:
-        return ChangeKind.BREAKING
-    if diff.added:
-        return ChangeKind.MINOR
-    return ChangeKind.NONE
-
-
 def compare_snapshots(
     old: NormalizedSnapshot,
     new: NormalizedSnapshot,
-) -> tuple[ChangeKind, SnapshotDiff]:
-    """Compare two snapshots and return change kind + diff."""
-    diff = diff_snapshots(old, new)
-    change = classify_diff(diff)
-    return change, diff
+) -> DiffResult:
+    """Compare two snapshots and return a DiffResult."""
+    return diff_snapshots(old, new)
 
 
 def compare_snapshot_files(
     old_path: str,
     new_path: str,
-) -> tuple[ChangeKind, SnapshotDiff]:
+) -> DiffResult:
     """Compare two snapshot files."""
-    from snapshot.registry import load_snapshot
+    from semverdredd.registry import load_snapshot
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)
     return compare_snapshots(old, new)
-
-
-# ---------------------------------------------------------------------------
-# Backward-compat bridge helpers (now identity — ChangeType IS ChangeKind)
-# ---------------------------------------------------------------------------
-
-def change_type_to_kind(ct: ChangeKind) -> ChangeKind:
-    """Deprecated identity function — ChangeType and ChangeKind are merged."""
-    return ct
-
-
-def change_kind_to_type(ck: ChangeKind) -> ChangeKind:
-    """Deprecated identity function — ChangeType and ChangeKind are merged."""
-    return ck
 
 
 # ---------------------------------------------------------------------------
@@ -295,13 +272,7 @@ def change_kind_to_type(ck: ChangeKind) -> ChangeKind:
 # ---------------------------------------------------------------------------
 
 class DefaultDiffScorer(DiffScorer):
-    """Default diff scorer wrapping ``diff_snapshots`` / ``classify_diff``."""
+    """Default diff scorer wrapping ``diff_snapshots``."""
 
     def diff(self, old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
-        snapshot_diff = diff_snapshots(old, new)
-        change = classify_diff(snapshot_diff)
-        return DiffResult(
-            change_kind=change,
-            breaking=snapshot_diff.breaking,
-            added=snapshot_diff.added,
-        )
+        return diff_snapshots(old, new)

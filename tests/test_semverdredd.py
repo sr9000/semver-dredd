@@ -11,7 +11,7 @@ from semverdredd.python_api import (
     compare_modules,
     detect_change,
 )
-from semverdredd import ChangeType
+from semverdredd import ChangeKind
 from example.py import pygeometry2
 from example.py import pygeometry1
 
@@ -92,31 +92,31 @@ class TestCompareSignatures:
         """Test comparing identical signatures."""
         sig1 = APISignature("func", ["a", "b"], 0)
         sig2 = APISignature("func", ["a", "b"], 0)
-        assert compare_signatures(sig1, sig2) == ChangeType.NONE
+        assert compare_signatures(sig1, sig2) == ChangeKind.NONE
 
     def test_added_optional_parameter(self):
         """Test adding optional parameter is minor change."""
         sig1 = APISignature("func", ["a", "b"], 0)
         sig2 = APISignature("func", ["a", "b", "c"], 1)
-        assert compare_signatures(sig1, sig2) == ChangeType.MINOR
+        assert compare_signatures(sig1, sig2) == ChangeKind.MINOR
 
     def test_added_required_parameter(self):
-        """Test adding required parameter is major change."""
+        """Test adding required parameter is breaking change."""
         sig1 = APISignature("func", ["a", "b"], 0)
         sig2 = APISignature("func", ["a", "b", "c"], 0)
-        assert compare_signatures(sig1, sig2) == ChangeType.MAJOR
+        assert compare_signatures(sig1, sig2) == ChangeKind.BREAKING
 
     def test_removed_parameter(self):
-        """Test removing parameter is major change."""
+        """Test removing parameter is breaking change."""
         sig1 = APISignature("func", ["a", "b", "c"], 0)
         sig2 = APISignature("func", ["a", "b"], 0)
-        assert compare_signatures(sig1, sig2) == ChangeType.MAJOR
+        assert compare_signatures(sig1, sig2) == ChangeKind.BREAKING
 
     def test_made_parameter_optional(self):
         """Test making parameter optional is minor change."""
         sig1 = APISignature("func", ["a", "b"], 0)
         sig2 = APISignature("func", ["a", "b"], 1)
-        assert compare_signatures(sig1, sig2) == ChangeType.MINOR
+        assert compare_signatures(sig1, sig2) == ChangeKind.MINOR
 
 
 class TestCompareClasses:
@@ -127,15 +127,13 @@ class TestCompareClasses:
         old_api = ClassAPI.from_class("Point", pygeometry1.Point)
         new_api = ClassAPI.from_class("Point", pygeometry2.Point)
         change = compare_classes(old_api, new_api)
-        # gogeometry2.Point adds translate method and z parameter (optional)
-        # Adding method -> MINOR, adding optional param -> MINOR
-        assert change == ChangeType.MINOR
+        assert change == ChangeKind.MINOR
 
-    def test_removed_method_is_major(self):
-        """Test that removing a method is a major change."""
+    def test_removed_method_is_breaking(self):
+        """Test that removing a method is a breaking change."""
         old_api = ClassAPI("Test", {"method1": APISignature("method1", ["self"], 0)}, set())
         new_api = ClassAPI("Test", {}, set())
-        assert compare_classes(old_api, new_api) == ChangeType.MAJOR
+        assert compare_classes(old_api, new_api) == ChangeKind.BREAKING
 
 
 class TestCompareModules:
@@ -146,27 +144,25 @@ class TestCompareModules:
         old_api = ModuleAPI.from_module(pygeometry1)
         new_api = ModuleAPI.from_module(pygeometry2)
         change = compare_modules(old_api, new_api)
-        # gogeometry2 adds volume function and Point.translate method
-        # Both are additions -> MINOR
-        assert change == ChangeType.MINOR
+        assert change == ChangeKind.MINOR
 
-    def test_removed_function_is_major(self):
-        """Test that removing a function is a major change."""
+    def test_removed_function_is_breaking(self):
+        """Test that removing a function is a breaking change."""
         old_api = ModuleAPI(
             functions={"func1": APISignature("func1", [], 0)},
             classes={}
         )
         new_api = ModuleAPI(functions={}, classes={})
-        assert compare_modules(old_api, new_api) == ChangeType.MAJOR
+        assert compare_modules(old_api, new_api) == ChangeKind.BREAKING
 
-    def test_removed_class_is_major(self):
-        """Test that removing a class is a major change."""
+    def test_removed_class_is_breaking(self):
+        """Test that removing a class is a breaking change."""
         old_api = ModuleAPI(
             functions={},
             classes={"MyClass": ClassAPI("MyClass", {}, set())}
         )
         new_api = ModuleAPI(functions={}, classes={})
-        assert compare_modules(old_api, new_api) == ChangeType.MAJOR
+        assert compare_modules(old_api, new_api) == ChangeKind.BREAKING
 
 
 class TestDetectChange:
@@ -175,10 +171,9 @@ class TestDetectChange:
     def test_detect_change_pygeometry1_to_pygeometry2(self):
         """Test detecting change between gogeometry1 and gogeometry2."""
         change = detect_change(pygeometry1, pygeometry2)
-        # gogeometry2 adds new function and method -> MINOR
-        assert change == ChangeType.MINOR
+        assert change == ChangeKind.MINOR
 
     def test_detect_change_same_module(self):
         """Test detecting change for same module returns NONE."""
         change = detect_change(pygeometry1, pygeometry1)
-        assert change == ChangeType.NONE
+        assert change == ChangeKind.NONE

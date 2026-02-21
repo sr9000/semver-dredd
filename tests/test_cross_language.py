@@ -13,11 +13,10 @@ from semverdredd.snapshot_io import (
 )
 from semverdredd.xldiff import (
     diff_snapshots,
-    classify_diff,
     compare_snapshots,
-    ChangeType,
-    SnapshotDiff,
 )
+from semverdredd.change_kind import ChangeKind
+from semverdredd.protocols import DiffResult
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -126,26 +125,26 @@ class TestChangeClassification:
     def test_no_changes_is_none(self):
         snap = load_snapshot(FIXTURES_DIR / "go" / "v1_baseline.yaml")
         diff = diff_snapshots(snap, snap)
-        assert classify_diff(diff) == ChangeType.NONE
+        assert diff.change_kind == ChangeKind.NONE
 
     def test_additions_only_is_minor(self):
         old = load_snapshot(FIXTURES_DIR / "go" / "v1_baseline.yaml")
         new = load_snapshot(FIXTURES_DIR / "go" / "v2_minor.yaml")
         diff = diff_snapshots(old, new)
-        assert classify_diff(diff) == ChangeType.MINOR
+        assert diff.change_kind == ChangeKind.MINOR
 
-    def test_breaking_is_major(self):
+    def test_breaking_is_breaking(self):
         old = load_snapshot(FIXTURES_DIR / "go" / "v1_baseline.yaml")
         new = load_snapshot(FIXTURES_DIR / "go" / "v3_breaking.yaml")
         diff = diff_snapshots(old, new)
-        assert classify_diff(diff) == ChangeType.MAJOR
+        assert diff.change_kind == ChangeKind.BREAKING
 
-    def test_compare_snapshots_returns_both(self):
+    def test_compare_snapshots_returns_diff_result(self):
         old = load_snapshot(FIXTURES_DIR / "go" / "v1_baseline.yaml")
         new = load_snapshot(FIXTURES_DIR / "go" / "v2_minor.yaml")
-        change, diff = compare_snapshots(old, new)
-        assert change == ChangeType.MINOR
-        assert isinstance(diff, SnapshotDiff)
+        diff = compare_snapshots(old, new)
+        assert diff.change_kind == ChangeKind.MINOR
+        assert isinstance(diff, DiffResult)
 
 
 class TestBackwardCompatibility:

@@ -12,38 +12,27 @@ from typing import TYPE_CHECKING
 from semverdredd.version import Version
 
 if TYPE_CHECKING:  # pragma: no cover
-    from snapshot.change_kind import ChangeKind
-
-
-@dataclass(frozen=True, slots=True)
-class APIDiff:
-    """Detailed diff of API changes between two modules."""
-
-    breaking: tuple[str, ...] = field(default_factory=tuple)
-    added: tuple[str, ...] = field(default_factory=tuple)
-
-    @property
-    def has_changes(self) -> bool:
-        return bool(self.breaking or self.added)
+    from semverdredd.change_kind import ChangeKind
+    from semverdredd.protocols import DiffResult
 
 
 @dataclass(frozen=True, slots=True)
 class CompareResult:
     """Outcome of comparing two modules."""
 
-    change_type: "ChangeKind"
+    change_kind: "ChangeKind"
     description: str
     severity: str  # info|warn|error
-    diff: APIDiff = field(default_factory=APIDiff)
+    diff: "DiffResult | None" = None
 
 
 @dataclass(frozen=True, slots=True)
 class SuggestVersionResult:
     """CompareResult + suggested next version."""
 
-    change_type: "ChangeKind"
+    change_kind: "ChangeKind"
     description: str
     severity: str
     current_version: Version
     suggested_version: Version
-    diff: APIDiff = field(default_factory=APIDiff)
+    diff: "DiffResult | None" = None
