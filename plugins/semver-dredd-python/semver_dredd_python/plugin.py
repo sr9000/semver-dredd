@@ -6,6 +6,7 @@ import importlib
 import inspect
 import sys
 import uuid as _uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -17,12 +18,90 @@ from snapshot.predefined import (
     ClassField,
     ClassMethod,
     Function,
-    PythonArgument,
     Variable,
 )
 
 # ---------------------------------------------------------------------------
-# SNAPSHOT_TYPE_ID for the Python plugin's snapshot format
+# PythonArgument -- Python-specific argument type (lives in this plugin)
+# ---------------------------------------------------------------------------
+
+PYTHON_ARGUMENT_TYPE_ID = str(
+    _uuid.uuid5(_uuid.NAMESPACE_URL, "semver-dredd:predefined:PythonArgument")
+)
+
+
+@dataclass(frozen=True)
+class PythonArgument:
+    """Python-specific function argument with calling-convention metadata.
+
+    Extends Argument with three mutually-exclusive boolean flags describing
+    where in a Python function signature the parameter appears:
+
+    * position_only -- before /
+    * pos_and_named -- normal parameter (default)
+    * named_only    -- after * or *args
+    """
+
+    SNAPSHOT_TYPE_ID: str = PYTHON_ARGUMENT_TYPE_ID
+
+    name: str = ""
+    type: str = "unknown"
+    default: str | None = None
+    position_only: bool = False
+    pos_and_named: bool = True
+    named_only: bool = False
+
+    @property
+    def version(self) -> str:
+        return "0"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "snapshot_type_id": self.SNAPSHOT_TYPE_ID,
+            "name": self.name,
+            "type": self.type,
+            "default": self.default,
+            "position_only": self.position_only,
+            "pos_and_named": self.pos_and_named,
+            "named_only": self.named_only,
+        }
+
+    def to_yaml(self) -> str:
+        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False)
+
+    @classmethod
+    def from_yaml_str(cls, yaml_str: str) -> "PythonArgument":
+        return cls.from_dict(yaml.safe_load(yaml_str))
+
+    @classmethod
+    def from_file(cls, path: Path | str) -> "PythonArgument":
+        return cls.from_yaml_str(Path(path).read_text())
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "PythonArgument":
+        return cls(
+            name=data.get("name", ""),
+            type=data.get("type", "unknown"),
+            default=data.get("default"),
+            position_only=data.get("position_only", False),
+            pos_and_named=data.get("pos_and_named", True),
+            named_only=data.get("named_only", False),
+        )
+
+
+def _register_python_argument() -> None:
+    from semverdredd.registry import default_registry
+    try:
+        default_registry.register(PythonArgument)
+    except ValueError:
+        pass
+
+
+_register_python_argument()
+
+
+# ---------------------------------------------------------------------------
+# SNAPSHOT_TYPE_ID for the Python plugin snapshot format
 # ---------------------------------------------------------------------------
 
 PYTHON_SNAPSHOT_TYPE_ID = str(
@@ -31,43 +110,7 @@ PYTHON_SNAPSHOT_TYPE_ID = str(
 
 
 class PythonSnapshot:
-    """Python-specific API snapshot produced by the Python plugin.
-
-    Stored as a YAML document with the following top-level fields::
-
-        snapshot_type_id: <PYTHON_SNAPSHOT_TYPE_ID>
-        schema_version: 3
-        version: "1.0.0"
-        language: python
-        source:
-          kind: module
-          path: mylib
-        api:
-          variables:
-            MAX_SIZE:
-              type: int
-              default: "100"
-          functions:
-            compute:
-              result_type: float
-              args:
-                - name: x
-                  type: float
-                  position_only: false
-                  pos_and_named: true
-                  named_only: false
-                  default: null
-          types:
-            MyClass:
-              fields:
-                - name: value
-                  type: str
-                  default: null
-              methods:
-                do_thing:
-                  result_type: void
-                  args: []
-    """
+    """Python-specific API snapshot produced by the Python plugin."""
 
     SNAPSHOT_TYPE_ID: str = PYTHON_SNAPSHOT_TYPE_ID
 
@@ -96,20 +139,20 @@ class PythonSnapshot:
     # ------------------------------------------------------------------
 
     def to_dict(self) -> dict[str, Any]:
-        variables: dict[str, Any] = {
+        variables_d: dict[str, Any] = {
             name: {"type": v.type, "default": v.default}
             for name, v in self.variables.items()
         }
-        functions: dict[str, Any] = {
+        functions_d: dict[str, Any] = {
             name: {
                 "result_type": f.result_type,
                 "args": [self._arg_to_dict(a) for a in f.args],
             }
             for name, f in self.functions.items()
         }
-        types: dict[str, Any] = {}
+        types_d: dict[str, Any] = {}
         for type_name, (fields, methods) in self.types.items():
-            types[type_name] = {
+            types_d[type_name] = {
                 "fields": [
                     {"name": cf.name, "type": cf.type, "default": cf.default}
                     for cf in fields
@@ -128,11 +171,11 @@ class PythonSnapshot:
             "version": self._version,
             "language": "python",
             "source": {"kind": self.source_kind, "path": self.source_path},
-            "api": {"variables": variables, "functions": functions, "types": types},
+            "api": {"variables": variables_d, "functions": functions_d, "types": types_d},
         }
 
     @staticmethod
-    def _arg_to_dict(arg: Argument | PythonArgument) -> dict[str, Any]:
+    def _arg_to_dict(arg: Any) -> dict[str, Any]:
         if isinstance(arg, PythonArgument):
             return {
                 "name": arg.name,
@@ -201,7 +244,7 @@ class PythonSnapshot:
         )
 
     @staticmethod
-    def _arg_from_dict(data: dict[str, Any]) -> Argument | PythonArgument:
+    def _arg_from_dict(data: dict[str, Any]) -> Any:
         if any(k in data for k in ("position_only", "pos_and_named", "named_only")):
             return PythonArgument(
                 name=data.get("name", ""),
@@ -269,7 +312,7 @@ def _inspect_function(name: str, func: Any) -> Function:
                 named_only=named_only,
             )
         )
-    return Function(name=name, result_type=result_type, args=tuple(args))
+    return Function(name=name, result_type=result_type, args=tuple(args))  # type: ignore[arg-type]
 
 
 def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMethod]]:
@@ -314,7 +357,7 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
         except (ValueError, TypeError):
             methods[method_name] = ClassMethod(name=method_name)
             continue
-        args: list[PythonArgument] = []
+        m_args: list[PythonArgument] = []
         for param_name, param in sig.parameters.items():
             kind = param.kind
             position_only = kind == inspect.Parameter.POSITIONAL_ONLY
@@ -323,25 +366,25 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
                 inspect.Parameter.VAR_POSITIONAL,
                 inspect.Parameter.VAR_KEYWORD,
             )
-            default = None
+            p_default: str | None = None
             if param.default is not inspect.Parameter.empty:
                 try:
-                    default = repr(param.default)
+                    p_default = repr(param.default)
                 except Exception:
-                    default = "..."
+                    p_default = "..."
             type_hint = _get_type_hint(hints.get(param_name, param.annotation))
-            args.append(
+            m_args.append(
                 PythonArgument(
                     name=param_name,
                     type=type_hint,
-                    default=default,
+                    default=p_default,
                     position_only=position_only,
                     pos_and_named=pos_and_named,
                     named_only=named_only,
                 )
             )
         methods[method_name] = ClassMethod(
-            name=method_name, result_type=result_type, args=tuple(args)
+            name=method_name, result_type=result_type, args=tuple(m_args)  # type: ignore[arg-type]
         )
     return fields, methods
 
@@ -352,11 +395,7 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
 
 
 class PythonPlugin(LanguagePlugin):
-    """Python language support plugin for semver-dredd.
-
-    Analyzes Python modules using introspection (inspect module).
-    Produces :class:`PythonSnapshot` YAML using the predefined component models.
-    """
+    """Python language support plugin for semver-dredd."""
 
     @property
     def name(self) -> str:

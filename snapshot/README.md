@@ -390,7 +390,7 @@ Importing `snapshot.predefined` automatically registers all six predefined
 model classes in the global `semverdredd.registry.default_registry`.
 
 ```python
-from snapshot.predefined import Variable, Function, ClassField
+from snapshot.predefined import Value, Function, ClassField
 # ↑ side-effect: all six classes are registered in default_registry
 ```
 
