@@ -9,9 +9,39 @@ import subprocess
 
 from semverdredd import Version, generate_patch
 from semverdredd.snapshot import save_version_file
-from semverdredd.snapshot_io import load_snapshot, NormalizedSnapshot
-from semverdredd.xldiff import compare_snapshots, ChangeType
+from semverdredd.snapshot_io import NormalizedSnapshot
+from semverdredd.xldiff import ChangeType, DefaultDiffScorer, change_kind_to_type
+from semverdredd.plugin_base import LanguagePlugin
 from cli.config import load_config, apply_config_defaults, Config
+
+
+def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
+    """Return the snapshot class to use — the plugin's custom one or the default.
+
+    The returned class satisfies the :class:`SnapshotFormat` protocol.
+    """
+    if plugin is not None:
+        cls = plugin.snapshot_format_class
+        if cls is not None:
+            return cls
+    return NormalizedSnapshot
+
+
+def _resolve_diff_scorer(plugin: LanguagePlugin | None):
+    """Return the diff scorer to use — the plugin's custom one or the default."""
+    if plugin is not None:
+        scorer = plugin.diff_scorer
+        if scorer is not None:
+            return scorer
+    return DefaultDiffScorer()
+
+
+def _diff_result_to_change_and_snapshot_diff(diff_result):
+    """Convert a DiffResult to (ChangeType, SnapshotDiff) for backward compat."""
+    from semverdredd.xldiff import SnapshotDiff
+    change = change_kind_to_type(diff_result.change_kind)
+    diff = SnapshotDiff(breaking=diff_result.breaking, added=diff_result.added)
+    return change, diff
 
 
 EXIT_OK = 0
@@ -85,14 +115,22 @@ def _get_change_descriptions() -> dict[ChangeType, str]:
     }
 
 
-def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
-    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
-
+def _get_language_plugin(plugin_name: str, use_color: bool) -> tuple[int, LanguagePlugin | None]:
+    """Resolve a language plugin by name. Returns (exit_code, plugin)."""
     from semverdredd.plugin_manager import get_plugin
 
     plugin = get_plugin(plugin_name)
     if not plugin:
         _print_level("error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color)
+        return EXIT_ERROR, None
+    return EXIT_OK, plugin
+
+
+def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
+    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
+
+    exit_code, plugin = _get_language_plugin(plugin_name, use_color)
+    if exit_code != EXIT_OK or plugin is None:
         return EXIT_ERROR, ""
 
     ok, msg = plugin.validate_path(path)
@@ -136,11 +174,17 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if exit_code != EXIT_OK:
         return exit_code
 
-    old_snapshot = NormalizedSnapshot.from_yaml_str(old_yaml)
-    new_snapshot = NormalizedSnapshot.from_yaml_str(new_yaml)
+    # Resolve plugin-specific snapshot class and diff scorer
+    exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
+    snap_cls = _resolve_snapshot_class(lang_plugin)
+    scorer = _resolve_diff_scorer(lang_plugin)
+
+    old_snapshot = snap_cls.from_yaml_str(old_yaml)
+    new_snapshot = snap_cls.from_yaml_str(new_yaml)
 
     # Compare snapshots
-    change, diff = compare_snapshots(old_snapshot, new_snapshot)
+    diff_result = scorer.diff(old_snapshot, new_snapshot)
+    change, diff = _diff_result_to_change_and_snapshot_diff(diff_result)
 
     change_descriptions = _get_change_descriptions()
 
@@ -220,17 +264,22 @@ def cmd_status(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
     # Load baked snapshot
-    baked = load_snapshot(baked_path)
+    exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
+    snap_cls = _resolve_snapshot_class(lang_plugin)
+    scorer = _resolve_diff_scorer(lang_plugin)
+
+    baked = snap_cls.from_file(baked_path)
 
     # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
     exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
     if exit_code != EXIT_OK:
         return exit_code
 
-    current = NormalizedSnapshot.from_yaml_str(yaml_str)
+    current = snap_cls.from_yaml_str(yaml_str)
 
     # Compare
-    change, diff = compare_snapshots(baked, current)
+    diff_result = scorer.diff(baked, current)
+    change, diff = _diff_result_to_change_and_snapshot_diff(diff_result)
 
     # Compute suggested version
     current_version = Version.parse(baked.version)
@@ -321,15 +370,20 @@ def cmd_bake(args: argparse.Namespace) -> int:
         version = args.version
     elif baked_path.exists():
         # Load existing and compute next version
-        baked = load_snapshot(baked_path)
+        exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
+        snap_cls = _resolve_snapshot_class(lang_plugin)
+        scorer = _resolve_diff_scorer(lang_plugin)
+
+        baked = snap_cls.from_file(baked_path)
 
         # Generate current snapshot
         exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
         if exit_code != EXIT_OK:
             return exit_code
 
-        current = NormalizedSnapshot.from_yaml_str(yaml_str)
-        change, _ = compare_snapshots(baked, current)
+        current = snap_cls.from_yaml_str(yaml_str)
+        diff_result = scorer.diff(baked, current)
+        change, _ = _diff_result_to_change_and_snapshot_diff(diff_result)
 
         current_version = Version.parse(baked.version)
         version = str(current_version.increment(change))

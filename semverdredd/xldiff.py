@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from semverdredd.plugin_base import ChangeKind, DiffScorer, DiffResult
 from semverdredd.snapshot_io import (
     NormalizedSnapshot,
     FunctionSignature,
@@ -288,3 +289,50 @@ def compare_snapshot_files(
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)
     return compare_snapshots(old, new)
+
+
+# ---------------------------------------------------------------------------
+# Bridge between internal ChangeType and pluggable ChangeKind
+# ---------------------------------------------------------------------------
+
+_CHANGE_TYPE_TO_KIND: dict[ChangeType, ChangeKind] = {
+    ChangeType.NONE: ChangeKind.NONE,
+    ChangeType.PATCH: ChangeKind.PATCH,
+    ChangeType.MINOR: ChangeKind.MINOR,
+    ChangeType.MAJOR: ChangeKind.BREAKING,
+}
+
+_CHANGE_KIND_TO_TYPE: dict[ChangeKind, ChangeType] = {v: k for k, v in _CHANGE_TYPE_TO_KIND.items()}
+
+
+def change_type_to_kind(ct: ChangeType) -> ChangeKind:
+    """Convert internal ``ChangeType`` to pluggable ``ChangeKind``."""
+    return _CHANGE_TYPE_TO_KIND[ct]
+
+
+def change_kind_to_type(ck: ChangeKind) -> ChangeType:
+    """Convert pluggable ``ChangeKind`` to internal ``ChangeType``."""
+    return _CHANGE_KIND_TO_TYPE[ck]
+
+
+# ---------------------------------------------------------------------------
+# Default diff scorer (wraps the existing free-function logic)
+# ---------------------------------------------------------------------------
+
+class DefaultDiffScorer(DiffScorer):
+    """Default implementation that wraps ``diff_snapshots`` / ``classify_diff``.
+
+    Plugins that are happy with the built-in comparison logic don't need
+    to touch this — the core will instantiate it automatically when
+    ``LanguagePlugin.diff_scorer`` returns ``None``.
+    """
+
+    def diff(self, old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
+        """Compare two :class:`NormalizedSnapshot` objects."""
+        snapshot_diff = diff_snapshots(old, new)
+        change_type = classify_diff(snapshot_diff)
+        return DiffResult(
+            change_kind=change_type_to_kind(change_type),
+            breaking=snapshot_diff.breaking,
+            added=snapshot_diff.added,
+        )

@@ -19,7 +19,14 @@ from semverdredd.version import Version, generate_patch
 from semverdredd.result import APIDiff, CompareResult, SuggestVersionResult
 
 # Plugin system (programmatic API)
-from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+from semverdredd.plugin_base import (
+    LanguagePlugin,
+    SnapshotResult,
+    SnapshotFormat,
+    DiffScorer,
+    DiffResult,
+    ChangeKind,
+)
 from semverdredd.plugin_manager import (
     PluginManager,
     get_plugin_manager,
@@ -28,7 +35,14 @@ from semverdredd.plugin_manager import (
 )
 
 # Re-export ChangeType from xldiff as the single source of truth
-from semverdredd.xldiff import ChangeType, compare_snapshots, SnapshotDiff
+from semverdredd.xldiff import (
+    ChangeType,
+    compare_snapshots,
+    SnapshotDiff,
+    DefaultDiffScorer,
+    change_type_to_kind,
+    change_kind_to_type,
+)
 
 # Re-export snapshot types
 from semverdredd.snapshot_io import NormalizedSnapshot, load_snapshot
@@ -49,6 +63,24 @@ def _severity_for_change(change: ChangeType) -> str:
     if change == ChangeType.MINOR:
         return "warn"
     return "error"
+
+
+def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type[SnapshotFormat]:
+    """Return the snapshot class to use — the plugin's custom one or the default."""
+    if plugin is not None:
+        cls = plugin.snapshot_format_class
+        if cls is not None:
+            return cls
+    return NormalizedSnapshot  # type: ignore[return-value]
+
+
+def _resolve_diff_scorer(plugin: LanguagePlugin | None) -> DiffScorer:
+    """Return the diff scorer to use — the plugin's custom one or the default."""
+    if plugin is not None:
+        scorer = plugin.diff_scorer
+        if scorer is not None:
+            return scorer
+    return DefaultDiffScorer()
 
 
 def compare(
@@ -94,16 +126,23 @@ def compare(
     if not new_result.success:
         raise RuntimeError(f"Failed to generate snapshot for new: {new_result.error_message}")
 
-    old_snapshot = NormalizedSnapshot.from_yaml_str(old_result.yaml_content)
-    new_snapshot = NormalizedSnapshot.from_yaml_str(new_result.yaml_content)
+    # Use plugin-provided snapshot class and diff scorer
+    snap_cls = _resolve_snapshot_class(lang_plugin)
+    scorer = _resolve_diff_scorer(lang_plugin)
 
-    change, diff = compare_snapshots(old_snapshot, new_snapshot)
+    old_snapshot = snap_cls.from_yaml_str(old_result.yaml_content)
+    new_snapshot = snap_cls.from_yaml_str(new_result.yaml_content)
+
+    diff_result = scorer.diff(old_snapshot, new_snapshot)
+
+    # Convert ChangeKind -> ChangeType for the public API
+    change = change_kind_to_type(diff_result.change_kind)
 
     return CompareResult(
         change_type=change,
         description=_description_for_change(change),
         severity=_severity_for_change(change),
-        diff=APIDiff(breaking=diff.breaking, added=diff.added),
+        diff=APIDiff(breaking=diff_result.breaking, added=diff_result.added),
     )
 
 
@@ -147,6 +186,7 @@ def compare_and_suggest(
 __all__ = [
     # Core types
     "ChangeType",
+    "ChangeKind",
     "Version",
     "generate_patch",
 
@@ -168,8 +208,16 @@ __all__ = [
     # Plugin system
     "LanguagePlugin",
     "SnapshotResult",
+    "SnapshotFormat",
+    "DiffScorer",
+    "DiffResult",
+    "DefaultDiffScorer",
     "PluginManager",
     "get_plugin_manager",
     "get_plugin",
     "list_plugins",
+
+    # Bridge helpers
+    "change_type_to_kind",
+    "change_kind_to_type",
 ]
