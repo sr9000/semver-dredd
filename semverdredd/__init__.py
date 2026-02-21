@@ -18,15 +18,21 @@ from semverdredd.version import Version, generate_patch
 # Structured result types (pure data)
 from semverdredd.result import APIDiff, CompareResult, SuggestVersionResult
 
-# Plugin system (programmatic API)
-from semverdredd.plugin_base import (
-    LanguagePlugin,
-    SnapshotResult,
-    SnapshotFormat,
-    DiffScorer,
-    DiffResult,
+# Snapshot package (canonical home of snapshot types)
+from snapshot import (
     ChangeKind,
+    ChangeType,      # backward-compat alias for ChangeKind
+    DiffResult,
+    DiffScorer,
+    SnapshotFormat,
+    NormalizedSnapshot,
+    SnapshotDiff,
+    default_registry,
+    load_snapshot,
 )
+
+# Plugin system (programmatic API)
+from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from semverdredd.plugin_manager import (
     PluginManager,
     get_plugin_manager,
@@ -34,44 +40,39 @@ from semverdredd.plugin_manager import (
     list_plugins,
 )
 
-# Re-export ChangeType from xldiff as the single source of truth
+# Diff engine
 from semverdredd.xldiff import (
-    ChangeType,
     compare_snapshots,
-    SnapshotDiff,
     DefaultDiffScorer,
     change_type_to_kind,
     change_kind_to_type,
 )
 
-# Re-export snapshot types
-from semverdredd.snapshot_io import NormalizedSnapshot, load_snapshot
 
-
-def _description_for_change(change: ChangeType) -> str:
+def _description_for_change(change: ChangeKind) -> str:
     return {
-        ChangeType.NONE: "No API changes detected",
-        ChangeType.PATCH: "Implementation changes only (patch bump)",
-        ChangeType.MINOR: "New features added (minor bump)",
-        ChangeType.MAJOR: "Breaking changes detected (major bump)",
+        ChangeKind.NONE: "No API changes detected",
+        ChangeKind.PATCH: "Implementation changes only (patch bump)",
+        ChangeKind.MINOR: "New features added (minor bump)",
+        ChangeKind.BREAKING: "Breaking changes detected (major bump)",
     }[change]
 
 
-def _severity_for_change(change: ChangeType) -> str:
-    if change in (ChangeType.NONE, ChangeType.PATCH):
+def _severity_for_change(change: ChangeKind) -> str:
+    if change in (ChangeKind.NONE, ChangeKind.PATCH):
         return "info"
-    if change == ChangeType.MINOR:
+    if change == ChangeKind.MINOR:
         return "warn"
     return "error"
 
 
-def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type[SnapshotFormat]:
+def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
     """Return the snapshot class to use — the plugin's custom one or the default."""
     if plugin is not None:
         cls = plugin.snapshot_format_class
         if cls is not None:
             return cls
-    return NormalizedSnapshot  # type: ignore[return-value]
+    return NormalizedSnapshot
 
 
 def _resolve_diff_scorer(plugin: LanguagePlugin | None) -> DiffScorer:
@@ -134,9 +135,7 @@ def compare(
     new_snapshot = snap_cls.from_yaml_str(new_result.yaml_content)
 
     diff_result = scorer.diff(old_snapshot, new_snapshot)
-
-    # Convert ChangeKind -> ChangeType for the public API
-    change = change_kind_to_type(diff_result.change_kind)
+    change = diff_result.change_kind
 
     return CompareResult(
         change_type=change,
@@ -185,8 +184,8 @@ def compare_and_suggest(
 
 __all__ = [
     # Core types
-    "ChangeType",
     "ChangeKind",
+    "ChangeType",
     "Version",
     "generate_patch",
 
@@ -216,8 +215,9 @@ __all__ = [
     "get_plugin_manager",
     "get_plugin",
     "list_plugins",
+    "default_registry",
 
-    # Bridge helpers
+    # Deprecated bridge helpers (identity functions)
     "change_type_to_kind",
     "change_kind_to_type",
 ]

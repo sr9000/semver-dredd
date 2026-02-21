@@ -9,17 +9,17 @@ import subprocess
 
 from semverdredd import Version, generate_patch
 from semverdredd.snapshot import save_version_file
-from semverdredd.snapshot_io import NormalizedSnapshot
-from semverdredd.xldiff import ChangeType, DefaultDiffScorer, change_kind_to_type
+from snapshot import NormalizedSnapshot, ChangeKind, SnapshotDiff
+from semverdredd.xldiff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin
 from cli.config import load_config, apply_config_defaults, Config
 
+# Backward-compat alias used throughout this module
+ChangeType = ChangeKind
+
 
 def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
-    """Return the snapshot class to use — the plugin's custom one or the default.
-
-    The returned class satisfies the :class:`SnapshotFormat` protocol.
-    """
+    """Return the snapshot class to use — the plugin's custom one or the default."""
     if plugin is not None:
         cls = plugin.snapshot_format_class
         if cls is not None:
@@ -36,10 +36,9 @@ def _resolve_diff_scorer(plugin: LanguagePlugin | None):
     return DefaultDiffScorer()
 
 
-def _diff_result_to_change_and_snapshot_diff(diff_result):
-    """Convert a DiffResult to (ChangeType, SnapshotDiff) for backward compat."""
-    from semverdredd.xldiff import SnapshotDiff
-    change = change_kind_to_type(diff_result.change_kind)
+def _diff_result_to_change_and_diff(diff_result):
+    """Convert a DiffResult to (ChangeKind, SnapshotDiff) for backward compat."""
+    change = diff_result.change_kind
     diff = SnapshotDiff(breaking=diff_result.breaking, added=diff_result.added)
     return change, diff
 
@@ -184,7 +183,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
     # Compare snapshots
     diff_result = scorer.diff(old_snapshot, new_snapshot)
-    change, diff = _diff_result_to_change_and_snapshot_diff(diff_result)
+    change, diff = _diff_result_to_change_and_diff(diff_result)
 
     change_descriptions = _get_change_descriptions()
 
@@ -279,7 +278,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Compare
     diff_result = scorer.diff(baked, current)
-    change, diff = _diff_result_to_change_and_snapshot_diff(diff_result)
+    change, diff = _diff_result_to_change_and_diff(diff_result)
 
     # Compute suggested version
     current_version = Version.parse(baked.version)
@@ -383,7 +382,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
 
         current = snap_cls.from_yaml_str(yaml_str)
         diff_result = scorer.diff(baked, current)
-        change, _ = _diff_result_to_change_and_snapshot_diff(diff_result)
+        change, _ = _diff_result_to_change_and_diff(diff_result)
 
         current_version = Version.parse(baked.version)
         version = str(current_version.increment(change))

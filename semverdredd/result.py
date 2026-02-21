@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from semverdredd.version import Version
 
 if TYPE_CHECKING:  # pragma: no cover
-    from semverdredd.xldiff import ChangeType
+    from snapshot.change_kind import ChangeKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +31,7 @@ class APIDiff:
 class CompareResult:
     """Outcome of comparing two modules."""
 
-    change_type: "ChangeType"
+    change_type: "ChangeKind"
     description: str
     severity: str  # info|warn|error
     diff: APIDiff = field(default_factory=APIDiff)
@@ -41,7 +41,7 @@ class CompareResult:
 class SuggestVersionResult:
     """CompareResult + suggested next version."""
 
-    change_type: "ChangeType"
+    change_type: "ChangeKind"
     description: str
     severity: str
     current_version: Version

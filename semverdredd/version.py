@@ -103,7 +103,7 @@ class Version:
         # Use name comparison to avoid circular import issues
         change_name = change_type.name if hasattr(change_type, 'name') else str(change_type)
 
-        if change_name == "MAJOR":
+        if change_name in ("MAJOR", "BREAKING"):
             # Major bump: increment major, reset minor, new patch
             return Version(
                 major=self.major + 1,

@@ -172,7 +172,7 @@ class TestCLIBreakingPolicy:
         result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
         assert result == 10
         captured = capsys.readouterr()
-        assert "MAJOR" in captured.out
+        assert "BREAKING" in captured.out
         assert "[ERROR]" in captured.err  # Severity should be ERROR when not allowed
         assert "Breaking changes are not allowed" in captured.err
 
@@ -185,7 +185,7 @@ class TestCLIBreakingPolicy:
         ])
         assert result == 0
         captured = capsys.readouterr()
-        assert "MAJOR" in captured.out
+        assert "BREAKING" in captured.out
         assert "[WARN]" in captured.err  # Severity should be WARN when allowed
         assert "Breaking changes are not allowed" not in captured.err  # No error message
 
@@ -211,7 +211,7 @@ policies:
         result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
         assert result == 0
         captured = capsys.readouterr()
-        assert "MAJOR" in captured.out
+        assert "BREAKING" in captured.out
         assert "[WARN]" in captured.err  # Should be WARN when allowed
 
     def test_env_file_overrides_yaml(self, capsys, tmp_path, monkeypatch):
@@ -249,7 +249,7 @@ policies:
             result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
             assert result == 0  # Should pass because real env overrides .env
             captured = capsys.readouterr()
-            assert "MAJOR" in captured.out
+            assert "BREAKING" in captured.out
             assert "[WARN]" in captured.err
 
     def test_cli_arg_overrides_all(self, capsys, tmp_path, monkeypatch):

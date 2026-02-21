@@ -1,0 +1,34 @@
+"""Unified change-severity enum for semver-dredd."""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class ChangeKind(Enum):
+    """Severity of an API change — used for semver classification.
+
+    ========= ============================================
+    Value     Meaning
+    ========= ============================================
+    NONE      No API surface change detected
+    PATCH     Implementation-only change (no API impact)
+    MINOR     New public functionality added
+    BREAKING  Existing public API removed or incompatible
+    MAJOR     Alias for BREAKING (backward compat)
+    ========= ============================================
+    """
+
+    NONE = 0
+    PATCH = 1
+    MINOR = 2
+    BREAKING = 3
+    MAJOR = 3  # alias — ``ChangeKind.MAJOR is ChangeKind.BREAKING``
+
+    @property
+    def is_breaking(self) -> bool:
+        return self.value == 3
+
+
+# Convenience alias so old code using ``ChangeType`` keeps compiling.
+ChangeType = ChangeKind

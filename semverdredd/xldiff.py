@@ -8,36 +8,21 @@ Works with snapshots from any supported language (Python, Go, Java).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
-
-from semverdredd.plugin_base import ChangeKind, DiffScorer, DiffResult
-from semverdredd.snapshot_io import (
+from snapshot.change_kind import ChangeKind
+from snapshot.protocols import DiffScorer, DiffResult
+from snapshot.models import (
     NormalizedSnapshot,
     FunctionSignature,
     TypeDefinition,
     Parameter,
     Field,
+    SnapshotDiff,
 )
 
-
-class ChangeType(Enum):
-    """Type of API change detected."""
-    NONE = 0
-    PATCH = 1
-    MINOR = 2
-    MAJOR = 3
-
-
-@dataclass(frozen=True)
-class SnapshotDiff:
-    """Detailed diff between two snapshots."""
-    breaking: tuple[str, ...]
-    added: tuple[str, ...]
-
-    @property
-    def has_changes(self) -> bool:
-        return bool(self.breaking or self.added)
+# ---------------------------------------------------------------------------
+# Backward-compat alias: ChangeType is now ChangeKind
+# ---------------------------------------------------------------------------
+ChangeType = ChangeKind
 
 
 def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> SnapshotDiff:
@@ -261,20 +246,20 @@ def _diff_signature(
         pass
 
 
-def classify_diff(diff: SnapshotDiff) -> ChangeType:
-    """Classify a diff into a change type."""
+def classify_diff(diff: SnapshotDiff) -> ChangeKind:
+    """Classify a diff into a change kind."""
     if diff.breaking:
-        return ChangeType.MAJOR
+        return ChangeKind.BREAKING
     if diff.added:
-        return ChangeType.MINOR
-    return ChangeType.NONE
+        return ChangeKind.MINOR
+    return ChangeKind.NONE
 
 
 def compare_snapshots(
     old: NormalizedSnapshot,
     new: NormalizedSnapshot,
-) -> tuple[ChangeType, SnapshotDiff]:
-    """Compare two snapshots and return change type + diff."""
+) -> tuple[ChangeKind, SnapshotDiff]:
+    """Compare two snapshots and return change kind + diff."""
     diff = diff_snapshots(old, new)
     change = classify_diff(diff)
     return change, diff
@@ -283,56 +268,40 @@ def compare_snapshots(
 def compare_snapshot_files(
     old_path: str,
     new_path: str,
-) -> tuple[ChangeType, SnapshotDiff]:
+) -> tuple[ChangeKind, SnapshotDiff]:
     """Compare two snapshot files."""
-    from semverdredd.snapshot_io import load_snapshot
+    from snapshot.registry import load_snapshot
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)
     return compare_snapshots(old, new)
 
 
 # ---------------------------------------------------------------------------
-# Bridge between internal ChangeType and pluggable ChangeKind
+# Backward-compat bridge helpers (now identity — ChangeType IS ChangeKind)
 # ---------------------------------------------------------------------------
 
-_CHANGE_TYPE_TO_KIND: dict[ChangeType, ChangeKind] = {
-    ChangeType.NONE: ChangeKind.NONE,
-    ChangeType.PATCH: ChangeKind.PATCH,
-    ChangeType.MINOR: ChangeKind.MINOR,
-    ChangeType.MAJOR: ChangeKind.BREAKING,
-}
-
-_CHANGE_KIND_TO_TYPE: dict[ChangeKind, ChangeType] = {v: k for k, v in _CHANGE_TYPE_TO_KIND.items()}
+def change_type_to_kind(ct: ChangeKind) -> ChangeKind:
+    """Deprecated identity function — ChangeType and ChangeKind are merged."""
+    return ct
 
 
-def change_type_to_kind(ct: ChangeType) -> ChangeKind:
-    """Convert internal ``ChangeType`` to pluggable ``ChangeKind``."""
-    return _CHANGE_TYPE_TO_KIND[ct]
-
-
-def change_kind_to_type(ck: ChangeKind) -> ChangeType:
-    """Convert pluggable ``ChangeKind`` to internal ``ChangeType``."""
-    return _CHANGE_KIND_TO_TYPE[ck]
+def change_kind_to_type(ck: ChangeKind) -> ChangeKind:
+    """Deprecated identity function — ChangeType and ChangeKind are merged."""
+    return ck
 
 
 # ---------------------------------------------------------------------------
-# Default diff scorer (wraps the existing free-function logic)
+# Default diff scorer
 # ---------------------------------------------------------------------------
 
 class DefaultDiffScorer(DiffScorer):
-    """Default implementation that wraps ``diff_snapshots`` / ``classify_diff``.
-
-    Plugins that are happy with the built-in comparison logic don't need
-    to touch this — the core will instantiate it automatically when
-    ``LanguagePlugin.diff_scorer`` returns ``None``.
-    """
+    """Default diff scorer wrapping ``diff_snapshots`` / ``classify_diff``."""
 
     def diff(self, old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
-        """Compare two :class:`NormalizedSnapshot` objects."""
         snapshot_diff = diff_snapshots(old, new)
-        change_type = classify_diff(snapshot_diff)
+        change = classify_diff(snapshot_diff)
         return DiffResult(
-            change_kind=change_type_to_kind(change_type),
+            change_kind=change,
             breaking=snapshot_diff.breaking,
             added=snapshot_diff.added,
         )

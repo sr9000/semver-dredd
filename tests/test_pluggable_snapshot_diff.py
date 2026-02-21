@@ -1,11 +1,12 @@
-"""Tests for the pluggable snapshot format and diff scorer system.
+"""Tests for the pluggable snapshot format, diff scorer, and registry.
 
 Verifies that:
 - The default behaviour is unchanged when plugin returns None.
 - A plugin can provide a custom SnapshotFormat class.
 - A plugin can provide a custom DiffScorer.
 - The SnapshotFormat protocol is satisfied by NormalizedSnapshot.
-- ChangeKind ↔ ChangeType bridge works correctly.
+- ChangeKind has a MAJOR alias for backward compat.
+- The UUID-based snapshot registry works correctly.
 """
 
 from __future__ import annotations
@@ -17,20 +18,25 @@ from typing import Any, Optional
 import pytest
 import yaml
 
-from semverdredd.plugin_base import (
+from snapshot import (
     ChangeKind,
     DiffResult,
     DiffScorer,
-    LanguagePlugin,
+    NormalizedSnapshot,
     SnapshotFormat,
+    SnapshotDiff,
+    SnapshotRegistry,
+    default_registry,
+    load_snapshot,
+    load_snapshot_yaml,
+    NORMALIZED_SNAPSHOT_TYPE_ID,
+)
+from semverdredd.plugin_base import (
+    LanguagePlugin,
     SnapshotResult,
 )
-from semverdredd.snapshot_io import NormalizedSnapshot
 from semverdredd.xldiff import (
-    ChangeType,
     DefaultDiffScorer,
-    change_kind_to_type,
-    change_type_to_kind,
     compare_snapshots,
 )
 
@@ -43,8 +49,6 @@ class TestSnapshotFormatProtocol:
     """NormalizedSnapshot must satisfy the SnapshotFormat protocol."""
 
     def test_normalized_snapshot_is_snapshot_format(self):
-        assert isinstance(NormalizedSnapshot, type)
-        # runtime_checkable Protocol check on an instance
         snap = NormalizedSnapshot(
             schema_version=2,
             version="1.0.0",
@@ -57,7 +61,6 @@ class TestSnapshotFormatProtocol:
         assert isinstance(snap, SnapshotFormat)
 
     def test_has_required_methods(self):
-        """NormalizedSnapshot exposes all SnapshotFormat methods."""
         assert callable(getattr(NormalizedSnapshot, "to_yaml", None))
         assert callable(getattr(NormalizedSnapshot, "from_yaml_str", None))
         assert callable(getattr(NormalizedSnapshot, "from_file", None))
@@ -75,21 +78,30 @@ class TestSnapshotFormatProtocol:
         )
         assert snap.version == "2.3.4"
 
+    def test_has_snapshot_type_id(self):
+        assert NormalizedSnapshot.SNAPSHOT_TYPE_ID == NORMALIZED_SNAPSHOT_TYPE_ID
+
 
 # ---------------------------------------------------------------------------
-# ChangeKind ↔ ChangeType bridge
+# ChangeKind enum
 # ---------------------------------------------------------------------------
 
-class TestChangeKindBridge:
-    @pytest.mark.parametrize("ct, ck", [
-        (ChangeType.NONE, ChangeKind.NONE),
-        (ChangeType.PATCH, ChangeKind.PATCH),
-        (ChangeType.MINOR, ChangeKind.MINOR),
-        (ChangeType.MAJOR, ChangeKind.BREAKING),
-    ])
-    def test_round_trip(self, ct, ck):
-        assert change_type_to_kind(ct) == ck
-        assert change_kind_to_type(ck) == ct
+class TestChangeKind:
+    def test_values(self):
+        assert ChangeKind.NONE.value == 0
+        assert ChangeKind.PATCH.value == 1
+        assert ChangeKind.MINOR.value == 2
+        assert ChangeKind.BREAKING.value == 3
+
+    def test_major_is_alias_for_breaking(self):
+        assert ChangeKind.MAJOR is ChangeKind.BREAKING
+        assert ChangeKind.MAJOR.value == 3
+
+    def test_is_breaking(self):
+        assert ChangeKind.BREAKING.is_breaking
+        assert ChangeKind.MAJOR.is_breaking
+        assert not ChangeKind.NONE.is_breaking
+        assert not ChangeKind.MINOR.is_breaking
 
 
 # ---------------------------------------------------------------------------
@@ -175,22 +187,18 @@ class TestDefaultDiffScorer:
         assert any("foo" in b for b in result.breaking)
 
     def test_compare_convenience(self):
-        """compare() is an alias for diff()."""
         old = NormalizedSnapshot.from_yaml_str(_YAML_V2_BASELINE)
         new = NormalizedSnapshot.from_yaml_str(_YAML_V2_MINOR)
         scorer = DefaultDiffScorer()
         assert scorer.compare(old, new) == scorer.diff(old, new)
 
     def test_diff_result_matches_compare_snapshots(self):
-        """DefaultDiffScorer should agree with the legacy compare_snapshots."""
         old = NormalizedSnapshot.from_yaml_str(_YAML_V2_BASELINE)
         new = NormalizedSnapshot.from_yaml_str(_YAML_V2_MINOR)
-
         scorer = DefaultDiffScorer()
         result = scorer.diff(old, new)
         change, diff = compare_snapshots(old, new)
-
-        assert change_type_to_kind(change) == result.change_kind
+        assert change == result.change_kind
         assert diff.breaking == result.breaking
         assert diff.added == result.added
 
@@ -202,11 +210,17 @@ class TestDefaultDiffScorer:
 @dataclass
 class ToySnapshot:
     """A trivially simple snapshot for testing the pluggable system."""
-    version: str
-    names: frozenset[str]
+    SNAPSHOT_TYPE_ID: str = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    version: str = ""
+    names: frozenset = frozenset()
 
     def to_yaml(self) -> str:
-        return yaml.dump({"version": self.version, "names": sorted(self.names)})
+        return yaml.dump({
+            "snapshot_type_id": self.SNAPSHOT_TYPE_ID,
+            "version": self.version,
+            "names": sorted(self.names),
+        })
 
     @classmethod
     def from_yaml_str(cls, yaml_str: str) -> "ToySnapshot":
@@ -218,7 +232,7 @@ class ToySnapshot:
         return cls.from_yaml_str(Path(path).read_text())
 
     def to_dict(self) -> dict[str, Any]:
-        return {"version": self.version, "names": sorted(self.names)}
+        return {"snapshot_type_id": self.SNAPSHOT_TYPE_ID, "version": self.version, "names": sorted(self.names)}
 
 
 class ToyDiffScorer(DiffScorer):
@@ -294,12 +308,10 @@ class TestCustomPlugin:
         assert isinstance(plugin.diff_scorer, ToyDiffScorer)
 
     def test_default_plugin_hooks_are_none(self):
-        """A plugin that doesn't override hooks returns None."""
         class MinimalPlugin(LanguagePlugin):
             @property
             def name(self) -> str:
                 return "minimal"
-
             def generate_snapshot(self, path, version, options=None):
                 return SnapshotResult(True, "")
 
@@ -360,4 +372,116 @@ class TestDiffResult:
     def test_frozen(self):
         r = DiffResult(change_kind=ChangeKind.NONE)
         with pytest.raises(AttributeError):
-            r.change_kind = ChangeKind.MAJOR  # type: ignore[misc]
+            r.change_kind = ChangeKind.BREAKING  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Snapshot Registry
+# ---------------------------------------------------------------------------
+
+class TestSnapshotRegistry:
+    def test_register_and_lookup(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        assert reg.get(ToySnapshot.SNAPSHOT_TYPE_ID) is ToySnapshot
+
+    def test_register_no_type_id_raises(self):
+        class BadSnapshot:
+            pass
+        reg = SnapshotRegistry()
+        with pytest.raises(TypeError, match="SNAPSHOT_TYPE_ID"):
+            reg.register(BadSnapshot)
+
+    def test_duplicate_uuid_raises(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        # Same class is fine
+        reg.register(ToySnapshot)
+        # Different class with same UUID raises
+        class OtherSnapshot:
+            SNAPSHOT_TYPE_ID = ToySnapshot.SNAPSHOT_TYPE_ID
+        with pytest.raises(ValueError, match="already registered"):
+            reg.register(OtherSnapshot)
+
+    def test_force_override(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        class OtherSnapshot:
+            SNAPSHOT_TYPE_ID = ToySnapshot.SNAPSHOT_TYPE_ID
+            @classmethod
+            def from_yaml_str(cls, s): pass
+        reg.register(OtherSnapshot, force=True)
+        assert reg.get(ToySnapshot.SNAPSHOT_TYPE_ID) is OtherSnapshot
+
+    def test_unregister(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        assert reg.unregister(ToySnapshot.SNAPSHOT_TYPE_ID)
+        assert reg.get(ToySnapshot.SNAPSHOT_TYPE_ID) is None
+        assert not reg.unregister(ToySnapshot.SNAPSHOT_TYPE_ID)
+
+    def test_contains(self):
+        reg = SnapshotRegistry()
+        assert ToySnapshot.SNAPSHOT_TYPE_ID not in reg
+        reg.register(ToySnapshot)
+        assert ToySnapshot.SNAPSHOT_TYPE_ID in reg
+
+    def test_registered_ids(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        reg.register(NormalizedSnapshot)
+        ids = reg.registered_ids()
+        assert ToySnapshot.SNAPSHOT_TYPE_ID in ids
+        assert NORMALIZED_SNAPSHOT_TYPE_ID in ids
+
+    def test_load_yaml_str_with_type_id(self):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        yaml_str = ToySnapshot(version="1.0.0", names=frozenset(["x"])).to_yaml()
+        loaded = reg.load_yaml_str(yaml_str)
+        assert isinstance(loaded, ToySnapshot)
+        assert loaded.version == "1.0.0"
+        assert loaded.names == frozenset(["x"])
+
+    def test_load_yaml_str_fallback_to_normalized(self):
+        reg = SnapshotRegistry()
+        reg.register(NormalizedSnapshot)
+        # YAML without snapshot_type_id
+        loaded = reg.load_yaml_str(_YAML_V2_BASELINE)
+        assert isinstance(loaded, NormalizedSnapshot)
+
+    def test_load_file(self, tmp_path):
+        reg = SnapshotRegistry()
+        reg.register(ToySnapshot)
+        snap = ToySnapshot(version="2.0.0", names=frozenset(["a", "b"]))
+        fpath = tmp_path / "snap.yaml"
+        fpath.write_text(snap.to_yaml())
+        loaded = reg.load_file(fpath)
+        assert isinstance(loaded, ToySnapshot)
+        assert loaded.version == "2.0.0"
+
+    def test_unknown_type_id_falls_back(self):
+        reg = SnapshotRegistry()
+        reg.register(NormalizedSnapshot)
+        yaml_str = "snapshot_type_id: 'unknown-uuid'\n" + _YAML_V2_BASELINE
+        loaded = reg.load_yaml_str(yaml_str)
+        assert isinstance(loaded, NormalizedSnapshot)
+
+
+class TestDefaultRegistry:
+    def test_load_snapshot_function(self, tmp_path):
+        fpath = tmp_path / "test.yaml"
+        fpath.write_text(_YAML_V2_BASELINE)
+        snap = load_snapshot(fpath)
+        assert isinstance(snap, NormalizedSnapshot)
+        assert snap.version == "1.0.0"
+
+    def test_load_snapshot_yaml_function(self):
+        snap = load_snapshot_yaml(_YAML_V2_BASELINE)
+        assert isinstance(snap, NormalizedSnapshot)
+        assert snap.version == "1.0.0"
+
+    def test_normalized_is_registered_by_default(self):
+        # Calling load_snapshot triggers _ensure_builtins_registered
+        load_snapshot_yaml(_YAML_V2_BASELINE)
+        assert NORMALIZED_SNAPSHOT_TYPE_ID in default_registry
