@@ -14,8 +14,14 @@ from snapshot.change_kind import ChangeKind
 from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 # Concrete data models
-from snapshot.models import NORMALIZED_SNAPSHOT_TYPE_ID, Parameter, Field, FunctionSignature, TypeDefinition, \
-    NormalizedSnapshot
+from snapshot.models import (
+    NORMALIZED_SNAPSHOT_TYPE_ID,
+    Parameter,
+    Field,
+    FunctionSignature,
+    TypeDefinition,
+    NormalizedSnapshot,
+)
 
 # Registry
 from semverdredd.registry import (

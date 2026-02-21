@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 @dataclass
 class APISignature:
     """Represents the signature of a callable (function/method)."""
+
     name: str
     parameters: list[str]
     defaults_count: int
@@ -28,7 +29,8 @@ class APISignature:
         sig = inspect.signature(obj)
         params = list(sig.parameters.keys())
         defaults_count = sum(
-            1 for p in sig.parameters.values()
+            1
+            for p in sig.parameters.values()
             if p.default is not inspect.Parameter.empty
         )
         return cls(name=name, parameters=params, defaults_count=defaults_count)
@@ -37,6 +39,7 @@ class APISignature:
 @dataclass
 class ClassAPI:
     """Represents the public API of a class."""
+
     name: str
     methods: dict[str, APISignature]
     fields: set[str]  # Public fields (for structured types only)
@@ -60,18 +63,18 @@ class ClassAPI:
 
         # Extract fields for structured types
         if _is_namedtuple(klass):
-            fields = set(getattr(klass, '_fields', ()))
+            fields = set(getattr(klass, "_fields", ()))
         elif _is_dataclass(klass):
-            fields = set(getattr(klass, '__dataclass_fields__', {}).keys())
+            fields = set(getattr(klass, "__dataclass_fields__", {}).keys())
         elif _is_pydantic_model(klass):
             # Support both Pydantic v1 and v2
-            if hasattr(klass, 'model_fields'):  # v2
+            if hasattr(klass, "model_fields"):  # v2
                 fields = set(klass.model_fields.keys())
-            elif hasattr(klass, '__fields__'):  # v1
+            elif hasattr(klass, "__fields__"):  # v1
                 fields = set(klass.__fields__.keys())
-        elif hasattr(klass, '__slots__'):
+        elif hasattr(klass, "__slots__"):
             # __slots__ defines allowed attributes
-            slots = getattr(klass, '__slots__', ())
+            slots = getattr(klass, "__slots__", ())
             if isinstance(slots, str):
                 fields = {slots}
             else:
@@ -83,25 +86,26 @@ class ClassAPI:
 def _is_namedtuple(klass: type) -> bool:
     """Check if class is a namedtuple."""
     return (
-        hasattr(klass, '_fields') and
-        hasattr(klass, '_field_defaults') and
-        issubclass(klass, tuple)
+        hasattr(klass, "_fields")
+        and hasattr(klass, "_field_defaults")
+        and issubclass(klass, tuple)
     )
 
 
 def _is_dataclass(klass: type) -> bool:
     """Check if class is a dataclass."""
-    return hasattr(klass, '__dataclass_fields__')
+    return hasattr(klass, "__dataclass_fields__")
 
 
 def _is_pydantic_model(klass: type) -> bool:
     """Check if class is a Pydantic model."""
-    return hasattr(klass, 'model_fields') or hasattr(klass, '__fields__')
+    return hasattr(klass, "model_fields") or hasattr(klass, "__fields__")
 
 
 @dataclass
 class ModuleAPI:
     """Represents the public API of a module."""
+
     functions: dict[str, APISignature]
     classes: dict[str, ClassAPI]
 

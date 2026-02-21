@@ -43,7 +43,6 @@ DEFAULT_CURRENT_FILE = "current.yaml"
 DEFAULT_VERSION_FILE = "VERSION"
 
 
-
 def _should_use_color(color_flag: bool | None) -> bool:
     """Decide whether to use ANSI colors for log lines.
 
@@ -66,8 +65,8 @@ def _style_level(level: str, *, use_color: bool) -> str:
 
     # Basic ANSI colors (no external deps)
     colors = {
-        "info": "\x1b[32m",   # green
-        "warn": "\x1b[33m",   # yellow
+        "info": "\x1b[32m",  # green
+        "warn": "\x1b[33m",  # yellow
         "error": "\x1b[31m",  # red
     }
     reset = "\x1b[0m"
@@ -104,18 +103,24 @@ def _get_change_descriptions() -> dict[ChangeKind, str]:
     }
 
 
-def _get_language_plugin(plugin_name: str, use_color: bool) -> tuple[int, LanguagePlugin | None]:
+def _get_language_plugin(
+    plugin_name: str, use_color: bool
+) -> tuple[int, LanguagePlugin | None]:
     """Resolve a language plugin by name. Returns (exit_code, plugin)."""
     from semverdredd.plugin_manager import get_plugin
 
     plugin = get_plugin(plugin_name)
     if not plugin:
-        _print_level("error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color)
+        _print_level(
+            "error", f"Unsupported language/plugin: {plugin_name}", use_color=use_color
+        )
         return EXIT_ERROR, None
     return EXIT_OK, plugin
 
 
-def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color: bool) -> tuple[int, str]:
+def _generate_snapshot_yaml(
+    plugin_name: str, path: str, version: str, use_color: bool
+) -> tuple[int, str]:
     """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
 
     exit_code, plugin = _get_language_plugin(plugin_name, use_color)
@@ -130,7 +135,11 @@ def _generate_snapshot_yaml(plugin_name: str, path: str, version: str, use_color
     result = plugin.generate_snapshot(path, version, options={"use_color": use_color})
 
     if not result.success:
-        _print_level("error", result.error_message or "Snapshot generation failed", use_color=use_color)
+        _print_level(
+            "error",
+            result.error_message or "Snapshot generation failed",
+            use_color=use_color,
+        )
         return EXIT_ERROR, ""
 
     return EXIT_OK, result.yaml_content
@@ -152,11 +161,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
             use_color=use_color,
         )
 
-    exit_code, old_yaml = _generate_snapshot_yaml(plugin_name, args.old_module, "0.0.0", use_color)
+    exit_code, old_yaml = _generate_snapshot_yaml(
+        plugin_name, args.old_module, "0.0.0", use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
-    exit_code, new_yaml = _generate_snapshot_yaml(plugin_name, args.new_module, "0.0.0", use_color)
+    exit_code, new_yaml = _generate_snapshot_yaml(
+        plugin_name, args.new_module, "0.0.0", use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -179,7 +192,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
         severity = "warn"
 
     # Output results
-    _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
+    _print_level(
+        severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color
+    )
     print(f"Change type: {change.name}")
     print(f"Description: {change_descriptions[change]}")
 
@@ -202,7 +217,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
             print(f"Current version: {current}")
             print(f"Suggested version: {new_version}")
         except ValueError as e:
-            _print_level("warn", f"Could not parse current version: {e}", use_color=use_color)
+            _print_level(
+                "warn", f"Could not parse current version: {e}", use_color=use_color
+            )
 
     if change == ChangeKind.BREAKING and not allow_breaking:
         _print_level(
@@ -226,11 +243,16 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Parse --date if provided
     from datetime import date as date_type
+
     if getattr(args, "date", None):
         try:
             target_date = date_type.fromisoformat(args.date)
         except ValueError:
-            _print_level("error", f"Invalid date format: {args.date}. Use YYYY-MM-DD.", use_color=use_color)
+            _print_level(
+                "error",
+                f"Invalid date format: {args.date}. Use YYYY-MM-DD.",
+                use_color=use_color,
+            )
             return EXIT_ERROR
     else:
         target_date = date_type.today()
@@ -240,7 +262,11 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Check if baked.yaml exists
     if not baked_path.exists():
-        _print_level("warn", f"No {baked_path} found. Run 'init' or 'bake' first.", use_color=use_color)
+        _print_level(
+            "warn",
+            f"No {baked_path} found. Run 'init' or 'bake' first.",
+            use_color=use_color,
+        )
         return EXIT_ERROR
 
     # Load baked snapshot
@@ -251,7 +277,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     baked = snap_cls.from_file(baked_path)
 
     # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(
+        plugin_name, args.module, "0.0.0", use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -296,7 +324,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     if change == ChangeKind.BREAKING and allow_breaking:
         severity = "warn"
 
-    _print_level(severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color)
+    _print_level(
+        severity, f"{change.name}: {change_descriptions[change]}", use_color=use_color
+    )
     print(f"Baked version: {baked.version}")
     print(f"Suggested version: {suggested_version}")
 
@@ -314,9 +344,12 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Update current.yaml with suggested version
     import yaml
+
     current_dict = current.to_dict()
     current_dict["version"] = str(suggested_version)
-    current_path.write_text(yaml.dump(current_dict, default_flow_style=False, sort_keys=False))
+    current_path.write_text(
+        yaml.dump(current_dict, default_flow_style=False, sort_keys=False)
+    )
     _print_level("info", f"Updated {current_path}", use_color=use_color)
 
     # Policy gate
@@ -355,7 +388,9 @@ def cmd_bake(args: argparse.Namespace) -> int:
         baked = snap_cls.from_file(baked_path)
 
         # Generate current snapshot
-        exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, "0.0.0", use_color)
+        exit_code, yaml_str = _generate_snapshot_yaml(
+            plugin_name, args.module, "0.0.0", use_color
+        )
         if exit_code != EXIT_OK:
             return exit_code
 
@@ -370,12 +405,16 @@ def cmd_bake(args: argparse.Namespace) -> int:
         version = f"0.1.{generate_patch()}"
 
     # Generate and save snapshot with final version
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(
+        plugin_name, args.module, version, use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
     baked_path.write_text(yaml_str)
-    _print_level("info", f"Baked API to {baked_path} with version {version}", use_color=use_color)
+    _print_level(
+        "info", f"Baked API to {baked_path} with version {version}", use_color=use_color
+    )
 
     # Update VERSION file
     save_version_file(version, version_path)
@@ -423,12 +462,16 @@ output:
         _print_level("info", f"{config_path} already exists", use_color=use_color)
 
     # Generate snapshot using plugin
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.module, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(
+        plugin_name, args.module, version, use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
     baked_path.write_text(yaml_str)
-    _print_level("info", f"Created {baked_path} with version {version}", use_color=use_color)
+    _print_level(
+        "info", f"Created {baked_path} with version {version}", use_color=use_color
+    )
 
     # Create VERSION file
     save_version_file(version, version_path)
@@ -456,8 +499,12 @@ def cmd_bump(args: argparse.Namespace) -> int:
 
     change = change_map.get(args.change.lower())
     if change is None:
-        _print_level("error", f"Invalid change type '{args.change}'", use_color=use_color)
-        _print_level("error", f"Valid types: {', '.join(change_map.keys())}", use_color=use_color)
+        _print_level(
+            "error", f"Invalid change type '{args.change}'", use_color=use_color
+        )
+        _print_level(
+            "error", f"Valid types: {', '.join(change_map.keys())}", use_color=use_color
+        )
         return EXIT_ERROR
 
     new_version = current.increment(change)
@@ -487,7 +534,6 @@ def cmd_patch(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
 
-
 def cmd_snapshot(args: argparse.Namespace) -> int:
     """Generate a baked.yaml-like snapshot using language-specific parsers."""
     use_color = _should_use_color(getattr(args, "color", None))
@@ -496,7 +542,9 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     version = args.version
     out_path = args.out
 
-    exit_code, yaml_str = _generate_snapshot_yaml(plugin_name, args.path, version, use_color)
+    exit_code, yaml_str = _generate_snapshot_yaml(
+        plugin_name, args.path, version, use_color
+    )
     if exit_code != EXIT_OK:
         return exit_code
 
@@ -549,7 +597,11 @@ def cmd_plugin_install(args: argparse.Namespace) -> int:
         args.source,
     ]
 
-    _print_level("info", f"Installing plugin into {target_dir}: {args.source}", use_color=use_color)
+    _print_level(
+        "info",
+        f"Installing plugin into {target_dir}: {args.source}",
+        use_color=use_color,
+    )
     result = subprocess.run(cmd)
     if result.returncode != 0:
         _print_level("error", "Plugin installation failed", use_color=use_color)
@@ -573,7 +625,11 @@ def cmd_plugin_remove(args: argparse.Namespace) -> int:
 
     target_dir = mgr.user_plugin_dir
     if not target_dir.exists():
-        _print_level("error", f"Plugin directory does not exist: {target_dir}", use_color=use_color)
+        _print_level(
+            "error",
+            f"Plugin directory does not exist: {target_dir}",
+            use_color=use_color,
+        )
         return EXIT_ERROR
 
     # Best-effort removal by deleting matching package directories and dist-info.
@@ -614,7 +670,9 @@ def cmd_plugin_remove(args: argparse.Namespace) -> int:
     mgr.unregister(plugin_name)
     mgr.load_plugins(force=True)
 
-    _print_level("info", f"Removed plugin '{plugin_name}' from {target_dir}", use_color=use_color)
+    _print_level(
+        "info", f"Removed plugin '{plugin_name}' from {target_dir}", use_color=use_color
+    )
     return EXIT_OK
 
 
@@ -648,7 +706,6 @@ def cmd_plugin_info(args: argparse.Namespace) -> int:
         print(f"Parser path: {parser_path}")
 
     return EXIT_OK
-
 
 
 def cmd_template(args: argparse.Namespace) -> int:
@@ -805,7 +862,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Language plugin to use (default: python)",
     )
     init_parser.add_argument(
-        "--version", "-v",
+        "--version",
+        "-v",
         help="Initial version (default: 0.1.YYYYMMDD001)",
     )
     init_parser.add_argument(
@@ -963,7 +1021,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Path or name of the new module version",
     )
     compare_parser.add_argument(
-        "--current", "-c",
+        "--current",
+        "-c",
         help="Current version string to suggest new version",
     )
     compare_parser.add_argument(
@@ -1007,18 +1066,21 @@ def main(argv: list[str] | None = None) -> int:
         help="Disable colored log output",
     )
     bump_parser.add_argument(
-        "--current", "-c",
+        "--current",
+        "-c",
         required=True,
         help="Current version string",
     )
     bump_parser.add_argument(
-        "--change", "-t",
+        "--change",
+        "-t",
         required=True,
         choices=["major", "minor", "patch", "none"],
         help="Type of change",
     )
     bump_parser.add_argument(
-        "--quiet", "-q",
+        "--quiet",
+        "-q",
         action="store_true",
         help="Only output the new version",
     )
@@ -1043,7 +1105,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Disable colored log output",
     )
     patch_parser.add_argument(
-        "--current", "-c",
+        "--current",
+        "-c",
         help="Current patch version (to increment if same day)",
     )
     patch_parser.set_defaults(func=cmd_patch)
@@ -1054,7 +1117,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Generate a comprehensive .semver.yaml configuration template",
     )
     template_parser.add_argument(
-        "--out", "-o",
+        "--out",
+        "-o",
         default="",
         help="Output file path (default: stdout)",
     )
@@ -1156,7 +1220,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     plugin_info.set_defaults(func=cmd_plugin_info)
 
-
     args = parser.parse_args(argv)
 
     # Load config with priority: .semver.yaml < .env < env vars < CLI args
@@ -1167,7 +1230,10 @@ def main(argv: list[str] | None = None) -> int:
         allow = getattr(args, "allow_breaking", False)
         disallow = getattr(args, "disallow_breaking", False)
         if allow and disallow:
-            _print_level("error", "--allow-breaking and --disallow-breaking are mutually exclusive")
+            _print_level(
+                "error",
+                "--allow-breaking and --disallow-breaking are mutually exclusive",
+            )
             return EXIT_ERROR
 
     # Apply config defaults (respects CLI args as highest priority)

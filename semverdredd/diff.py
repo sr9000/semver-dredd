@@ -171,16 +171,14 @@ def _diff_signature(
     # More required params -> breaking
     if new_required > old_required:
         breaking.append(
-            f"{prefix}: requires more parameters "
-            f"({old_required} -> {new_required})"
+            f"{prefix}: requires more parameters " f"({old_required} -> {new_required})"
         )
         is_breaking = True
 
     # Fewer total params (removed) -> breaking
     if len(new_params) < len(old_params):
         breaking.append(
-            f"{prefix}: parameters removed "
-            f"({len(old_params)} -> {len(new_params)})"
+            f"{prefix}: parameters removed " f"({len(old_params)} -> {len(new_params)})"
         )
         is_breaking = True
 
@@ -207,7 +205,11 @@ def _diff_signature(
         new_p = new_params[i]
 
         # Type change -> breaking
-        if old_p.type != new_p.type and old_p.type != "unknown" and new_p.type != "unknown":
+        if (
+            old_p.type != new_p.type
+            and old_p.type != "unknown"
+            and new_p.type != "unknown"
+        ):
             breaking.append(
                 f"{prefix}: parameter '{old_p.name}' type changed: "
                 f"{old_p.type} -> {new_p.type}"
@@ -227,7 +229,11 @@ def _diff_signature(
     if old.returns and new.returns:
         old_ret = old.returns[0]
         new_ret = new.returns[0]
-        if old_ret.type != new_ret.type and old_ret.type != "unknown" and new_ret.type != "unknown":
+        if (
+            old_ret.type != new_ret.type
+            and old_ret.type != "unknown"
+            and new_ret.type != "unknown"
+        ):
             breaking.append(
                 f"{prefix}: return type changed: {old_ret.type} -> {new_ret.type}"
             )
@@ -256,6 +262,7 @@ def compare_snapshot_files(
 ) -> DiffResult:
     """Compare two snapshot files."""
     from semverdredd.registry import load_snapshot
+
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)
     return compare_snapshots(old, new)
@@ -264,6 +271,7 @@ def compare_snapshot_files(
 # ---------------------------------------------------------------------------
 # Default diff scorer
 # ---------------------------------------------------------------------------
+
 
 class DefaultDiffScorer(DiffScorer):
     """Default diff scorer wrapping ``diff_snapshots``."""

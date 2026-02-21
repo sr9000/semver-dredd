@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_CONFIG_FILE = ".semver.yaml"
 DEFAULT_ENV_FILE = ".env"
 
@@ -72,18 +71,18 @@ def _parse_env_file(path: Path) -> dict[str, str]:
         return env_vars
 
     try:
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Parse KEY=VALUE
-                if '=' not in line:
+                if "=" not in line:
                     continue
 
-                key, _, value = line.partition('=')
+                key, _, value = line.partition("=")
                 key = key.strip()
                 value = value.strip()
 
@@ -106,9 +105,9 @@ def _parse_bool(value: str | bool | None) -> bool | None:
         return value
     if isinstance(value, str):
         lower = value.lower()
-        if lower in ('true', '1', 'yes', 'on'):
+        if lower in ("true", "1", "yes", "on"):
             return True
-        if lower in ('false', '0', 'no', 'off'):
+        if lower in ("false", "0", "no", "off"):
             return False
     return None
 
@@ -120,7 +119,8 @@ def _load_yaml_config(path: Path) -> dict[str, Any]:
 
     try:
         import yaml
-        with open(path, 'r') as f:
+
+        with open(path, "r") as f:
             config = yaml.safe_load(f)
         return config or {}
     except ImportError:

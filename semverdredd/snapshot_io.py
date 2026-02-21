@@ -5,7 +5,13 @@ This module re-exports them so existing ``from semverdredd.snapshot_io import â€
 statements keep working.
 """
 
-from snapshot import Parameter, Field, FunctionSignature, TypeDefinition, NormalizedSnapshot
+from snapshot import (
+    Parameter,
+    Field,
+    FunctionSignature,
+    TypeDefinition,
+    NormalizedSnapshot,
+)
 from semverdredd.registry import load_snapshot
 
 __all__ = [

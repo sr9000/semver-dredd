@@ -53,7 +53,9 @@ class LanguagePlugin(ABC):
         return True, ""
 
     @abstractmethod
-    def generate_snapshot(self, path: str, version: str, options: Optional[dict[str, Any]] = None) -> SnapshotResult:
+    def generate_snapshot(
+        self, path: str, version: str, options: Optional[dict[str, Any]] = None
+    ) -> SnapshotResult:
         """Generate a YAML snapshot string."""
 
     # ------------------------------------------------------------------

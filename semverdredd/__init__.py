@@ -123,11 +123,15 @@ def compare(
     # Generate snapshots
     old_result = lang_plugin.generate_snapshot(old_path, "0.0.0")
     if not old_result.success:
-        raise RuntimeError(f"Failed to generate snapshot for old: {old_result.error_message}")
+        raise RuntimeError(
+            f"Failed to generate snapshot for old: {old_result.error_message}"
+        )
 
     new_result = lang_plugin.generate_snapshot(new_path, "0.0.0")
     if not new_result.success:
-        raise RuntimeError(f"Failed to generate snapshot for new: {new_result.error_message}")
+        raise RuntimeError(
+            f"Failed to generate snapshot for new: {new_result.error_message}"
+        )
 
     # Use plugin-provided snapshot class and diff scorer
     snap_cls = _resolve_snapshot_class(lang_plugin)
@@ -171,7 +175,11 @@ def compare_and_suggest(
         ValueError: if current_version cannot be parsed
         RuntimeError: if plugin not found or snapshot generation fails
     """
-    current = current_version if isinstance(current_version, Version) else Version.parse(str(current_version))
+    current = (
+        current_version
+        if isinstance(current_version, Version)
+        else Version.parse(str(current_version))
+    )
     base = compare(old_path, new_path, plugin=plugin)
     suggested = current.increment(base.change_kind)
     return SuggestVersionResult(
@@ -188,20 +196,16 @@ __all__ = [
     # Core types
     "Version",
     "generate_patch",
-
     # Result types
     "CompareResult",
     "SuggestVersionResult",
-
     # Programmatic API
     "compare",
     "compare_and_suggest",
-
     # Snapshot types
     "load_snapshot",
     "load_snapshot_yaml",
     "compare_snapshots",
-
     # Plugin system
     "LanguagePlugin",
     "SnapshotResult",

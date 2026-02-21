@@ -1,4 +1,5 @@
 """Backward-compatibility shim — canonical home is semverdredd.models."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -53,30 +54,36 @@ class FunctionSignature:
         if params_data:
             if isinstance(params_data[0], dict):
                 for p in params_data:
-                    params.append(Parameter(
-                        name=p.get("name", ""),
-                        type=p.get("type", "unknown"),
-                        optional=p.get("optional", False),
-                    ))
+                    params.append(
+                        Parameter(
+                            name=p.get("name", ""),
+                            type=p.get("type", "unknown"),
+                            optional=p.get("optional", False),
+                        )
+                    )
             else:
                 defaults_count = data.get("defaults_count", 0)
                 total = len(params_data)
                 for i, p in enumerate(params_data):
-                    params.append(Parameter(
-                        name=p,
-                        type="unknown",
-                        optional=i >= total - defaults_count,
-                    ))
+                    params.append(
+                        Parameter(
+                            name=p,
+                            type="unknown",
+                            optional=i >= total - defaults_count,
+                        )
+                    )
 
         returns_data = data.get("returns", [])
         returns: list[Parameter] = []
         for r in returns_data:
             if isinstance(r, dict):
-                returns.append(Parameter(
-                    name=r.get("name", ""),
-                    type=r.get("type", "unknown"),
-                    optional=r.get("optional", False),
-                ))
+                returns.append(
+                    Parameter(
+                        name=r.get("name", ""),
+                        type=r.get("type", "unknown"),
+                        optional=r.get("optional", False),
+                    )
+                )
 
         return cls(name=name, parameters=tuple(params), returns=tuple(returns))
 
@@ -97,19 +104,20 @@ class TypeDefinition:
         if fields_data:
             if isinstance(fields_data[0], dict):
                 for f in fields_data:
-                    fields.append(Field(
-                        name=f.get("name", ""),
-                        type=f.get("type", "unknown"),
-                        optional=f.get("optional", False),
-                    ))
+                    fields.append(
+                        Field(
+                            name=f.get("name", ""),
+                            type=f.get("type", "unknown"),
+                            optional=f.get("optional", False),
+                        )
+                    )
             else:
                 for f in fields_data:
                     fields.append(Field(name=f, type="unknown"))
 
         methods_data = data.get("methods", {})
         methods = {
-            mn: FunctionSignature.from_dict(mn, md)
-            for mn, md in methods_data.items()
+            mn: FunctionSignature.from_dict(mn, md) for mn, md in methods_data.items()
         }
 
         return cls(
@@ -170,15 +178,11 @@ class NormalizedSnapshot:
 
         functions_data = api.get("functions", {})
         functions = {
-            n: FunctionSignature.from_dict(n, d)
-            for n, d in functions_data.items()
+            n: FunctionSignature.from_dict(n, d) for n, d in functions_data.items()
         }
 
         types_data = api.get("types", api.get("classes", {}))
-        types = {
-            n: TypeDefinition.from_dict(n, d)
-            for n, d in types_data.items()
-        }
+        types = {n: TypeDefinition.from_dict(n, d) for n, d in types_data.items()}
 
         return cls(
             schema_version=schema_version,

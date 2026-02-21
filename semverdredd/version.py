@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+
 # from typing import Self  # Removed to support Python 3.10 without typing_extensions
 
 
@@ -22,6 +23,7 @@ class Version:
     - DD: Day (01-31)
     - ZZZ: Daily increment (001-999)
     """
+
     major: int
     minor: int
     patch: int
@@ -42,7 +44,9 @@ class Version:
         """
         parts = version_str.strip().split(".")
         if len(parts) != 3:
-            raise ValueError(f"Invalid version format: {version_str}. Expected 'major.minor.patch'")
+            raise ValueError(
+                f"Invalid version format: {version_str}. Expected 'major.minor.patch'"
+            )
 
         try:
             major = int(parts[0])
@@ -101,21 +105,21 @@ class Version:
             today = date.today()
 
         # Use name comparison to avoid circular import issues
-        change_name = change_type.name if hasattr(change_type, 'name') else str(change_type)
+        change_name = (
+            change_type.name if hasattr(change_type, "name") else str(change_type)
+        )
 
         if change_name == "BREAKING":
             # Major bump: increment major, reset minor, new patch
             return Version(
-                major=self.major + 1,
-                minor=0,
-                patch=generate_patch(today=today)
+                major=self.major + 1, minor=0, patch=generate_patch(today=today)
             )
         elif change_name == "MINOR":
             # Minor bump: increment minor, new patch
             return Version(
                 major=self.major,
                 minor=self.minor + 1,
-                patch=generate_patch(today=today)
+                patch=generate_patch(today=today),
             )
         else:
             # PATCH or NONE: new patch version (any code change = new release)
@@ -123,14 +127,18 @@ class Version:
             return Version(
                 major=self.major,
                 minor=self.minor,
-                patch=generate_patch(current_patch=current_patch, today=today)
+                patch=generate_patch(current_patch=current_patch, today=today),
             )
 
     def __lt__(self, other: Version) -> bool:
         """Compare versions for sorting."""
         if not isinstance(other, Version):
             return NotImplemented
-        return (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
+        return (self.major, self.minor, self.patch) < (
+            other.major,
+            other.minor,
+            other.patch,
+        )
 
     def __le__(self, other: Version) -> bool:
         return self == other or self < other
@@ -138,7 +146,11 @@ class Version:
     def __gt__(self, other: Version) -> bool:
         if not isinstance(other, Version):
             return NotImplemented
-        return (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
+        return (self.major, self.minor, self.patch) > (
+            other.major,
+            other.minor,
+            other.patch,
+        )
 
     def __ge__(self, other: Version) -> bool:
         return self == other or self > other

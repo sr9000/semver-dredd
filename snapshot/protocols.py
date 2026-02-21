@@ -9,10 +9,10 @@ from typing import Any, Protocol, runtime_checkable
 
 from snapshot import ChangeKind
 
-
 # ---------------------------------------------------------------------------
 # DiffResult — universal return value of any diff scorer
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class DiffResult:
@@ -34,6 +34,7 @@ class DiffResult:
 # ---------------------------------------------------------------------------
 # SnapshotFormat — what every snapshot class must look like
 # ---------------------------------------------------------------------------
+
 
 @runtime_checkable
 class SnapshotFormat(Protocol):
@@ -77,6 +78,7 @@ class SnapshotFormat(Protocol):
 # ---------------------------------------------------------------------------
 # DiffScorer — pluggable comparison logic
 # ---------------------------------------------------------------------------
+
 
 class DiffScorer(ABC):
     """Abstract base class for diff / scoring logic.

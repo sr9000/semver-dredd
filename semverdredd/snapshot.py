@@ -25,6 +25,7 @@ SCHEMA_VERSION = 2
 @dataclass
 class SourceInfo:
     """Information about what was analyzed."""
+
     kind: str = ""
     path: str = ""
 
@@ -41,13 +42,19 @@ class APISnapshot:
     schema_version: int = SCHEMA_VERSION
 
     @classmethod
-    def from_module_api(cls, api: ModuleAPI, version: str, source_path: str = "") -> "APISnapshot":
+    def from_module_api(
+        cls, api: ModuleAPI, version: str, source_path: str = ""
+    ) -> "APISnapshot":
         """Create a snapshot from a ModuleAPI object."""
         functions = {}
         for name, sig in api.functions.items():
             functions[name] = {
                 "parameters": [
-                    {"name": p, "type": "unknown", "optional": i >= len(sig.parameters) - sig.defaults_count}
+                    {
+                        "name": p,
+                        "type": "unknown",
+                        "optional": i >= len(sig.parameters) - sig.defaults_count,
+                    }
                     for i, p in enumerate(sig.parameters)
                 ],
                 "defaults_count": sig.defaults_count,  # Keep for backward compat
@@ -59,14 +66,21 @@ class APISnapshot:
             for method_name, method_sig in class_api.methods.items():
                 methods[method_name] = {
                     "parameters": [
-                        {"name": p, "type": "unknown", "optional": i >= len(method_sig.parameters) - method_sig.defaults_count}
+                        {
+                            "name": p,
+                            "type": "unknown",
+                            "optional": i
+                            >= len(method_sig.parameters) - method_sig.defaults_count,
+                        }
                         for i, p in enumerate(method_sig.parameters)
                     ],
                     "defaults_count": method_sig.defaults_count,
                 }
             classes[name] = {
                 "methods": methods,
-                "fields": [{"name": f, "type": "unknown"} for f in sorted(class_api.fields)],
+                "fields": [
+                    {"name": f, "type": "unknown"} for f in sorted(class_api.fields)
+                ],
             }
 
         return cls(
@@ -94,7 +108,9 @@ class APISnapshot:
                 # v2 format: list of dicts
                 if data["parameters"] and isinstance(data["parameters"][0], dict):
                     params = [p["name"] for p in data["parameters"]]
-                    defaults_count = sum(1 for p in data["parameters"] if p.get("optional", False))
+                    defaults_count = sum(
+                        1 for p in data["parameters"] if p.get("optional", False)
+                    )
                 else:
                     # v1 format: list of strings
                     params = data["parameters"]
@@ -114,10 +130,18 @@ class APISnapshot:
             methods = {}
             for method_name, method_data in data.get("methods", {}).items():
                 # Handle both v1 and v2 formats
-                if "parameters" in method_data and isinstance(method_data["parameters"], list):
-                    if method_data["parameters"] and isinstance(method_data["parameters"][0], dict):
+                if "parameters" in method_data and isinstance(
+                    method_data["parameters"], list
+                ):
+                    if method_data["parameters"] and isinstance(
+                        method_data["parameters"][0], dict
+                    ):
                         params = [p["name"] for p in method_data["parameters"]]
-                        defaults_count = sum(1 for p in method_data["parameters"] if p.get("optional", False))
+                        defaults_count = sum(
+                            1
+                            for p in method_data["parameters"]
+                            if p.get("optional", False)
+                        )
                     else:
                         params = method_data["parameters"]
                         defaults_count = method_data.get("defaults_count", 0)

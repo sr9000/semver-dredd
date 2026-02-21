@@ -23,7 +23,6 @@ from importlib.metadata import entry_points
 
 from semverdredd.plugin_base import LanguagePlugin
 
-
 logger = logging.getLogger(__name__)
 
 ENTRY_POINT_GROUP = "semver_dredd.plugins"
@@ -44,7 +43,6 @@ class PluginManager:
         self._registry: dict[str, PluginInfo] = {}
         self._loaded = False
 
-
     def ensure_plugin_dir(self) -> Path:
         self.user_plugin_dir.mkdir(parents=True, exist_ok=True)
         return self.user_plugin_dir
@@ -55,7 +53,11 @@ class PluginManager:
 
         # Reset on force reload
         if force:
-            self._registry = {k: v for k, v in self._registry.items() if v.origin in ("manual", "builtin")}
+            self._registry = {
+                k: v
+                for k, v in self._registry.items()
+                if v.origin in ("manual", "builtin")
+            }
 
         # Add user plugin dir to sys.path for import resolution (if present)
         try:
@@ -78,17 +80,31 @@ class PluginManager:
             try:
                 plugin_cls = ep.load()
                 plugin = plugin_cls()
-                self.register(plugin, origin="entry_point", entry_point=f"{ep.module}:{ep.attr}")
+                self.register(
+                    plugin, origin="entry_point", entry_point=f"{ep.module}:{ep.attr}"
+                )
             except Exception as e:
-                logger.warning("Failed to load plugin '%s': %s", getattr(ep, "name", "<unknown>"), e)
+                logger.warning(
+                    "Failed to load plugin '%s': %s",
+                    getattr(ep, "name", "<unknown>"),
+                    e,
+                )
 
         self._loaded = True
 
-    def register(self, plugin: LanguagePlugin, *, origin: str = "manual", entry_point: str | None = None) -> None:
+    def register(
+        self,
+        plugin: LanguagePlugin,
+        *,
+        origin: str = "manual",
+        entry_point: str | None = None,
+    ) -> None:
         name = plugin.name.lower()
         if name in self._registry:
             logger.info("Replacing existing plugin: %s", name)
-        self._registry[name] = PluginInfo(name=name, plugin=plugin, origin=origin, entry_point=entry_point)
+        self._registry[name] = PluginInfo(
+            name=name, plugin=plugin, origin=origin, entry_point=entry_point
+        )
 
     def unregister(self, name: str) -> bool:
         name = name.lower()
