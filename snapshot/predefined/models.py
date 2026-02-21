@@ -95,46 +95,11 @@ ARGUMENT_TYPE_ID = _uid("Argument")
 
 
 @dataclass(frozen=True)
-class Argument:
-    """A function argument -- same attributes as Variable."""
+class Argument(Variable):
+    """A function argument -- inherits name, type, and default from Variable."""
 
     SNAPSHOT_TYPE_ID: str = ARGUMENT_TYPE_ID
 
-    name: str = ""
-    type: str = "unknown"
-    default: str | None = None
-
-    @property
-    def version(self) -> str:
-        return "0"
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "snapshot_type_id": self.SNAPSHOT_TYPE_ID,
-            "name": self.name,
-            "type": self.type,
-            "default": self.default,
-        }
-
-    def to_yaml(self) -> str:
-        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False)
-
-    @classmethod
-    def from_yaml_str(cls, yaml_str: str) -> "Argument":
-        data = yaml.safe_load(yaml_str)
-        return cls.from_dict(data)
-
-    @classmethod
-    def from_file(cls, path: Path | str) -> "Argument":
-        return cls.from_yaml_str(Path(path).read_text())
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Argument":
-        return cls(
-            name=data.get("name", ""),
-            type=data.get("type", "unknown"),
-            default=data.get("default"),
-        )
 
 
 # ---------------------------------------------------------------------------

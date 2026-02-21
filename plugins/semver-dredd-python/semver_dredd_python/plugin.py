@@ -31,7 +31,7 @@ PYTHON_ARGUMENT_TYPE_ID = str(
 
 
 @dataclass(frozen=True)
-class PythonArgument:
+class PythonArgument(Argument):
     """Python-specific function argument with calling-convention metadata.
 
     Extends Argument with three mutually-exclusive boolean flags describing
@@ -44,38 +44,19 @@ class PythonArgument:
 
     SNAPSHOT_TYPE_ID: str = PYTHON_ARGUMENT_TYPE_ID
 
-    name: str = ""
-    type: str = "unknown"
-    default: str | None = None
+    # name, type, default inherited from Argument -> Variable
     position_only: bool = False
     pos_and_named: bool = True
     named_only: bool = False
 
-    @property
-    def version(self) -> str:
-        return "0"
-
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "snapshot_type_id": self.SNAPSHOT_TYPE_ID,
-            "name": self.name,
-            "type": self.type,
-            "default": self.default,
-            "position_only": self.position_only,
-            "pos_and_named": self.pos_and_named,
-            "named_only": self.named_only,
-        }
+        d = super().to_dict()
+        d["position_only"] = self.position_only
+        d["pos_and_named"] = self.pos_and_named
+        d["named_only"] = self.named_only
+        return d
 
-    def to_yaml(self) -> str:
-        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False)
-
-    @classmethod
-    def from_yaml_str(cls, yaml_str: str) -> "PythonArgument":
-        return cls.from_dict(yaml.safe_load(yaml_str))
-
-    @classmethod
-    def from_file(cls, path: Path | str) -> "PythonArgument":
-        return cls.from_yaml_str(Path(path).read_text())
+    # to_yaml, from_yaml_str, from_file inherited from Variable
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PythonArgument":
