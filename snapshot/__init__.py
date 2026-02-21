@@ -11,8 +11,9 @@ See ``snapshot/README.md`` for the full API contract documentation.
 from semverdredd.registry import (
     SnapshotRegistry,
     default_registry,
+    load_snapshot,
+    load_snapshot_yaml,
 )
-from semverdredd import load_snapshot, load_snapshot_yaml
 
 # Unified change severity enum
 from snapshot.change_kind import ChangeKind
@@ -47,4 +48,6 @@ __all__ = [
     # Registry
     "SnapshotRegistry",
     "default_registry",
+    "load_snapshot",
+    "load_snapshot_yaml",
 ]

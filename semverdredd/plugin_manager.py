@@ -22,6 +22,9 @@ from typing import Optional
 
 from semverdredd.plugin_base import LanguagePlugin
 
+# Snapshot registry is owned by the semverdredd main module.
+from semverdredd.registry import default_registry
+
 logger = logging.getLogger(__name__)
 
 ENTRY_POINT_GROUP = "semver_dredd.plugins"
@@ -68,7 +71,42 @@ class PluginManager:
             # Don't break core operation if home dir isn't accessible
             pass
 
+        # ------------------------------------------------------------------
+        # Built-in plugins (available in this repository / distribution)
+        # ------------------------------------------------------------------
+
+        # NOTE: In some environments (e.g. tests, editable installs) entry
+        # points may not be installed. We register built-ins by import.
+        builtins: list[type[LanguagePlugin]] = []
+        try:  # Python
+            from semver_dredd_python.plugin import PythonPlugin  # type: ignore
+
+            builtins.append(PythonPlugin)
+        except Exception:
+            pass
+        try:  # Go
+            from semver_dredd_go.plugin import GoPlugin  # type: ignore
+
+            builtins.append(GoPlugin)
+        except Exception:
+            pass
+        try:  # Java
+            from semver_dredd_java.plugin import JavaPlugin  # type: ignore
+
+            builtins.append(JavaPlugin)
+        except Exception:
+            pass
+
+        for cls in builtins:
+            try:
+                plugin = cls()
+                self.register(plugin, origin="builtin")
+            except Exception as e:
+                logger.warning("Failed to init builtin plugin '%s': %s", getattr(cls, "__name__", "<unknown>"), e)
+
+        # ------------------------------------------------------------------
         # Discover via entry points
+        # ------------------------------------------------------------------
         try:
             discovered = entry_points(group=ENTRY_POINT_GROUP)
         except TypeError:
@@ -86,6 +124,23 @@ class PluginManager:
                 logger.warning(
                     "Failed to load plugin '%s': %s",
                     getattr(ep, "name", "<unknown>"),
+                    e,
+                )
+
+        # ------------------------------------------------------------------
+        # Snapshot type registration
+        # ------------------------------------------------------------------
+        # Any plugin may provide a custom SnapshotFormat implementation.
+        # Register those types so YAML unmarshalling can resolve them.
+        for info in self._registry.values():
+            try:
+                snap_cls = getattr(info.plugin, "snapshot_format_class", None)
+                if snap_cls is not None:
+                    default_registry.register(snap_cls)
+            except Exception as e:
+                logger.debug(
+                    "Failed to register snapshot type for plugin '%s': %s",
+                    info.name,
                     e,
                 )
 

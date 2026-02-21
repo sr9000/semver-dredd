@@ -112,7 +112,9 @@ class SnapshotRegistry:
 
     def _resolve(self, uid: str | None) -> type:
         """Resolve a UUID to a class, falling back to NormalizedSnapshot."""
-        from snapshot import NormalizedSnapshot
+        # NOTE: In this repository the canonical implementation currently lives
+        # under the top-level `snapshot` package.
+        from snapshot.models import NormalizedSnapshot
 
         if uid is None:
             return NormalizedSnapshot
@@ -136,7 +138,21 @@ default_registry = SnapshotRegistry()
 
 def _ensure_builtins_registered() -> None:
     """Register the built-in NormalizedSnapshot (idempotent)."""
-    from snapshot import NORMALIZED_SNAPSHOT_TYPE_ID, NormalizedSnapshot
+    # NOTE: In this repository the canonical implementation currently lives
+    # under the top-level `snapshot` package.
+    from snapshot.models import NORMALIZED_SNAPSHOT_TYPE_ID, NormalizedSnapshot
 
     if NORMALIZED_SNAPSHOT_TYPE_ID not in default_registry:
         default_registry.register(NormalizedSnapshot)
+
+
+def load_snapshot(path: Path | str) -> Any:
+    """Load and deserialize a snapshot file using the default registry."""
+    _ensure_builtins_registered()
+    return default_registry.load_file(path)
+
+
+def load_snapshot_yaml(yaml_str: str) -> Any:
+    """Deserialize a snapshot YAML string using the default registry."""
+    _ensure_builtins_registered()
+    return default_registry.load_yaml_str(yaml_str)
