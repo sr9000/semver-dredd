@@ -2,9 +2,7 @@
 
 from pathlib import Path
 
-from semverdredd.snapshot_io import (
-    load_snapshot,
-)
+from semverdredd import load_snapshot
 from snapshot import NormalizedSnapshot
 from semverdredd.diff import (
     diff_snapshots,

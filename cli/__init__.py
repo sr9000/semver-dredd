@@ -3,16 +3,16 @@ CLI tool for semver-dredd that compares modules and manages versions.
 """
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
-import subprocess
 
+from cli.config import Config, apply_config_defaults, load_config
 from semverdredd import Version, generate_patch
-from semverdredd.snapshot import save_version_file
-from snapshot import NormalizedSnapshot, ChangeKind
 from semverdredd.diff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin
-from cli.config import load_config, apply_config_defaults, Config
+from semverdredd.snapshot import save_version_file
+from snapshot import ChangeKind, NormalizedSnapshot
 
 
 def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:

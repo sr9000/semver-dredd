@@ -16,10 +16,9 @@ from __future__ import annotations
 import logging
 import sys
 from dataclasses import dataclass
+from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Optional
-
-from importlib.metadata import entry_points
 
 from semverdredd.plugin_base import LanguagePlugin
 

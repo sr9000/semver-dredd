@@ -8,9 +8,9 @@ Works with snapshots from any supported language (Python, Go, Java).
 
 from __future__ import annotations
 
+from snapshot import FunctionSignature, NormalizedSnapshot, TypeDefinition
 from snapshot.change_kind import ChangeKind
-from snapshot.protocols import DiffScorer, DiffResult
-from snapshot import FunctionSignature, TypeDefinition, NormalizedSnapshot
+from snapshot.protocols import DiffResult, DiffScorer
 
 
 def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
@@ -261,7 +261,7 @@ def compare_snapshot_files(
     new_path: str,
 ) -> DiffResult:
     """Compare two snapshot files."""
-    from semverdredd.registry import load_snapshot
+    from semverdredd import load_snapshot
 
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)

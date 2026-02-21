@@ -7,29 +7,28 @@ statements keep working.
 See ``snapshot/README.md`` for the full API contract documentation.
 """
 
-# Unified change severity enum
-from snapshot.change_kind import ChangeKind
-
-# Protocols / ABCs
-from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
-
-# Concrete data models
-from snapshot.models import (
-    NORMALIZED_SNAPSHOT_TYPE_ID,
-    Parameter,
-    Field,
-    FunctionSignature,
-    TypeDefinition,
-    NormalizedSnapshot,
-)
-
 # Registry
 from semverdredd.registry import (
     SnapshotRegistry,
     default_registry,
-    load_snapshot,
-    load_snapshot_yaml,
 )
+from semverdredd import load_snapshot, load_snapshot_yaml
+
+# Unified change severity enum
+from snapshot.change_kind import ChangeKind
+
+# Concrete data models
+from snapshot.models import (
+    NORMALIZED_SNAPSHOT_TYPE_ID,
+    Field,
+    FunctionSignature,
+    NormalizedSnapshot,
+    Parameter,
+    TypeDefinition,
+)
+
+# Protocols / ABCs
+from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 __all__ = [
     # Enum
@@ -48,6 +47,4 @@ __all__ = [
     # Registry
     "SnapshotRegistry",
     "default_registry",
-    "load_snapshot",
-    "load_snapshot_yaml",
 ]

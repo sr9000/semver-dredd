@@ -12,43 +12,39 @@ Patch version is equal YYYYMMDDZZZ.
 - ZZZ is a zero-padded incremental number that starts at 001 for each day and increments with each patch release on the same day.
 """
 
-# Re-export Version and generate_patch from version module
-from semverdredd.version import Version, generate_patch
-
-# Structured result types (pure data)
-from semverdredd.result import CompareResult, SuggestVersionResult
-
-# Change severity enum (canonical home)
-from snapshot.change_kind import ChangeKind
-
-# Protocols and diff types
-from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
-
-# Snapshot data models
-from snapshot.models import NormalizedSnapshot
-
-# Registry (canonical home)
-from semverdredd.registry import (
-    SnapshotRegistry,
-    default_registry,
-    load_snapshot,
-    load_snapshot_yaml,
-)
+# Diff engine
+from semverdredd.diff import DefaultDiffScorer, compare_snapshots
 
 # Plugin system (programmatic API)
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from semverdredd.plugin_manager import (
     PluginManager,
-    get_plugin_manager,
     get_plugin,
+    get_plugin_manager,
     list_plugins,
 )
 
-# Diff engine
-from semverdredd.diff import (
-    compare_snapshots,
-    DefaultDiffScorer,
+# Registry (canonical home)
+from semverdredd.registry import (
+    SnapshotRegistry,
+    default_registry,
 )
+from semverdredd.snapshot_io import load_snapshot, load_snapshot_yaml
+
+# Structured result types (pure data)
+from semverdredd.result import CompareResult, SuggestVersionResult
+
+# Re-export Version and generate_patch from version module
+from semverdredd.version import Version, generate_patch
+
+# Change severity enum (canonical home)
+from snapshot.change_kind import ChangeKind
+
+# Snapshot data models
+from snapshot.models import NormalizedSnapshot
+
+# Protocols and diff types
+from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 
 def _description_for_change(change: ChangeKind) -> str:

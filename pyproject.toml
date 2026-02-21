@@ -25,6 +25,7 @@ semver-dredd = "cli:main"
 pytest = "^8.0.0"
 pydantic = "^2.0.0"
 black = "^26.1.0"
+isort = "^8.0.0"
 
 [tool.poetry]
 # No bundled parsers - plugins are separate packages

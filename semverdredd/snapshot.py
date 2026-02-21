@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-from semverdredd.python_api import ModuleAPI, APISignature, ClassAPI
+from semverdredd.python_api import APISignature, ClassAPI, ModuleAPI
 
 # Current schema version
 SCHEMA_VERSION = 2

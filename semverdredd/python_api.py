@@ -9,7 +9,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass
 from types import ModuleType
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from snapshot import ChangeKind
