@@ -76,6 +76,25 @@ class SnapshotFormat(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Comparable — snapshot elements that know how to diff themselves
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class Comparable(Protocol):
+    """Protocol for snapshot elements that can compare themselves against another.
+
+    Implementors return a :class:`DiffResult` whose messages are **relative**
+    to the element itself (no outer context prefix).  Callers are responsible
+    for prepending the appropriate prefix (e.g. ``"function foo: "``).
+    """
+
+    def diff_against(self, other: "Comparable") -> DiffResult:
+        """Compare *self* against *other* and return a relative :class:`DiffResult`."""
+        ...
+
+
+# ---------------------------------------------------------------------------
 # DiffScorer — pluggable comparison logic
 # ---------------------------------------------------------------------------
 

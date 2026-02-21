@@ -29,12 +29,13 @@ from snapshot.models import (
 )
 
 # Protocols / ABCs
-from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import Comparable, DiffResult, DiffScorer, SnapshotFormat
 
 __all__ = [
     # Enum
     "ChangeKind",
     # Protocols
+    "Comparable",
     "DiffResult",
     "DiffScorer",
     "SnapshotFormat",

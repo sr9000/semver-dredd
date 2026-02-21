@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+
+if TYPE_CHECKING:
+    from snapshot.protocols import DiffResult
 
 # Well-known UUID for the built-in NormalizedSnapshot format.
 # Generated via uuid5(NAMESPACE_URL, "semver-dredd:NormalizedSnapshot")
@@ -87,6 +90,100 @@ class FunctionSignature:
 
         return cls(name=name, parameters=tuple(params), returns=tuple(returns))
 
+    def diff_against(self, other: "FunctionSignature") -> "DiffResult":
+        """Compare this signature against *other* and return a relative DiffResult."""
+        from snapshot.change_kind import ChangeKind
+        from snapshot.protocols import DiffResult
+
+        breaking: list[str] = []
+        added: list[str] = []
+
+        old_params = self.parameters
+        new_params = other.parameters
+
+        old_required = sum(1 for p in old_params if not p.optional)
+        new_required = sum(1 for p in new_params if not p.optional)
+
+        is_breaking = False
+
+        # More required params → breaking
+        if new_required > old_required:
+            breaking.append(
+                f"requires more parameters ({old_required} -> {new_required})"
+            )
+            is_breaking = True
+
+        # Fewer total params (removed) → breaking
+        if len(new_params) < len(old_params):
+            breaking.append(
+                f"parameters removed ({len(old_params)} -> {len(new_params)})"
+            )
+            is_breaking = True
+
+        # More total params with same or fewer required → additive
+        if len(new_params) > len(old_params) and new_required <= old_required:
+            added.append(
+                f"new optional parameters added ({len(old_params)} -> {len(new_params)})"
+            )
+
+        # Fewer required (more defaults) → additive
+        if new_required < old_required and not is_breaking:
+            added.append(
+                f"fewer required parameters ({old_required} -> {new_required})"
+            )
+
+        # Check parameter type / optionality changes
+        min_params = min(len(old_params), len(new_params))
+        for i in range(min_params):
+            old_p = old_params[i]
+            new_p = new_params[i]
+
+            if (
+                old_p.type != new_p.type
+                and old_p.type != "unknown"
+                and new_p.type != "unknown"
+            ):
+                breaking.append(
+                    f"parameter '{old_p.name}' type changed: {old_p.type} -> {new_p.type}"
+                )
+                is_breaking = True
+
+            if old_p.optional and not new_p.optional:
+                breaking.append(
+                    f"parameter '{old_p.name}' changed from optional to required"
+                )
+                is_breaking = True
+
+        # Check return type changes
+        if self.returns and other.returns:
+            old_ret = self.returns[0]
+            new_ret = other.returns[0]
+            if (
+                old_ret.type != new_ret.type
+                and old_ret.type != "unknown"
+                and new_ret.type != "unknown"
+            ):
+                breaking.append(
+                    f"return type changed: {old_ret.type} -> {new_ret.type}"
+                )
+                is_breaking = True
+        elif self.returns and not other.returns:
+            breaking.append("return value removed")
+            is_breaking = True
+
+        if breaking:
+            change = ChangeKind.BREAKING
+        elif added:
+            change = ChangeKind.MINOR
+        else:
+            change = ChangeKind.NONE
+
+        return DiffResult(
+            change_kind=change,
+            breaking=tuple(breaking),
+            added=tuple(added),
+        )
+
 
 @dataclass(frozen=True)
 class TypeDefinition:
@@ -124,6 +221,59 @@ class TypeDefinition:
             name=name,
             fields=tuple(sorted(fields, key=lambda f: f.name)),
             methods=methods,
+        )
+
+    def diff_against(self, other: "TypeDefinition") -> "DiffResult":
+        """Compare this type definition against *other* and return a relative DiffResult."""
+        from snapshot.change_kind import ChangeKind
+        from snapshot.protocols import DiffResult
+
+        breaking: list[str] = []
+        added: list[str] = []
+
+        # --- Fields ---
+        old_fields = {f.name: f for f in self.fields}
+        new_fields = {f.name: f for f in other.fields}
+
+        for field_name in sorted(set(old_fields) - set(new_fields)):
+            breaking.append(f"field removed: {field_name}")
+
+        for field_name in sorted(set(new_fields) - set(old_fields)):
+            added.append(f"field added: {field_name}")
+
+        for field_name in sorted(set(old_fields) & set(new_fields)):
+            if old_fields[field_name].type != new_fields[field_name].type:
+                breaking.append(
+                    f"field {field_name} type changed: "
+                    f"{old_fields[field_name].type} -> {new_fields[field_name].type}"
+                )
+
+        # --- Methods ---
+        old_methods = self.methods
+        new_methods = other.methods
+
+        for method_name in sorted(set(old_methods) - set(new_methods)):
+            breaking.append(f"method removed: {method_name}")
+
+        for method_name in sorted(set(new_methods) - set(old_methods)):
+            added.append(f"method added: {method_name}")
+
+        for method_name in sorted(set(old_methods) & set(new_methods)):
+            result = old_methods[method_name].diff_against(new_methods[method_name])
+            breaking.extend(f"method {method_name}: {b}" for b in result.breaking)
+            added.extend(f"method {method_name}: {a}" for a in result.added)
+
+        if breaking:
+            change = ChangeKind.BREAKING
+        elif added:
+            change = ChangeKind.MINOR
+        else:
+            change = ChangeKind.NONE
+
+        return DiffResult(
+            change_kind=change,
+            breaking=tuple(breaking),
+            added=tuple(added),
         )
 
 
