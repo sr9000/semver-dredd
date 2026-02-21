@@ -1,277 +1,316 @@
-# Snapshot Schema v2
+# semver-dredd Snapshot Schema
 
-This document defines the cross-language API snapshot format used by semver-dredd.
+This document describes the YAML schema used by semver-dredd snapshots.
 
-## Overview
+---
 
-A snapshot captures the **public API surface** of a codebase at a specific version. Snapshots are language-agnostic YAML files that can be compared to detect breaking changes, additions, and compute semantic version bumps.
+## Schema Versions
 
-## Schema Version History
+| Version | Status      | Description                                                     |
+|---------|-------------|-----------------------------------------------------------------|
+| v2      | Legacy      | Flat API items list; language-specific fields inline            |
+| **v3**  | **Current** | Typed component model; `snapshot_type_id` for registry dispatch |
 
-| Version | Description                               |
-|---------|-------------------------------------------|
-| 1       | Initial Python-only format (implicit)     |
-| 2       | Cross-language format with explicit types |
+---
 
-## Schema v2 Format
+## Schema v3 — Common Envelope
+
+Every v3 snapshot YAML starts with these top-level fields:
 
 ```yaml
-schema_version: 2
-version: "1.2.20260214001"
-language: python|go|java
+snapshot_type_id: "<UUID>"   # required — identifies deserializer
+schema_version: 3
+version: "1.2.0"             # version of the analysed library
+language: python             # or: go, java, ...
 source:
-  kind: module|package|directory
-  path: "src/mylib"
+  kind: module               # module | package | directory | file
+  path: "/path/to/source"
 api:
-  functions:
-    FunctionName:
-      parameters:
-        - name: paramName
-          type: "int"
-          optional: false
-      returns:
-        - name: ""
-          type: "string"
-          optional: false
-  types:
-    TypeName:
-      fields:
-        - name: fieldName
-          type: "float64"
-          optional: false
-      methods:
-        MethodName:
-          parameters: [...]
-          returns: [...]
+  # language-specific content (see below)
 ```
 
-## Field Definitions
+---
 
-### Root Level
+## Predefined Component UUIDs
 
-| Field            | Type    | Required | Description                                |
-|------------------|---------|----------|--------------------------------------------|
-| `schema_version` | integer | Yes      | Schema version (currently `2`)             |
-| `version`        | string  | Yes      | Semantic version string                    |
-| `language`       | string  | Yes      | Source language: `python`, `go`, or `java` |
-| `source`         | object  | No       | Information about what was analyzed        |
-| `api`            | object  | Yes      | The API surface                            |
+All six predefined component models have deterministic UUIDs derived via:
 
-### Source Object
+```python
+uuid.uuid5(uuid.NAMESPACE_URL, "semver-dredd:predefined:<ClassName>")
+```
 
-| Field  | Type   | Required | Description                                      |
-|--------|--------|----------|--------------------------------------------------|
-| `kind` | string | No       | Type of source: `module`, `package`, `directory` |
-| `path` | string | No       | Path that was analyzed                           |
+| Model            | UUID seed                                |
+|------------------|------------------------------------------|
+| `Variable`       | `semver-dredd:predefined:Variable`       |
+| `Argument`       | `semver-dredd:predefined:Argument`       |
+| `PythonArgument` | `semver-dredd:predefined:PythonArgument` |
+| `Function`       | `semver-dredd:predefined:Function`       |
+| `ClassField`     | `semver-dredd:predefined:ClassField`     |
+| `ClassMethod`    | `semver-dredd:predefined:ClassMethod`    |
 
-### API Object
+Plugin snapshot UUIDs are derived similarly:
 
-| Field       | Type   | Required | Description                        |
-|-------------|--------|----------|------------------------------------|
-| `functions` | object | Yes      | Map of function name → signature   |
-| `types`     | object | Yes      | Map of type name → type definition |
+| Plugin snapshot  | UUID seed                                   |
+|------------------|---------------------------------------------|
+| `PythonSnapshot` | `semver-dredd:plugin:python:PythonSnapshot` |
+| `GoSnapshot`     | `semver-dredd:plugin:go:GoSnapshot`         |
+| `JavaSnapshot`   | `semver-dredd:plugin:java:JavaSnapshot`     |
 
-### Function/Method Signature
+---
 
-| Field        | Type  | Required | Description                               |
-|--------------|-------|----------|-------------------------------------------|
-| `parameters` | array | Yes      | List of parameters                        |
-| `returns`    | array | No       | List of return values (omit if void/none) |
+## Python Plugin — `PythonSnapshot`
 
-### Parameter/Return Object
-
-| Field      | Type    | Required | Description                                       |
-|------------|---------|----------|---------------------------------------------------|
-| `name`     | string  | Yes      | Parameter name (empty string for unnamed returns) |
-| `type`     | string  | Yes      | Type as string (language-specific)                |
-| `optional` | boolean | Yes      | Whether the parameter is optional                 |
-
-### Type Definition
-
-| Field     | Type   | Required | Description                    |
-|-----------|--------|----------|--------------------------------|
-| `fields`  | array  | No       | List of public fields          |
-| `methods` | object | No       | Map of method name → signature |
-
-### Field Object
-
-| Field      | Type    | Required | Description                                |
-|------------|---------|----------|--------------------------------------------|
-| `name`     | string  | Yes      | Field name                                 |
-| `type`     | string  | Yes      | Type as string                             |
-| `optional` | boolean | No       | Whether field is optional (default: false) |
-
-## Language-Specific Notes
-
-### Python
-
-- **Functions**: Module-level callables (excluding `_` prefixed)
-- **Types**: Classes (excluding `_` prefixed)
-- **Fields**: Detected from dataclasses, namedtuples, pydantic models, `__slots__`
-- **Methods**: Public methods (excluding `_` prefixed, except `__init__`)
-- **Types**: May be `"unknown"` if not inferrable
-
-Example:
 ```yaml
-schema_version: 2
+snapshot_type_id: "..."
+schema_version: 3
 version: "1.0.0"
 language: python
 source:
   kind: module
-  path: "mylib"
+  path: /path/to/mylib
+
 api:
+
+  # ── Module-level variables ─────────────────────────────────────────
+  variables:
+    MAX_RETRIES:
+      type: int
+      default: "3"
+
+    TIMEOUT:
+      type: float
+      default: "30.0"
+
+  # ── Top-level functions ────────────────────────────────────────────
   functions:
-    calculate:
-      parameters:
-        - name: x
-          type: "unknown"
-          optional: false
-        - name: y
-          type: "unknown"
-          optional: true
-      returns: []
+    compute_area:
+      result_type: float
+      args:
+        - name: width
+          type: float
+          default: null
+          position_only: false
+          pos_and_named: true
+          named_only: false
+        - name: height
+          type: float
+          default: "1.0"
+          position_only: false
+          pos_and_named: true
+          named_only: false
+
+    greet:
+      result_type: str
+      args:
+        - name: name
+          type: str
+          default: null
+          position_only: false
+          pos_and_named: true
+          named_only: false
+        - name: greeting
+          type: str
+          default: "'Hello'"
+          position_only: false
+          pos_and_named: false
+          named_only: true
+
+  # ── Classes / types ────────────────────────────────────────────────
   types:
-    Point:
+    Circle:
       fields:
-        - name: x
-          type: "float"
-        - name: y
-          type: "float"
+        - name: radius
+          type: float
+          default: null
+        - name: color
+          type: str
+          default: "'red'"
       methods:
-        distance:
-          parameters:
+        __init__:
+          result_type: unknown
+          args:
             - name: self
-              type: "Point"
-              optional: false
-            - name: other
-              type: "Point"
-              optional: false
-          returns: []
+              type: Circle
+              default: null
+              position_only: false
+              pos_and_named: true
+              named_only: false
+            - name: radius
+              type: float
+              default: null
+              position_only: false
+              pos_and_named: true
+              named_only: false
+        area:
+          result_type: float
+          args:
+            - name: self
+              type: Circle
+              default: null
+              position_only: false
+              pos_and_named: true
+              named_only: false
 ```
 
-### Go
+### Python argument calling conventions
 
-- **Functions**: Exported package-level functions (`ast.IsExported`)
-- **Types**: Exported struct types
-- **Fields**: Exported struct fields only
-- **Methods**: Exported methods with receiver
-- **Types**: Full Go type syntax (e.g., `*Point`, `[]int`, `map[string]int`)
+| Flag                  | Meaning              | Position in signature      |
+|-----------------------|----------------------|----------------------------|
+| `position_only: true` | Before `/`           | Only passable positionally |
+| `pos_and_named: true` | Normal               | Passable both ways         |
+| `named_only: true`    | After `*` or `*args` | Must use keyword syntax    |
 
-Example:
+Exactly one of the three flags should be `true` per argument.
+`*args` and `**kwargs` variadic parameters are omitted.
+
+---
+
+## Go Plugin — `GoSnapshot`
+
 ```yaml
-schema_version: 2
+snapshot_type_id: "..."
+schema_version: 3
 version: "1.0.0"
 language: go
 source:
   kind: package
-  path: "./pkg/geometry"
+  path: ./pkg/geometry
+
 api:
   functions:
-    Area:
-      parameters:
-        - name: w
-          type: int
-          optional: false
-        - name: h
-          type: int
-          optional: false
-      returns:
-        - name: ""
-          type: int
-          optional: false
+    NewPoint:
+      result_type: "*Point"
+      args:
+        - name: x
+          type: float64
+          default: null
+        - name: "y"
+          type: float64
+          default: null
+
   types:
     Point:
       fields:
         - name: X
           type: float64
-        - name: Y
+          default: null
+        - name: "Y"
           type: float64
+          default: null
       methods:
         Distance:
-          parameters:
+          result_type: float64
+          args:
             - name: other
               type: "*Point"
-              optional: true
-          returns:
-            - name: ""
-              type: float64
-              optional: false
+              default: null
 ```
 
-### Java
+---
 
-- **Functions**: Public static methods (keyed as `ClassName.methodName`)
-- **Types**: Public classes, interfaces, records
-- **Fields**: Public/protected fields
-- **Methods**: Public/protected methods
-- **Types**: Java type syntax (e.g., `int`, `String`, `List<String>`)
+## Java Plugin — `JavaSnapshot`
 
-Example:
 ```yaml
-schema_version: 2
+snapshot_type_id: "..."
+schema_version: 3
 version: "1.0.0"
 language: java
 source:
   kind: directory
-  path: "./src/main/java"
+  path: ./src/main/java
+
 api:
   functions:
     MathUtils.add:
-      parameters:
+      result_type: int
+      args:
         - name: a
           type: int
-          optional: false
+          default: null
         - name: b
           type: int
-          optional: false
-      returns:
-        - name: ""
-          type: int
-          optional: false
+          default: null
+
   types:
     Point:
       fields:
         - name: x
           type: double
-        - name: y
+          default: null
+        - name: "y"
           type: double
+          default: null
       methods:
         distance:
-          parameters:
+          result_type: double
+          args:
             - name: other
               type: Point
-              optional: false
-          returns:
-            - name: ""
-              type: double
-              optional: false
+              default: null
 ```
 
-## Optionality Semantics
+---
 
-The `optional` field has different meanings per language:
+## Predefined Component YAML (standalone)
 
-| Language | Optional means... |
-|----------|-------------------|
-| Python | Has a default value |
-| Go | Pointer, slice, map, interface, or variadic |
-| Java | Varargs parameter |
+Each predefined model can also be serialised standalone when used directly:
 
-## Type Normalization
+### `Variable` / `Argument` / `ClassField`
 
-Types are stored as emitted by the language parser with minimal normalization:
-- Whitespace is collapsed
-- No cross-language type equivalence is attempted
+```yaml
+snapshot_type_id: "..."     # UUID for Variable / Argument / ClassField
+name: my_value
+type: int
+default: "42"
+```
 
-Comparing types:
-- Exact string match required
-- Any type change is considered **breaking** by default
+### `PythonArgument`
 
-## Backward Compatibility
+```yaml
+snapshot_type_id: "..."
+name: callback
+type: Callable
+default: null
+position_only: false
+pos_and_named: true
+named_only: false
+```
 
-When loading a snapshot:
-1. If `schema_version` is missing, assume v1
-2. v1 snapshots are upgraded in-memory to v2 format
-3. v1 had no `language` field; default to `python`
-4. v1 had no `source` field; omit it
-5. v1 parameters had no `type`; use `"unknown"`
+### `Function` / `ClassMethod`
+
+```yaml
+snapshot_type_id: "..."     # UUID for Function / ClassMethod
+name: compute
+result_type: float
+args:
+  - name: x
+    type: float
+    default: null
+  - name: y
+    type: float
+    default: null
+```
+
+When `Function`/`ClassMethod` args contain `PythonArgument`s, the dict
+includes an internal `_arg_kind: python` marker for deserialization.
+
+---
+
+## Change Kind Mapping
+
+| `ChangeKind` | Semver bump | Meaning                            |
+|--------------|-------------|------------------------------------|
+| `NONE`       | none        | No public API changes              |
+| `PATCH`      | patch       | Implementation only                |
+| `MINOR`      | minor       | New backwards-compatible additions |
+| `BREAKING`   | major       | Removals / incompatible changes    |
+
+---
+
+## Migration from Schema v2
+
+Schema v2 files lack `snapshot_type_id`.  The registry falls back to
+`NormalizedSnapshot` when this field is absent.
+
+The Go and Java plugins automatically upgrade their parser output from
+schema v2 to v3 via `_upgrade_legacy_yaml()` before returning the snapshot.

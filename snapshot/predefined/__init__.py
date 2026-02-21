@@ -1,0 +1,70 @@
+"""snapshot.predefined — built-in snapshot component models.
+
+All six predefined types are automatically registered with the global
+:data:`~semverdredd.registry.default_registry` on first import so they
+can be round-tripped through YAML by the registry.
+
+Usage::
+
+    from snapshot.predefined import (
+        Variable, Argument, PythonArgument,
+        Function, ClassField, ClassMethod,
+    )
+"""
+
+from __future__ import annotations
+
+from snapshot.predefined.models import (
+    # Models
+    Variable,
+    Argument,
+    PythonArgument,
+    Function,
+    ClassField,
+    ClassMethod,
+    # Type ID constants
+    VARIABLE_TYPE_ID,
+    ARGUMENT_TYPE_ID,
+    PYTHON_ARGUMENT_TYPE_ID,
+    FUNCTION_TYPE_ID,
+    CLASS_FIELD_TYPE_ID,
+    CLASS_METHOD_TYPE_ID,
+    # Bulk lists
+    ALL_CLASSES,
+    ALL_TYPE_IDS,
+)
+
+
+def _register_all() -> None:
+    """Register every predefined model in the default registry (idempotent)."""
+    from semverdredd.registry import default_registry
+
+    for cls in ALL_CLASSES:
+        try:
+            default_registry.register(cls)
+        except ValueError:
+            pass  # already registered — safe to ignore
+
+
+_register_all()
+
+
+__all__ = [
+    # Models
+    "Variable",
+    "Argument",
+    "PythonArgument",
+    "Function",
+    "ClassField",
+    "ClassMethod",
+    # Type ID constants
+    "VARIABLE_TYPE_ID",
+    "ARGUMENT_TYPE_ID",
+    "PYTHON_ARGUMENT_TYPE_ID",
+    "FUNCTION_TYPE_ID",
+    "CLASS_FIELD_TYPE_ID",
+    "CLASS_METHOD_TYPE_ID",
+    # Bulk access
+    "ALL_CLASSES",
+    "ALL_TYPE_IDS",
+]
