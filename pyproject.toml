@@ -22,7 +22,7 @@ semver-dredd = "cli:main"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
+pytest = "^9.0.0"
 pydantic = "^2.0.0"
 black = "^26.1.0"
 isort = "^8.0.0"

@@ -17,22 +17,19 @@ Usage::
 
 from __future__ import annotations
 
-from snapshot.predefined.models import (
-    # Models
-    Variable,
-    Argument,
-    Function,
-    ClassField,
-    ClassMethod,
-    # Type ID constants
-    VARIABLE_TYPE_ID,
-    ARGUMENT_TYPE_ID,
-    FUNCTION_TYPE_ID,
-    CLASS_FIELD_TYPE_ID,
-    CLASS_METHOD_TYPE_ID,
-    # Bulk lists
+from snapshot.predefined.models import (  # Models; Type ID constants; Bulk lists
     ALL_CLASSES,
     ALL_TYPE_IDS,
+    ARGUMENT_TYPE_ID,
+    CLASS_FIELD_TYPE_ID,
+    CLASS_METHOD_TYPE_ID,
+    FUNCTION_TYPE_ID,
+    VARIABLE_TYPE_ID,
+    Argument,
+    ClassField,
+    ClassMethod,
+    Function,
+    Variable,
 )
 
 

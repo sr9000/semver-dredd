@@ -12,7 +12,15 @@ from typing import Any, Optional
 
 import yaml
 
+from semverdredd.diff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+from snapshot.models import (
+    Field,
+    FunctionSignature,
+    NormalizedSnapshot,
+    Parameter,
+    TypeDefinition,
+)
 from snapshot.predefined import (
     Argument,
     ClassField,
@@ -20,6 +28,7 @@ from snapshot.predefined import (
     Function,
     Variable,
 )
+from snapshot.protocols import DiffResult
 
 # ---------------------------------------------------------------------------
 # PythonArgument -- Python-specific argument type (lives in this plugin)
@@ -371,6 +380,54 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
 
 
 # ---------------------------------------------------------------------------
+# Diff scorer
+# ---------------------------------------------------------------------------
+
+def _to_normalized(snap: PythonSnapshot) -> NormalizedSnapshot:
+    """Convert a PythonSnapshot to NormalizedSnapshot for DefaultDiffScorer."""
+    functions: dict[str, FunctionSignature] = {}
+    for name, func in snap.functions.items():
+        params = tuple(
+            Parameter(name=a.name, type=a.type, optional=a.default is not None)
+            for a in func.args
+        )
+        functions[name] = FunctionSignature(name=name, parameters=params)
+
+    types: dict[str, TypeDefinition] = {}
+    for type_name, (fields, methods) in snap.types.items():
+        norm_fields = tuple(
+            Field(name=f.name, type=f.type) for f in fields
+        )
+        norm_methods: dict[str, FunctionSignature] = {}
+        for mname, method in methods.items():
+            mparams = tuple(
+                Parameter(name=a.name, type=a.type, optional=a.default is not None)
+                for a in method.args
+            )
+            norm_methods[mname] = FunctionSignature(name=mname, parameters=mparams)
+        types[type_name] = TypeDefinition(
+            name=type_name, fields=norm_fields, methods=norm_methods
+        )
+
+    return NormalizedSnapshot(
+        schema_version=3,
+        version=snap.version,
+        language="python",
+        source_kind=snap.source_kind,
+        source_path=snap.source_path,
+        functions=functions,
+        types=types,
+    )
+
+
+class PythonDiffScorer(DefaultDiffScorer):
+    """Diff scorer for PythonSnapshot: converts to NormalizedSnapshot then diffs."""
+
+    def diff(self, old: PythonSnapshot, new: PythonSnapshot) -> "DiffResult":  # type: ignore[override]
+        return super().diff(_to_normalized(old), _to_normalized(new))
+
+
+# ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
 
@@ -393,6 +450,10 @@ class PythonPlugin(LanguagePlugin):
     @property
     def snapshot_format_class(self) -> type:
         return PythonSnapshot
+
+    @property
+    def diff_scorer(self) -> PythonDiffScorer:
+        return PythonDiffScorer()
 
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)

@@ -101,7 +101,6 @@ class Argument(Variable):
     SNAPSHOT_TYPE_ID: str = ARGUMENT_TYPE_ID
 
 
-
 # ---------------------------------------------------------------------------
 # Function
 # ---------------------------------------------------------------------------
@@ -257,6 +256,7 @@ class ClassMethod:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _arg_to_dict(arg: Argument) -> dict[str, Any]:
     """Serialize an argument to a plain dict (strips snapshot_type_id)."""
