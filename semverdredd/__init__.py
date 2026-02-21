@@ -12,10 +12,9 @@ Patch version is equal YYYYMMDDZZZ.
 - ZZZ is a zero-padded incremental number that starts at 001 for each day and increments with each patch release on the same day.
 """
 
-# Diff engine
-from semverdredd.diff import DefaultDiffScorer, compare_snapshots
+import warnings
 
-# Plugin system (programmatic API)
+from semverdredd.diff import DefaultDiffScorer, compare_snapshots
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from semverdredd.plugin_manager import (
     PluginManager,
@@ -23,13 +22,32 @@ from semverdredd.plugin_manager import (
     get_plugin_manager,
     list_plugins,
 )
-
-# Registry (canonical home)
-from semverdredd.registry import (
-    SnapshotRegistry,
-    default_registry,
-)
+from semverdredd.registry import SnapshotRegistry, default_registry
 from semverdredd.snapshot_io import load_snapshot, load_snapshot_yaml
+
+# ---------------------------------------------------------------------------
+# Import-time initialization
+# ---------------------------------------------------------------------------
+# The CLI and many users expect that importing `semverdredd` is sufficient to:
+# 1) register the built-in snapshot format in the UUID registry
+# 2) discover/register language plugins (so `get_plugin()` works immediately)
+#
+# Both operations are designed to be idempotent and safe to call multiple times.
+try:
+    from semverdredd.registry import _ensure_builtins_registered as _sd__ensure
+
+    _sd__ensure()
+except Exception as e:
+    # Keep import side-effects best-effort; callers can still explicitly load.
+    warnings.warn(f"Failed to register built-in snapshot formats: {e}", UserWarning)
+
+try:
+    from semverdredd.plugin_manager import get_plugin_manager as _sd__get_mgr
+
+    _sd__get_mgr().load_plugins()
+except Exception as e:
+    # Plugin discovery is optional in minimal installs.
+    warnings.warn(f"Failed to load plugins: {e}", UserWarning)
 
 # Structured result types (pure data)
 from semverdredd.result import CompareResult, SuggestVersionResult

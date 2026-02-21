@@ -102,7 +102,11 @@ class PluginManager:
                 plugin = cls()
                 self.register(plugin, origin="builtin")
             except Exception as e:
-                logger.warning("Failed to init builtin plugin '%s': %s", getattr(cls, "__name__", "<unknown>"), e)
+                logger.warning(
+                    "Failed to init builtin plugin '%s': %s",
+                    getattr(cls, "__name__", "<unknown>"),
+                    e,
+                )
 
         # ------------------------------------------------------------------
         # Discover via entry points
