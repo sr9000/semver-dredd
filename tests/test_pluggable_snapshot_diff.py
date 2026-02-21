@@ -21,19 +21,18 @@ from semverdredd import (
     ChangeKind,
     DiffResult,
     DiffScorer,
-    NormalizedSnapshot,
     SnapshotFormat,
     SnapshotRegistry,
     default_registry,
     load_snapshot,
     load_snapshot_yaml,
-    NORMALIZED_SNAPSHOT_TYPE_ID,
 )
+from snapshot import NORMALIZED_SNAPSHOT_TYPE_ID, NormalizedSnapshot
 from semverdredd.plugin_base import (
     LanguagePlugin,
     SnapshotResult,
 )
-from semverdredd.xldiff import (
+from semverdredd.diff import (
     DefaultDiffScorer,
     compare_snapshots,
 )

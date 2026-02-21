@@ -28,8 +28,6 @@ from typing import Any
 
 import yaml
 
-from semverdredd.protocols import SnapshotFormat
-
 logger = logging.getLogger(__name__)
 
 
@@ -114,7 +112,7 @@ class SnapshotRegistry:
 
     def _resolve(self, uid: str | None) -> type:
         """Resolve a UUID to a class, falling back to NormalizedSnapshot."""
-        from semverdredd.models import NormalizedSnapshot
+        from snapshot import NormalizedSnapshot
 
         if uid is None:
             return NormalizedSnapshot
@@ -138,7 +136,8 @@ default_registry = SnapshotRegistry()
 
 def _ensure_builtins_registered() -> None:
     """Register the built-in NormalizedSnapshot (idempotent)."""
-    from semverdredd.models import NormalizedSnapshot, NORMALIZED_SNAPSHOT_TYPE_ID
+    from snapshot import NormalizedSnapshot
+    from snapshot import NORMALIZED_SNAPSHOT_TYPE_ID
 
     if NORMALIZED_SNAPSHOT_TYPE_ID not in default_registry:
         default_registry.register(NormalizedSnapshot)

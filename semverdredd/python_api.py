@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from semverdredd.change_kind import ChangeKind
+    from snapshot import ChangeKind
 
 
 @dataclass
@@ -128,7 +128,7 @@ class ModuleAPI:
 
 def compare_signatures(old: APISignature, new: APISignature) -> "ChangeKind":
     """Compare two function/method signatures for compatibility."""
-    from semverdredd.change_kind import ChangeKind
+    from snapshot.change_kind import ChangeKind
 
     old_required = len(old.parameters) - old.defaults_count
     new_required = len(new.parameters) - new.defaults_count
@@ -154,7 +154,7 @@ def compare_signatures(old: APISignature, new: APISignature) -> "ChangeKind":
 
 def compare_classes(old: ClassAPI, new: ClassAPI) -> "ChangeKind":
     """Compare two class APIs for compatibility."""
-    from semverdredd.change_kind import ChangeKind
+    from snapshot.change_kind import ChangeKind
 
     change_rank = {
         ChangeKind.NONE: 0,
@@ -199,7 +199,7 @@ def compare_classes(old: ClassAPI, new: ClassAPI) -> "ChangeKind":
 
 def compare_modules(old: ModuleAPI, new: ModuleAPI) -> "ChangeKind":
     """Compare two module APIs and return the type of change."""
-    from semverdredd.change_kind import ChangeKind
+    from snapshot.change_kind import ChangeKind
 
     change_rank = {
         ChangeKind.NONE: 0,

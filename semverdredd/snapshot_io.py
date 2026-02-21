@@ -5,20 +5,9 @@ This module re-exports them so existing ``from semverdredd.snapshot_io import â€
 statements keep working.
 """
 
-from semverdredd.models import (
-    NormalizedSnapshot,
-    FunctionSignature,
-    TypeDefinition,
-    Parameter,
-    Field,
-)
+from snapshot import Parameter, Field, FunctionSignature, TypeDefinition, NormalizedSnapshot
 from semverdredd.registry import load_snapshot
 
 __all__ = [
-    "NormalizedSnapshot",
-    "FunctionSignature",
-    "TypeDefinition",
-    "Parameter",
-    "Field",
     "load_snapshot",
 ]

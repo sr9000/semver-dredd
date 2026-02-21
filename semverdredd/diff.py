@@ -8,15 +8,9 @@ Works with snapshots from any supported language (Python, Go, Java).
 
 from __future__ import annotations
 
-from semverdredd.change_kind import ChangeKind
-from semverdredd.protocols import DiffScorer, DiffResult
-from semverdredd.models import (
-    NormalizedSnapshot,
-    FunctionSignature,
-    TypeDefinition,
-    Parameter,
-    Field,
-)
+from snapshot.change_kind import ChangeKind
+from snapshot.protocols import DiffScorer, DiffResult
+from snapshot import FunctionSignature, TypeDefinition, NormalizedSnapshot
 
 
 def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:

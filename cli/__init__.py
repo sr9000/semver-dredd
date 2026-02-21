@@ -9,10 +9,8 @@ import subprocess
 
 from semverdredd import Version, generate_patch
 from semverdredd.snapshot import save_version_file
-from semverdredd.models import NormalizedSnapshot
-from semverdredd.change_kind import ChangeKind
-from semverdredd.protocols import DiffResult
-from semverdredd.xldiff import DefaultDiffScorer
+from snapshot import NormalizedSnapshot, ChangeKind
+from semverdredd.diff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin
 from cli.config import load_config, apply_config_defaults, Config
 

@@ -19,13 +19,13 @@ from semverdredd.version import Version, generate_patch
 from semverdredd.result import CompareResult, SuggestVersionResult
 
 # Change severity enum (canonical home)
-from semverdredd.change_kind import ChangeKind
+from snapshot.change_kind import ChangeKind
 
 # Protocols and diff types
-from semverdredd.protocols import DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 # Snapshot data models
-from semverdredd.models import NormalizedSnapshot, NORMALIZED_SNAPSHOT_TYPE_ID
+from snapshot.models import NormalizedSnapshot
 
 # Registry (canonical home)
 from semverdredd.registry import (
@@ -45,7 +45,7 @@ from semverdredd.plugin_manager import (
 )
 
 # Diff engine
-from semverdredd.xldiff import (
+from semverdredd.diff import (
     compare_snapshots,
     DefaultDiffScorer,
 )
@@ -186,7 +186,6 @@ def compare_and_suggest(
 
 __all__ = [
     # Core types
-    "ChangeKind",
     "Version",
     "generate_patch",
 
@@ -199,8 +198,6 @@ __all__ = [
     "compare_and_suggest",
 
     # Snapshot types
-    "NormalizedSnapshot",
-    "NORMALIZED_SNAPSHOT_TYPE_ID",
     "load_snapshot",
     "load_snapshot_yaml",
     "compare_snapshots",

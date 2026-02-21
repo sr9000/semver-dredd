@@ -6,14 +6,14 @@ from CI systems and other tools.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from semverdredd.version import Version
 
 if TYPE_CHECKING:  # pragma: no cover
-    from semverdredd.change_kind import ChangeKind
-    from semverdredd.protocols import DiffResult
+    from snapshot.change_kind import ChangeKind
+    from snapshot.protocols import DiffResult
 
 
 @dataclass(frozen=True, slots=True)

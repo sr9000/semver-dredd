@@ -1,22 +1,17 @@
 """Tests for cross-language snapshot loading, diff, and classification."""
 
-import pytest
 from pathlib import Path
 
 from semverdredd.snapshot_io import (
-    NormalizedSnapshot,
     load_snapshot,
-    FunctionSignature,
-    Parameter,
-    TypeDefinition,
-    Field,
 )
-from semverdredd.xldiff import (
+from snapshot import NormalizedSnapshot
+from semverdredd.diff import (
     diff_snapshots,
     compare_snapshots,
 )
-from semverdredd.change_kind import ChangeKind
-from semverdredd.protocols import DiffResult
+from snapshot.change_kind import ChangeKind
+from snapshot.protocols import DiffResult
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"

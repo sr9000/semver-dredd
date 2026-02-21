@@ -9,16 +9,17 @@ All canonical implementations live in the `semverdredd` package.
 
 ```python
 from semverdredd import (
-    ChangeKind,         # NONE | PATCH | MINOR | BREAKING
-    NormalizedSnapshot, # built-in snapshot format
-    DiffResult,         # result of comparing two snapshots
-    DiffScorer,         # ABC for custom diff logic
-    SnapshotFormat,     # protocol every snapshot class must satisfy
-    SnapshotRegistry,   # UUID-based type registry
-    default_registry,   # registry singleton
-    load_snapshot,      # load YAML file via registry
-    load_snapshot_yaml, # load YAML string via registry
+    # NONE | PATCH | MINOR | BREAKING
+    # built-in snapshot format
+    DiffResult,  # result of comparing two snapshots
+    DiffScorer,  # ABC for custom diff logic
+    SnapshotFormat,  # protocol every snapshot class must satisfy
+    SnapshotRegistry,  # UUID-based type registry
+    default_registry,  # registry singleton
+    load_snapshot,  # load YAML file via registry
+    load_snapshot_yaml,  # load YAML string via registry
 )
+from snapshot import NormalizedSnapshot, ChangeKind
 ```
 
 ---
@@ -99,8 +100,9 @@ MY_UUID = str(uuid.uuid5(uuid.NAMESPACE_URL, "semver-dredd:my-plugin:MySnapshot"
 ## DiffScorer ABC
 
 ```python
-from semverdredd.protocols import DiffScorer, DiffResult
-from semverdredd.change_kind import ChangeKind
+from snapshot.protocols import DiffScorer, DiffResult
+from snapshot import ChangeKind
+
 
 class MyDiffScorer(DiffScorer):
     def diff(self, old, new) -> DiffResult:
@@ -150,7 +152,7 @@ class MyPlugin(LanguagePlugin):
 
 | Module                    | Contents                                                        |
 |---------------------------|-----------------------------------------------------------------|
-| `semverdredd.change_kind` | `ChangeKind` enum                                               |
+| `snapshot.change_kind` | `ChangeKind` enum                                               |
 | `semverdredd.protocols`   | `SnapshotFormat` protocol, `DiffScorer` ABC, `DiffResult`       |
 | `semverdredd.models`      | `NormalizedSnapshot`, `FunctionSignature`, `TypeDefinition`, etc |
 | `semverdredd.registry`    | `SnapshotRegistry`, `default_registry`, `load_snapshot`         |

@@ -8,20 +8,14 @@ See ``snapshot/README.md`` for the full API contract documentation.
 """
 
 # Unified change severity enum
-from semverdredd.change_kind import ChangeKind
+from snapshot.change_kind import ChangeKind
 
 # Protocols / ABCs
-from semverdredd.protocols import DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
 
 # Concrete data models
-from semverdredd.models import (
-    NORMALIZED_SNAPSHOT_TYPE_ID,
-    Field,
-    FunctionSignature,
-    NormalizedSnapshot,
-    Parameter,
-    TypeDefinition,
-)
+from snapshot.models import NORMALIZED_SNAPSHOT_TYPE_ID, Parameter, Field, FunctionSignature, TypeDefinition, \
+    NormalizedSnapshot
 
 # Registry
 from semverdredd.registry import (

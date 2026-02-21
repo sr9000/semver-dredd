@@ -14,8 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from semverdredd.change_kind import ChangeKind
-from semverdredd.protocols import DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import DiffScorer, SnapshotFormat
 
 
 @dataclass(frozen=True)
