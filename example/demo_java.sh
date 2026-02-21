@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-JAVA_PARSER="$PROJECT_ROOT/parser/java"
+JAVA_PARSER="$PROJECT_ROOT/plugins/semver-dredd-java/semver_dredd_java/parser"
 JAVAGEOM1="$SCRIPT_DIR/java/javageometry1"
 JAVAGEOM2="$SCRIPT_DIR/java/javageometry2"
 WORK_DIR=$(mktemp -d)
@@ -90,27 +90,27 @@ echo ""
 echo "1.0.0" > "$WORK_DIR/VERSION"
 
 echo -e "${GREEN}Step 3: Initialize project with semver-dredd (Java)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd init ./example/java/javageometry1 --lang java --version 1.0.0${NC}"
+echo -e "Command: ${YELLOW}semver-dredd init ./example/java/javageometry1 --plugin java --version 1.0.0${NC}"
 echo ""
-python -m cli init "$JAVAGEOM1" --lang java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+python -m cli init "$JAVAGEOM1" --plugin java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 4: Check status (no changes)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry1 --lang java --details${NC}"
+echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry1 --plugin java --details${NC}"
 echo ""
 cd "$WORK_DIR"
-python -m cli status "$JAVAGEOM1" --lang java --details || true
+python -m cli status "$JAVAGEOM1" --plugin java --details || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with javageometry2 (against javageometry1 baseline)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry2 --lang java --details${NC}"
+echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry2 --plugin java --details${NC}"
 echo ""
 echo -e "${YELLOW}Changes in javageometry2:${NC}"
 echo -e "  - Added Point.z field (3D coordinate)"
 echo -e "  - Added Point.translate() method"
 echo -e "  - Added Geometry.volume() static method"
 echo ""
-python -m cli status "$JAVAGEOM2" --lang java --details || true
+python -m cli status "$JAVAGEOM2" --plugin java --details || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -121,9 +121,9 @@ echo "----------------------------------------"
 echo ""
 
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
-echo -e "Command: ${YELLOW}semver-dredd bake ./example/java/javageometry2 --lang java${NC}"
+echo -e "Command: ${YELLOW}semver-dredd bake ./example/java/javageometry2 --plugin java${NC}"
 echo ""
-python -m cli bake "$JAVAGEOM2" --lang java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+python -m cli bake "$JAVAGEOM2" --plugin java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

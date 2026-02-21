@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-GO_PARSER="$PROJECT_ROOT/parser/golang"
+GO_PARSER="$PROJECT_ROOT/plugins/semver-dredd-go/semver_dredd_go/parser"
 GOGEOM1="$SCRIPT_DIR/go/gogeometry1"
 GOGEOM2="$SCRIPT_DIR/go/gogeometry2"
 WORK_DIR=$(mktemp -d)
@@ -66,27 +66,27 @@ echo ""
 echo "1.0.0" > "$WORK_DIR/VERSION"
 
 echo -e "${GREEN}Step 3: Initialize project with semver-dredd (Go)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd init ./example/go/gogeometry1 --lang go --version 1.0.0${NC}"
+echo -e "Command: ${YELLOW}semver-dredd init ./example/go/gogeometry1 --plugin go --version 1.0.0${NC}"
 echo ""
-python -m cli init "$GOGEOM1" --lang go --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+python -m cli init "$GOGEOM1" --plugin go --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 4: Check status (no changes)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd status ./example/go/gogeometry1 --lang go --details${NC}"
+echo -e "Command: ${YELLOW}semver-dredd status ./example/go/gogeometry1 --plugin go --details${NC}"
 echo ""
 cd "$WORK_DIR"
-python -m cli status "$GOGEOM1" --lang go --details || true
+python -m cli status "$GOGEOM1" --plugin go --details || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with gogeometry2 (against gogeometry1 baseline)${NC}"
-echo -e "Command: ${YELLOW}semver-dredd status ./example/go/gogeometry2 --lang go --details${NC}"
+echo -e "Command: ${YELLOW}semver-dredd status ./example/go/gogeometry2 --plugin go --details${NC}"
 echo ""
 echo -e "${YELLOW}Changes in gogeometry2:${NC}"
 echo -e "  - Added Point.Z field (3D coordinate)"
 echo -e "  - Added Point.Translate() method"
 echo -e "  - Added Volume() function"
 echo ""
-python -m cli status "$GOGEOM2" --lang go --details || true
+python -m cli status "$GOGEOM2" --plugin go --details || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -97,9 +97,9 @@ echo "----------------------------------------"
 echo ""
 
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
-echo -e "Command: ${YELLOW}semver-dredd bake ./example/go/gogeometry2 --lang go${NC}"
+echo -e "Command: ${YELLOW}semver-dredd bake ./example/go/gogeometry2 --plugin go${NC}"
 echo ""
-python -m cli bake "$GOGEOM2" --lang go --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+python -m cli bake "$GOGEOM2" --plugin go --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

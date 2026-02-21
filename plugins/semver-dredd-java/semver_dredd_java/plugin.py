@@ -210,6 +210,65 @@ class JavaSnapshot:
 
 
 # ---------------------------------------------------------------------------
+# Diff scorer for JavaSnapshot
+# ---------------------------------------------------------------------------
+
+def _java_snapshot_to_normalized(snap: "JavaSnapshot"):
+    """Convert JavaSnapshot to NormalizedSnapshot for use with diff_snapshots."""
+    from snapshot.models import (
+        NormalizedSnapshot,
+        FunctionSignature,
+        TypeDefinition,
+        Parameter,
+        Field,
+    )
+
+    functions = {}
+    for name, func in snap.functions.items():
+        params = tuple(
+            Parameter(name=a.name, type=a.type, optional=(a.default is not None))
+            for a in func.args
+        )
+        functions[name] = FunctionSignature(name=name, parameters=params, returns=())
+
+    types: dict = {}
+    for type_name, type_data in snap.types.items():
+        if isinstance(type_data, tuple):
+            fields_list, methods_dict = type_data
+        else:
+            fields_list = getattr(type_data, "fields", [])
+            methods_dict = getattr(type_data, "methods", {})
+
+        fields = tuple(Field(name=f.name, type=f.type) for f in fields_list)
+        methods = {}
+        for mname, method in methods_dict.items():
+            mparams = tuple(
+                Parameter(name=a.name, type=a.type, optional=(a.default is not None))
+                for a in method.args
+            )
+            methods[mname] = FunctionSignature(name=mname, parameters=mparams, returns=())
+        types[type_name] = TypeDefinition(name=type_name, fields=fields, methods=methods)
+
+    return NormalizedSnapshot(
+        version=snap.version,
+        language="java",
+        functions=functions,
+        types=types,
+    )
+
+
+class _JavaDiffScorer:
+    """Diff scorer that converts JavaSnapshot to NormalizedSnapshot before diffing."""
+
+    def diff(self, old: "JavaSnapshot", new: "JavaSnapshot"):
+        from semverdredd.diff import diff_snapshots
+        return diff_snapshots(
+            _java_snapshot_to_normalized(old),
+            _java_snapshot_to_normalized(new),
+        )
+
+
+# ---------------------------------------------------------------------------
 # Parser helpers
 # ---------------------------------------------------------------------------
 
@@ -269,6 +328,10 @@ class JavaPlugin(LanguagePlugin):
 
     def get_parser_resource_path(self) -> Optional[Path]:
         return _get_parser_dir()
+
+    @property
+    def diff_scorer(self):
+        return _JavaDiffScorer()
 
     def _get_jar_path(self) -> Optional[Path]:
         parser_dir = _get_parser_dir()
