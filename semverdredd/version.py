@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 # from typing import Self  # Removed to support Python 3.10 without typing_extensions
 
@@ -188,3 +189,15 @@ def generate_patch(current_patch: int | None = None, today: date | None = None) 
     else:
         # Different day, start fresh
         return base_patch + 1
+
+
+def save_version_file(version: str, path: Path | str = "VERSION") -> None:
+    """Save version string to a plain text file."""
+    path = Path(path)
+    path.write_text(f"{version}\n")
+
+
+def load_version_file(path: Path | str = "VERSION") -> str:
+    """Load version string from a plain text file."""
+    path = Path(path)
+    return path.read_text().strip()

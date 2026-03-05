@@ -157,6 +157,7 @@ def compare(
     # Fall back to the plugin-supplied DiffScorer for snapshot types that
     # haven't yet adopted the protocol.
     from snapshot.protocols import Comparable
+
     if isinstance(old_snapshot, Comparable):
         diff_result = old_snapshot.diff_against(new_snapshot)
     else:

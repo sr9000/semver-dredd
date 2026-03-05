@@ -3,7 +3,7 @@
 import pytest
 from dataclasses import dataclass
 from collections import namedtuple
-from semverdredd.python_api import ClassAPI, compare_classes, APISignature
+from semver_dredd_python.python_api import ClassAPI, compare_classes, APISignature
 from semverdredd import ChangeKind
 
 try:

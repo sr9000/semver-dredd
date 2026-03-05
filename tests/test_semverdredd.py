@@ -2,7 +2,7 @@
 Tests for semver-dredd using gogeometry1 and gogeometry2 as test modules.
 """
 
-from semverdredd.python_api import (
+from semver_dredd_python.python_api import (
     APISignature,
     ClassAPI,
     ModuleAPI,

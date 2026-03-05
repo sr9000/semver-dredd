@@ -4,44 +4,9 @@ import tempfile
 from pathlib import Path
 
 from cli import main
-from semverdredd.snapshot import APISnapshot, save_version_file, load_version_file
-from semverdredd.python_api import ModuleAPI
+from semverdredd.version import save_version_file, load_version_file
 from example.py import pygeometry2
 from example.py import pygeometry1
-
-
-class TestAPISnapshot:
-    """Tests for APISnapshot serialization."""
-
-    def test_from_module_and_to_yaml(self):
-        snapshot = APISnapshot.from_module(pygeometry1, "1.0.0")
-        yaml_str = snapshot.to_yaml()
-        assert "version: 1.0.0" in yaml_str
-        assert "area:" in yaml_str
-        assert "Point:" in yaml_str
-
-    def test_roundtrip(self):
-        original = APISnapshot.from_module(pygeometry1, "1.0.0")
-        yaml_str = original.to_yaml()
-        loaded = APISnapshot.from_yaml(yaml_str)
-        assert loaded.version == original.version
-        assert loaded.functions.keys() == original.functions.keys()
-        assert loaded.classes.keys() == original.classes.keys()
-
-    def test_to_module_api(self):
-        snapshot = APISnapshot.from_module(pygeometry1, "1.0.0")
-        api = snapshot.to_module_api()
-        assert isinstance(api, ModuleAPI)
-        assert "area" in api.functions
-        assert "Point" in api.classes
-
-    def test_save_and_load(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "test.yaml"
-            original = APISnapshot.from_module(pygeometry1, "1.0.0")
-            original.save(path)
-            loaded = APISnapshot.load(path)
-            assert loaded.version == original.version
 
 
 class TestVersionFile:
