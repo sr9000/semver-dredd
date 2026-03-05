@@ -1,0 +1,25 @@
+[project]
+name = "javaparser-1.8-dredd"
+version = "1.0.0"
+description = "JavaParser-based Java 1.8+ language plugin for semver-dredd"
+authors = [
+    {name = "sr9000", email = "no@mail.org"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "semver-dredd>=0.1.0",
+]
+
+[project.entry-points."semver_dredd.plugins"]
+javaparser = "semver_dredd_javaparser:JavaParserPlugin"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+semver_dredd_javaparser = [
+    "parser/*.java",
+    "parser/lib/*.jar",
+]
