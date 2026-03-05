@@ -10,9 +10,9 @@ pip install semver-dredd-all
 
 This will install:
 - `semver-dredd` - Core library
-- `semver-dredd-python` - Python language plugin
-- `semver-dredd-go` - Go language plugin
-- `semver-dredd-java` - Java language plugin
+- `python-3.10-dredd` - Python language plugin
+- `go-1.20-dredd` - Go language plugin
+- `java-1.8-dredd` - Java language plugin
 
 ## Usage
 
@@ -23,13 +23,13 @@ After installation, all plugins are automatically available:
 semver-dredd plugin list
 
 # Use with any supported language
-semver-dredd snapshot --lang python --path ./mypackage --version 1.0.0
-semver-dredd snapshot --lang go --path ./mygomodule --version 1.0.0
-semver-dredd snapshot --lang java --path ./src/main/java --version 1.0.0
+semver-dredd snapshot --plugin python --path ./mypackage --version 1.0.0
+semver-dredd snapshot --plugin go --path ./mygomodule --version 1.0.0
+semver-dredd snapshot --plugin java --path ./src/main/java --version 1.0.0
 ```
 
 ## Requirements
 
 - Python 3.10+
 - For Go plugin: Go 1.20+
-- For Java plugin: JDK 11+
+- For Java plugin: JDK 1.8+

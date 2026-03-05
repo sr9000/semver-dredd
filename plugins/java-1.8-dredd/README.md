@@ -21,7 +21,7 @@ pip install ./plugins/java-1.8-dredd
 
 - Python 3.10+
 - semver-dredd >= 0.1.0
-- **JDK 11+** installed (both `javac` and `java` must be in PATH)
+- **JDK 1.8+** installed (both `javac` and `java` must be in PATH)
 
 ## Usage
 

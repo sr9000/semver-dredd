@@ -41,13 +41,13 @@ except Exception as e:
     # Keep import side-effects best-effort; callers can still explicitly load.
     warnings.warn(f"Failed to register built-in snapshot formats: {e}", UserWarning)
 
-try:
-    from semverdredd.plugin_manager import get_plugin_manager as _sd__get_mgr
-
-    _sd__get_mgr().load_plugins()
-except Exception as e:
-    # Plugin discovery is optional in minimal installs.
-    warnings.warn(f"Failed to load plugins: {e}", UserWarning)
+# NOTE: Plugin loading is intentionally NOT done at import time.
+# PluginManager.get() and PluginManager.list_plugins() already call
+# load_plugins() lazily on first use.  Calling it eagerly here caused
+# circular-import failures: a plugin's module imports from semverdredd,
+# which triggers this __init__.py, which tries to load the very plugin
+# that is still being imported — resulting in a partially-initialized
+# module and missing class attributes.
 
 # Structured result types (pure data)
 from semverdredd.result import CompareResult, SuggestVersionResult

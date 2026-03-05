@@ -291,7 +291,7 @@ class JavaPlugin(LanguagePlugin):
     """Java language support plugin for semver-dredd.
 
     Analyzes Java source files using a bundled regex-based parser.
-    Requires JDK 11+ to be installed.
+    Requires JDK 1.8+ to be installed.
 
     The bundled Java parser output is deserialized into :class:`JavaSnapshot`
     using the predefined component models
@@ -348,7 +348,7 @@ class JavaPlugin(LanguagePlugin):
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True, ""
         except FileNotFoundError:
-            return False, "'javac' not found. Please install JDK 11+."
+            return False, "'javac' not found. Please install JDK 1.8+."
         except subprocess.CalledProcessError as e:
             return False, f"Compilation failed: {e.stderr or str(e)}"
 
@@ -392,7 +392,7 @@ class JavaPlugin(LanguagePlugin):
         except FileNotFoundError:
             return SnapshotResult(
                 False, "",
-                "'java' executable not found. Please install JRE/JDK 11+."
+                "'java' executable not found. Please install JRE/JDK 1.8+."
             )
         except subprocess.CalledProcessError as e:
             msg = (e.stderr or "").strip() or str(e)

@@ -77,25 +77,30 @@ class PluginManager:
 
         # NOTE: In some environments (e.g. tests, editable installs) entry
         # points may not be installed. We register built-ins by import.
+        #
+        # Guard against circular imports: if a plugin module is already in
+        # sys.modules but still being initialized (the class attribute won't
+        # exist yet), skip it here — the entry-point loader or a later
+        # load_plugins(force=True) call will pick it up.
         builtins: list[type[LanguagePlugin]] = []
-        try:  # Python
-            from semver_dredd_python.plugin import PythonPlugin  # type: ignore
-
-            builtins.append(PythonPlugin)
-        except Exception:
-            pass
-        try:  # Go
-            from semver_dredd_go.plugin import GoPlugin  # type: ignore
-
-            builtins.append(GoPlugin)
-        except Exception:
-            pass
-        try:  # Java
-            from semver_dredd_java.plugin import JavaPlugin  # type: ignore
-
-            builtins.append(JavaPlugin)
-        except Exception:
-            pass
+        _builtin_specs: list[tuple[str, str, str]] = [
+            ("semver_dredd_python.plugin", "PythonPlugin", "Python"),
+            ("semver_dredd_go.plugin", "GoPlugin", "Go"),
+            ("semver_dredd_java.plugin", "JavaPlugin", "Java"),
+        ]
+        for _mod_name, _cls_name, _label in _builtin_specs:
+            try:
+                # Check if the submodule is mid-import (circular dependency).
+                _partial = sys.modules.get(_mod_name)
+                if _partial is not None and not hasattr(_partial, _cls_name):
+                    logger.debug(
+                        "Skipping partially-loaded builtin plugin '%s'", _label
+                    )
+                    continue
+                _mod = __import__(_mod_name, fromlist=[_cls_name])
+                builtins.append(getattr(_mod, _cls_name))
+            except Exception:
+                pass
 
         for cls in builtins:
             try:
@@ -119,6 +124,23 @@ class PluginManager:
 
         for ep in discovered:
             try:
+                # Guard: if the entry-point's module is mid-import (circular
+                # dependency), skip it — the plugin will be available on the
+                # next call to load_plugins() or get().
+                _ep_mod = getattr(ep, "module", None) or (
+                    ep.value.split(":")[0] if hasattr(ep, "value") else None
+                )
+                _ep_attr = getattr(ep, "attr", None) or (
+                    ep.value.split(":")[1] if hasattr(ep, "value") and ":" in ep.value else None
+                )
+                if _ep_mod and _ep_attr:
+                    _partial_mod = sys.modules.get(_ep_mod)
+                    if _partial_mod is not None and not hasattr(_partial_mod, _ep_attr):
+                        logger.debug(
+                            "Skipping partially-loaded entry-point plugin '%s'",
+                            getattr(ep, "name", "<unknown>"),
+                        )
+                        continue
                 plugin_cls = ep.load()
                 plugin = plugin_cls()
                 self.register(
