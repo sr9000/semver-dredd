@@ -208,10 +208,20 @@ class JavaSnapshot:
             types=types,
         )
 
+    # ------------------------------------------------------------------
+    # Diff (Comparable protocol)
+    # ------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Diff scorer for JavaSnapshot
-# ---------------------------------------------------------------------------
+    def diff_against(self, other: "JavaSnapshot"):
+        """Compare this snapshot against *other*.
+
+        Implements :class:`~snapshot.protocols.Comparable` by converting both
+        sides to a :class:`~snapshot.models.NormalizedSnapshot` and delegating
+        — all conversion knowledge stays inside the snapshot class.
+        """
+        return _java_snapshot_to_normalized(self).diff_against(
+            _java_snapshot_to_normalized(other)
+        )
 
 def _java_snapshot_to_normalized(snap: "JavaSnapshot"):
     """Convert JavaSnapshot to NormalizedSnapshot for use with diff_snapshots."""
@@ -258,14 +268,10 @@ def _java_snapshot_to_normalized(snap: "JavaSnapshot"):
 
 
 class _JavaDiffScorer:
-    """Diff scorer that converts JavaSnapshot to NormalizedSnapshot before diffing."""
+    """Backward-compatible scorer: delegates to JavaSnapshot.diff_against."""
 
     def diff(self, old: "JavaSnapshot", new: "JavaSnapshot"):
-        from semverdredd.diff import diff_snapshots
-        return diff_snapshots(
-            _java_snapshot_to_normalized(old),
-            _java_snapshot_to_normalized(new),
-        )
+        return old.diff_against(new)
 
 
 # ---------------------------------------------------------------------------

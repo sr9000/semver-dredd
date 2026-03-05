@@ -1,91 +1,46 @@
 """Cross-language API diff engine for semver-dredd.
 
-This module compares two NormalizedSnapshots and produces a detailed diff
-that explains what changed and whether changes are breaking or additive.
+The engine is intentionally structure-agnostic: it knows nothing about
+functions, types, or any other language-specific concepts.  All comparison
+logic lives on the snapshot types themselves via the
+:class:`~snapshot.protocols.Comparable` protocol.
 
-Works with snapshots from any supported language (Python, Go, Java).
-Comparison logic lives on the snapshot element types themselves via the
-:class:`~snapshot.protocols.Comparable` protocol — this module only
-orchestrates the top-level collections.
+For snapshot types that do not yet implement :class:`~snapshot.protocols.Comparable`
+the engine falls back to the plugin-supplied :class:`~snapshot.protocols.DiffScorer`.
 """
 
 from __future__ import annotations
 
-from snapshot import NormalizedSnapshot
-from snapshot.change_kind import ChangeKind
-from snapshot.protocols import DiffResult, DiffScorer
+from typing import Any
+
+from snapshot.protocols import Comparable, DiffResult, DiffScorer
 
 
-def diff_snapshots(old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
-    """Compare two snapshots and return a DiffResult.
+def diff_snapshots(old: Any, new: Any) -> DiffResult:
+    """Compare two snapshots by delegating to ``old.diff_against(new)``.
 
-    Top-level added/removed items are detected here; per-element comparison
-    is delegated to each element's :meth:`~snapshot.protocols.Comparable.diff_against`
-    method so the logic stays close to the type that owns it.
+    Both *old* and *new* must implement :class:`~snapshot.protocols.Comparable`.
     """
-    breaking: list[str] = []
-    added: list[str] = []
-
-    # --- Functions ---
-    old_fns, new_fns = old.functions, new.functions
-
-    for name in sorted(set(old_fns) - set(new_fns)):
-        breaking.append(f"function removed: {name}")
-
-    for name in sorted(set(new_fns) - set(old_fns)):
-        added.append(f"function added: {name}")
-
-    for name in sorted(set(old_fns) & set(new_fns)):
-        result = old_fns[name].diff_against(new_fns[name])
-        breaking.extend(f"function {name}: {b}" for b in result.breaking)
-        added.extend(f"function {name}: {a}" for a in result.added)
-
-    # --- Types ---
-    old_types, new_types = old.types, new.types
-
-    for name in sorted(set(old_types) - set(new_types)):
-        breaking.append(f"type removed: {name}")
-
-    for name in sorted(set(new_types) - set(old_types)):
-        added.append(f"type added: {name}")
-
-    for name in sorted(set(old_types) & set(new_types)):
-        result = old_types[name].diff_against(new_types[name])
-        breaking.extend(f"type {name}: {b}" for b in result.breaking)
-        added.extend(f"type {name}: {a}" for a in result.added)
-
-    if breaking:
-        change = ChangeKind.BREAKING
-    elif added:
-        change = ChangeKind.MINOR
-    else:
-        change = ChangeKind.NONE
-
-    return DiffResult(
-        change_kind=change,
-        breaking=tuple(breaking),
-        added=tuple(added),
-    )
+    if not isinstance(old, Comparable):
+        raise TypeError(
+            f"{type(old).__name__} does not implement Comparable "
+            "(add a diff_against method or provide a DiffScorer via the plugin)"
+        )
+    return old.diff_against(new)
 
 
-def compare_snapshots(
-    old: NormalizedSnapshot,
-    new: NormalizedSnapshot,
-) -> DiffResult:
-    """Compare two snapshots and return a DiffResult."""
+def compare_snapshots(old: Any, new: Any) -> DiffResult:
+    """Convenience alias for :func:`diff_snapshots`."""
     return diff_snapshots(old, new)
 
 
-def compare_snapshot_files(
-    old_path: str,
-    new_path: str,
-) -> DiffResult:
+def compare_snapshot_files(old_path: str, new_path: str) -> DiffResult:
     """Compare two snapshot files."""
     from semverdredd import load_snapshot
 
     old = load_snapshot(old_path)
     new = load_snapshot(new_path)
-    return compare_snapshots(old, new)
+    return diff_snapshots(old, new)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +49,10 @@ def compare_snapshot_files(
 
 
 class DefaultDiffScorer(DiffScorer):
-    """Default diff scorer wrapping ``diff_snapshots``."""
+    """Default diff scorer: delegates to the snapshot's own ``diff_against``.
 
-    def diff(self, old: NormalizedSnapshot, new: NormalizedSnapshot) -> DiffResult:
+    Requires the snapshot to implement :class:`~snapshot.protocols.Comparable`.
+    """
+
+    def diff(self, old: Any, new: Any) -> DiffResult:
         return diff_snapshots(old, new)

@@ -208,10 +208,20 @@ class GoSnapshot:
             types=types,
         )
 
+    # ------------------------------------------------------------------
+    # Diff (Comparable protocol)
+    # ------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Diff scorer for GoSnapshot
-# ---------------------------------------------------------------------------
+    def diff_against(self, other: "GoSnapshot"):
+        """Compare this snapshot against *other*.
+
+        Implements :class:`~snapshot.protocols.Comparable` by converting both
+        sides to a :class:`~snapshot.models.NormalizedSnapshot` and delegating
+        — all conversion knowledge stays inside the snapshot class.
+        """
+        return _go_snapshot_to_normalized(self).diff_against(
+            _go_snapshot_to_normalized(other)
+        )
 
 def _go_snapshot_to_normalized(snap: "GoSnapshot"):
     """Convert GoSnapshot to NormalizedSnapshot for use with diff_snapshots."""
@@ -258,14 +268,10 @@ def _go_snapshot_to_normalized(snap: "GoSnapshot"):
 
 
 class _GoDiffScorer:
-    """Diff scorer that converts GoSnapshot to NormalizedSnapshot before diffing."""
+    """Backward-compatible scorer: delegates to GoSnapshot.diff_against."""
 
     def diff(self, old: "GoSnapshot", new: "GoSnapshot"):
-        from semverdredd.diff import diff_snapshots
-        return diff_snapshots(
-            _go_snapshot_to_normalized(old),
-            _go_snapshot_to_normalized(new),
-        )
+        return old.diff_against(new)
 
 
 # ---------------------------------------------------------------------------

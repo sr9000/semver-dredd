@@ -405,3 +405,57 @@ class NormalizedSnapshot:
 
     def save(self, path: Path | str) -> None:
         Path(path).write_text(self.to_yaml())
+
+    def diff_against(self, other: "NormalizedSnapshot") -> "DiffResult":
+        """Compare this snapshot against *other* and return a DiffResult.
+
+        Implements :class:`~snapshot.protocols.Comparable`.  All knowledge of
+        the internal collections (functions / types) lives here so the diff
+        engine stays language-agnostic.
+        """
+        from snapshot.change_kind import ChangeKind
+        from snapshot.protocols import DiffResult
+
+        breaking: list[str] = []
+        added: list[str] = []
+
+        # --- Functions ---
+        old_fns, new_fns = self.functions, other.functions
+
+        for name in sorted(set(old_fns) - set(new_fns)):
+            breaking.append(f"function removed: {name}")
+
+        for name in sorted(set(new_fns) - set(old_fns)):
+            added.append(f"function added: {name}")
+
+        for name in sorted(set(old_fns) & set(new_fns)):
+            result = old_fns[name].diff_against(new_fns[name])
+            breaking.extend(f"function {name}: {b}" for b in result.breaking)
+            added.extend(f"function {name}: {a}" for a in result.added)
+
+        # --- Types ---
+        old_types, new_types = self.types, other.types
+
+        for name in sorted(set(old_types) - set(new_types)):
+            breaking.append(f"type removed: {name}")
+
+        for name in sorted(set(new_types) - set(old_types)):
+            added.append(f"type added: {name}")
+
+        for name in sorted(set(old_types) & set(new_types)):
+            result = old_types[name].diff_against(new_types[name])
+            breaking.extend(f"type {name}: {b}" for b in result.breaking)
+            added.extend(f"type {name}: {a}" for a in result.added)
+
+        if breaking:
+            change = ChangeKind.BREAKING
+        elif added:
+            change = ChangeKind.MINOR
+        else:
+            change = ChangeKind.NONE
+
+        return DiffResult(
+            change_kind=change,
+            breaking=tuple(breaking),
+            added=tuple(added),
+        )

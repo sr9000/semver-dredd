@@ -250,6 +250,19 @@ class PythonSnapshot:
             default=data.get("default"),
         )
 
+    # ------------------------------------------------------------------
+    # Diff (Comparable protocol)
+    # ------------------------------------------------------------------
+
+    def diff_against(self, other: "PythonSnapshot"):
+        """Compare this snapshot against *other*.
+
+        Implements :class:`~snapshot.protocols.Comparable` by converting both
+        sides to a :class:`~snapshot.models.NormalizedSnapshot` and delegating
+        — all conversion knowledge stays inside the snapshot class.
+        """
+        return _to_normalized(self).diff_against(_to_normalized(other))
+
 
 # ---------------------------------------------------------------------------
 # Introspection helpers
@@ -421,10 +434,10 @@ def _to_normalized(snap: PythonSnapshot) -> NormalizedSnapshot:
 
 
 class PythonDiffScorer(DefaultDiffScorer):
-    """Diff scorer for PythonSnapshot: converts to NormalizedSnapshot then diffs."""
+    """Backward-compatible scorer: delegates to PythonSnapshot.diff_against."""
 
     def diff(self, old: PythonSnapshot, new: PythonSnapshot) -> "DiffResult":  # type: ignore[override]
-        return super().diff(_to_normalized(old), _to_normalized(new))
+        return old.diff_against(new)
 
 
 # ---------------------------------------------------------------------------

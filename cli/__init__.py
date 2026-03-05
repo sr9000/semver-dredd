@@ -33,6 +33,19 @@ def _resolve_diff_scorer(plugin: LanguagePlugin | None):
     return DefaultDiffScorer()
 
 
+def _run_diff(old_snapshot, new_snapshot, plugin: LanguagePlugin | None):
+    """Run a diff, preferring the snapshot's own diff_against (Comparable protocol).
+
+    Falls back to the plugin-supplied DiffScorer for snapshot types that have
+    not yet adopted the protocol.
+    """
+    from snapshot.protocols import Comparable
+    if isinstance(old_snapshot, Comparable):
+        return old_snapshot.diff_against(new_snapshot)
+    scorer = _resolve_diff_scorer(plugin)
+    return scorer.diff(old_snapshot, new_snapshot)
+
+
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_BREAKING_CHANGES_DETECTED = 10
@@ -175,12 +188,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
     exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
     snap_cls = _resolve_snapshot_class(lang_plugin)
-    scorer = _resolve_diff_scorer(lang_plugin)
 
     old_snapshot = snap_cls.from_yaml_str(old_yaml)
     new_snapshot = snap_cls.from_yaml_str(new_yaml)
 
-    diff_result = scorer.diff(old_snapshot, new_snapshot)
+    diff_result = _run_diff(old_snapshot, new_snapshot, lang_plugin)
     change = diff_result.change_kind
 
     change_descriptions = _get_change_descriptions()
@@ -272,7 +284,6 @@ def cmd_status(args: argparse.Namespace) -> int:
     # Load baked snapshot
     exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
     snap_cls = _resolve_snapshot_class(lang_plugin)
-    scorer = _resolve_diff_scorer(lang_plugin)
 
     baked = snap_cls.from_file(baked_path)
 
@@ -286,7 +297,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     current = snap_cls.from_yaml_str(yaml_str)
 
     # Compare
-    diff_result = scorer.diff(baked, current)
+    diff_result = _run_diff(baked, current, lang_plugin)
     change = diff_result.change_kind
 
     # Compute suggested version
@@ -383,7 +394,6 @@ def cmd_bake(args: argparse.Namespace) -> int:
         # Load existing and compute next version
         exit_code, lang_plugin = _get_language_plugin(plugin_name, use_color)
         snap_cls = _resolve_snapshot_class(lang_plugin)
-        scorer = _resolve_diff_scorer(lang_plugin)
 
         baked = snap_cls.from_file(baked_path)
 
@@ -395,7 +405,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
             return exit_code
 
         current = snap_cls.from_yaml_str(yaml_str)
-        diff_result = scorer.diff(baked, current)
+        diff_result = _run_diff(baked, current, lang_plugin)
         change = diff_result.change_kind
 
         current_version = Version.parse(baked.version)

@@ -147,14 +147,21 @@ def compare(
             f"Failed to generate snapshot for new: {new_result.error_message}"
         )
 
-    # Use plugin-provided snapshot class and diff scorer
+    # Use plugin-provided snapshot class; resolve the diff path
     snap_cls = _resolve_snapshot_class(lang_plugin)
-    scorer = _resolve_diff_scorer(lang_plugin)
 
     old_snapshot = snap_cls.from_yaml_str(old_result.yaml_content)
     new_snapshot = snap_cls.from_yaml_str(new_result.yaml_content)
 
-    diff_result = scorer.diff(old_snapshot, new_snapshot)
+    # Prefer the snapshot's own diff_against (Comparable protocol).
+    # Fall back to the plugin-supplied DiffScorer for snapshot types that
+    # haven't yet adopted the protocol.
+    from snapshot.protocols import Comparable
+    if isinstance(old_snapshot, Comparable):
+        diff_result = old_snapshot.diff_against(new_snapshot)
+    else:
+        scorer = _resolve_diff_scorer(lang_plugin)
+        diff_result = scorer.diff(old_snapshot, new_snapshot)
     change = diff_result.change_kind
 
     return CompareResult(
