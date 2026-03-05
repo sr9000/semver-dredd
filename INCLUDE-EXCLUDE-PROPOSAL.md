@@ -55,16 +55,72 @@ express that difference.  For example a Java plugin could treat:
 The exact syntax is plugin-defined.  Plugins that do not need this
 distinction simply treat every directory entry as recursive.
 
-## How plugins receive filters
+## Extension point: `plugin_options`
 
-The `include` and `exclude` lists are read from `.semver.yaml` by the CLI
-config loader and forwarded to `LanguagePlugin.generate_snapshot()` via the
-`options` dict:
+`include` and `exclude` cover the most common filtering need, but plugins
+may require arbitrary, unforeseen configuration — custom compiler flags,
+source encoding, extra classpaths, feature toggles, etc.
+
+Rather than inventing a new top-level key for every possible knob, the
+config file supports a single **`plugin_options`** escape hatch: a
+free-form YAML mapping that is forwarded **as-is** to the plugin.  The
+framework never inspects or validates its contents.
+
+```yaml
+plugin: javaparser
+
+include:
+  - com.example.api
+exclude:
+  - com.example.api.internal
+
+# Anything goes — the plugin decides what it means.
+plugin_options:
+  source_encoding: UTF-8
+  extra_classpath:
+    - /opt/libs/custom.jar
+  compiler_source_level: "11"
+  strip_annotations: true
+```
+
+### Design rationale
+
+* **Ugly but powerful** — this is an expert knob.  Users who write
+  `plugin_options` are expected to know their plugin's documentation and
+  accept that the schema is plugin-defined.
+* **Forward-compatible** — new plugin features never require changes to the
+  core config loader or CLI flags.
+* **Completely opaque to the framework** — the core treats `plugin_options`
+  as `dict[str, Any] | None` and passes it through untouched.
+
+### Accessing `plugin_options` in a plugin
+
+```python
+def generate_snapshot(self, path, version, options=None):
+    opts = options or {}
+    plugin_opts = opts.get("plugin_options") or {}
+
+    encoding = plugin_opts.get("source_encoding", "UTF-8")
+    extra_cp = plugin_opts.get("extra_classpath") or []
+    # ... use them however you like
+```
+
+Plugins SHOULD silently ignore unknown keys inside `plugin_options` so that
+a config file can carry options for multiple plugins without breaking any of
+them.
+
+## How the `options` dict is built
+
+The CLI config loader reads `.semver.yaml`, merges environment layers, and
+builds the `options` dict that is passed to
+`LanguagePlugin.generate_snapshot()`:
 
 ```python
 options = {
-    "include": ["src/main/java/com/example/myapp", ...],
-    "exclude": ["src/main/java/com/example/myapp/internal", ...],
+    "include": ["com.example.api", ...],          # from .semver.yaml
+    "exclude": ["com.example.api.internal", ...],  # from .semver.yaml
+    "plugin_options": { ... },                     # from .semver.yaml, raw dict
+    "use_color": True,                             # from CLI / env
 }
 ```
 
@@ -73,6 +129,7 @@ Plugins access them with:
 ```python
 include = (options or {}).get("include") or []
 exclude = (options or {}).get("exclude") or []
+plugin_opts = (options or {}).get("plugin_options") or {}
 ```
 
 ## Plugin implementation guidelines
@@ -87,6 +144,8 @@ exclude = (options or {}).get("exclude") or []
    name as-is without resolving or validating it.
 4. **Document the syntax** — each plugin README should explain what kinds of
    strings are accepted and any special suffixes or wildcards.
+5. **Ignore unknown `plugin_options` keys** — be tolerant of options
+   intended for a different plugin sharing the same config file.
 
 ## Examples by language
 
