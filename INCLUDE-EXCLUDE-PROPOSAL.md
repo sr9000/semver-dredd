@@ -8,6 +8,7 @@ This proposal unifies several enhancements to the configuration and plugin syste
 1.  **Flexible Scope**: Adding `include` / `exclude` to precisely define API surfaces.
 2.  **Priority Chains**: Allowing fallback plugins (e.g., AST-based → regex-based) via multi-document config.
 3.  **Future Proofing**: Ensuring the API supports non-code domains (CLI, REST, gRPC) without framework changes.
+4.  **Aggregate Versioning**: A built-in `bundle` plugin for multi-surface repositories that ship a single release.
 
 The guiding principle is **"Plugin Rules First"**. The framework extracts common structure (snapshots, diffs) but treats configuration constraints (paths, filters, options) as opaque data passed to the plugin.
 
@@ -160,7 +161,115 @@ To ensure plugins can evolve independently of the core:
 
 ---
 
-## 6. Non-goals
+## 6. Aggregate Versioning: The `bundle` Plugin
+
+Polyglot repositories (section 2.2) version each API surface independently.
+But some projects also ship a **single bundle** — a release artifact that
+bundles all surfaces together (an SDK, a Docker image, a distribution
+tarball).  That bundle needs its own `VERSION`, and its bump must reflect
+the **heaviest** change across all constituent surfaces.
+
+### 6.1 The Problem
+
+```text
+my-repo/
+├── backend/VERSION     1.2.0 → 1.3.0   (MINOR — new endpoint)
+├── sdk-python/VERSION  2.0.1 → 2.0.2   (PATCH — bugfix)
+├── cli/VERSION         0.9.0 → 1.0.0   (BREAKING — renamed command)
+└── VERSION             ???              ← must become BREAKING
+```
+
+No existing plugin can handle this — it is not about analysing source
+code, it is about **watching other VERSION files** and propagating the
+worst-case bump.
+
+### 6.2 Design: Blind Dependency Tracking
+
+A **built-in** `bundle` plugin that:
+
+1.  Reads a list of tracked `VERSION` files (configured via `include`).
+2.  Produces a snapshot that is simply a map of dependency names →
+    current version strings.
+3.  Diffs old snapshot vs new: compares each dependency's semver to
+    determine the per-dependency change kind.
+4.  Returns the **maximum** `ChangeKind` across all dependencies.
+
+It is "blind" — it knows nothing about Java, Python, or Go.  It only
+reads version strings and compares them.
+
+### 6.3 Configuration
+
+```yaml
+plugin: bundle
+
+include:
+  - ./backend/VERSION
+  - ./sdk-python/VERSION
+  - ./cli/VERSION
+```
+
+The `path` argument is unused (or points to the repo root).  All
+information comes from `include`.
+
+### 6.4 Snapshot Format
+
+```yaml
+snapshot_type_id: <BUNDLE_SNAPSHOT_UUID>
+schema_version: 1
+version: "3.5.0"
+language: bundle
+source:
+  kind: aggregate
+  path: .
+api:
+  dependencies:
+    backend: "1.3.0"
+    sdk-python: "2.0.2"
+    cli: "1.0.0"
+```
+
+### 6.5 Diff Logic
+
+For each tracked dependency, compare old version → new version:
+
+| Old → New                    | Change kind |
+|------------------------------|-------------|
+| Major bumped (1.x → 2.x)     | BREAKING    |
+| Minor bumped (1.2.x → 1.3.x) | MINOR       |
+| Patch bumped (1.2.3 → 1.2.4) | PATCH       |
+| No change                    | NONE        |
+| Dependency removed           | BREAKING    |
+| Dependency added             | MINOR       |
+
+The aggregate result is `max(all per-dependency change kinds)`.
+
+### 6.6 Workflow
+
+```bash
+# 1. Run each surface
+(cd backend     && semver-dredd bump)
+(cd sdk-python  && semver-dredd bump)
+(cd cli         && semver-dredd bump)
+
+# 2. Run the bundle — reads the VERSION files written above
+semver-dredd bump   # uses plugin: bundle from .semver.yaml
+```
+
+The bundle plugin fits naturally into CI pipelines:  individual surface
+jobs run first, then a final job runs the bundle bump.
+
+### 6.7 Why Built-in
+
+This plugin ships with the core because:
+- It depends on **no** external tooling (no compilers, no parsers).
+- It solves a problem that arises directly from the polyglot repository
+  pattern the framework itself encourages (section 2.2).
+- Its snapshot format and diff logic are trivial and stable.
+- Third-party plugins should not need to reinvent semver comparison.
+
+---
+
+## 7. Non-goals
 
 * **Universal Globbing**: We will not write a regex engine in the core. Pattern matching belongs in plugins.
 * **Automatic Detection**: We will not try to guess "public API" surfaces using heuristics in the framework.
