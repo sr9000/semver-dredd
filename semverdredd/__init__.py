@@ -91,7 +91,6 @@ def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
     return NormalizedSnapshot
 
 
-
 def compare(
     old_path: str,
     new_path: str,

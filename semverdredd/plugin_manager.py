@@ -131,7 +131,9 @@ class PluginManager:
                     ep.value.split(":")[0] if hasattr(ep, "value") else None
                 )
                 _ep_attr = getattr(ep, "attr", None) or (
-                    ep.value.split(":")[1] if hasattr(ep, "value") and ":" in ep.value else None
+                    ep.value.split(":")[1]
+                    if hasattr(ep, "value") and ":" in ep.value
+                    else None
                 )
                 if _ep_mod and _ep_attr:
                     _partial_mod = sys.modules.get(_ep_mod)
