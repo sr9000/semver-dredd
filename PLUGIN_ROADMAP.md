@@ -502,7 +502,7 @@ semver-dredd snapshot --plugin python --path ./mypackage --version 1.2.3
 
 # Plugin management
 semver-dredd plugin list
-semver-dredd plugin install ./plugins/semver-dredd-go
+semver-dredd plugin install ./plugins/go-1.20-dredd
 semver-dredd plugin install go-1.20-gogen-1.0.0      # from PyPI
 semver-dredd plugin remove go
 semver-dredd plugin info python

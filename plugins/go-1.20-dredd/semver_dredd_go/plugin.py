@@ -339,7 +339,7 @@ class GoPlugin(LanguagePlugin):
         if parser_dir is None or not parser_dir.exists():
             return SnapshotResult(
                 False, "",
-                "Go parser not found. Ensure semver-dredd-go is properly installed."
+                "Go parser not found. Ensure go-1.20-dredd is properly installed."
             )
 
         if not (parser_dir / "go.mod").exists():

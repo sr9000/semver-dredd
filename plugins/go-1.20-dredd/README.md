@@ -14,7 +14,7 @@ pip install go-1.20-dredd
 Or install from local path (development):
 
 ```bash
-pip install ./plugins/semver-dredd-go
+pip install ./plugins/go-1.20-dredd
 ```
 
 ## Requirements

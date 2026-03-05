@@ -361,7 +361,7 @@ class JavaPlugin(LanguagePlugin):
         if parser_dir is None or not parser_dir.exists():
             return SnapshotResult(
                 False, "",
-                "Java parser not found. Ensure semver-dredd-java is properly installed."
+                "Java parser not found. Ensure java-1.8-dredd is properly installed."
             )
 
         jar_path = self._get_jar_path()

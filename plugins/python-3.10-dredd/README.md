@@ -14,7 +14,7 @@ pip install python-3.10-dredd
 Or install from local path (development):
 
 ```bash
-pip install ./plugins/semver-dredd-python
+pip install ./plugins/python-3.10-dredd
 ```
 
 ## Usage

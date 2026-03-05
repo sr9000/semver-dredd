@@ -14,7 +14,7 @@ pip install java-1.8-dredd
 Or install from local path (development):
 
 ```bash
-pip install ./plugins/semver-dredd-java
+pip install ./plugins/java-1.8-dredd
 ```
 
 ## Requirements

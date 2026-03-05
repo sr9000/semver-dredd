@@ -15,9 +15,9 @@ dependencies = [
 semver-dredd = "cli:main"
 
 # Plugins are now separate packages. Install them separately:
-# - semver-dredd-python
-# - semver-dredd-go
-# - semver-dredd-java
+# - python-3.10-dredd
+# - go-1.20-dredd
+# - java-1.8-dredd
 # Or install all at once with: pip install semver-dredd-all
 
 
