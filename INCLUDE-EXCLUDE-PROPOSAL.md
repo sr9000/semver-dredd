@@ -350,6 +350,137 @@ for dir in backend sdk-python cli-go; do
 done
 ```
 
+## Beyond library source code: CLI, REST, gRPC, GraphQL, …
+
+The current plugin API was shaped by library-source-code analysis, but
+semver applies equally to **CLI tools** (commands, flags, exit codes) and
+**web APIs** (endpoints, schemas, status codes).  This section records
+what the framework already handles, what traps to avoid, and what
+guarantees future CLI/web plugin authors can rely on.
+
+### What "API surface" looks like per domain
+
+| Domain      | Top-level entities                | "Parameters"                              | "Breaking" examples                                      |
+|-------------|-----------------------------------|-------------------------------------------|----------------------------------------------------------|
+| **Library** | functions, types                  | arguments, fields                         | removed function, changed param type                     |
+| **CLI**     | commands, subcommands             | flags, positional args, env vars          | removed command, renamed flag, new required arg          |
+| **REST**    | endpoints (method + path)         | query/body/header params, response schema | removed endpoint, changed required field in request body |
+| **gRPC**    | services, RPCs                    | message fields (by field number)          | removed RPC, changed field type, renumbered field        |
+| **GraphQL** | queries, mutations, subscriptions | arguments, fields on types                | removed query, changed non-nullable field to nullable    |
+| **SOAP**    | operations                        | message parts (WSDL)                      | removed operation, changed part type                     |
+
+None of these map cleanly to `NormalizedSnapshot`'s `functions` +
+`types` — and **they should not be forced to**.
+
+### What already works (no framework changes needed)
+
+1. **`snapshot_format_class`** — a plugin returns its own snapshot class
+   with its own `diff_against()`.  A CLI plugin can define
+   `CliSnapshot` with `commands: dict[str, Command]` and implement
+   domain-aware diffing.  The framework only calls `diff_against()` and
+   reads the resulting `DiffResult`.  This is the primary extension
+   point.
+
+2. **`path` is just a string** — nothing in the framework assumes it is
+   a directory of source files.  A REST plugin can treat `path` as an
+   OpenAPI spec path, a `.proto` file, a GraphQL schema, or even a URL
+   to a running server.  `validate_path()` is the plugin's own gate.
+
+3. **`plugin_options` as escape hatch** — a CLI plugin that needs to
+   run `mytool --help` and parse stdout can receive the binary path,
+   env vars, or timeout via `plugin_options`.  A REST plugin that
+   introspects a live server can receive auth tokens the same way.
+
+4. **`DiffResult` + `ChangeKind`** — the output contract is universal.
+   `BREAKING` / `MINOR` / `PATCH` / `NONE` applies to any API surface.
+   The breaking/added description tuples are free-text strings the
+   plugin fills in.
+
+5. **`include` / `exclude` are opaque** — a CLI plugin can interpret
+   them as command prefixes (`deploy`, `deploy.run`); a REST plugin as
+   endpoint globs (`/api/v2/**`).  No framework change needed.
+
+### Traps and guidance
+
+#### `path` may not be source code
+
+A plugin may need to:
+- **execute a binary** (`mytool --help`, `mytool completion --dump`)
+- **import a Python module at runtime** (Click/Typer introspection)
+- **fetch a remote spec** (`https://api.example.com/openapi.json`)
+- **read a non-code artefact** (`.proto`, `.graphql`, WSDL)
+
+All of these work today — `path` is a string, `plugin_options` carries
+extras — but plugin authors must understand that `validate_path()`'s
+default implementation checks filesystem existence.  Override it.
+
+#### Runtime introspection is the plugin's problem
+
+A Python-Click CLI plugin might `importlib.import_module()` the user's
+app and walk the Click command tree.  A gRPC plugin might invoke
+`grpc_cli ls`.  The framework deliberately knows nothing about this.
+Plugins that execute arbitrary code SHOULD document the security
+implications and honour `plugin_options` flags like
+`allow_runtime_exec: true` as a safety gate.
+
+#### Breaking-change semantics are domain-specific
+
+The framework provides `ChangeKind` but does **not** define what
+"breaking" means for each domain.  Plugins SHOULD document their rules.
+Suggested defaults:
+
+| Change                                     | CLI      | REST     | gRPC     |
+|--------------------------------------------|----------|----------|----------|
+| Remove command / endpoint / RPC            | BREAKING | BREAKING | BREAKING |
+| Rename command / endpoint                  | BREAKING | BREAKING | BREAKING |
+| Add required flag / param                  | BREAKING | BREAKING | BREAKING |
+| Add optional flag / param                  | MINOR    | MINOR    | MINOR    |
+| Remove optional flag / param               | BREAKING | BREAKING | BREAKING |
+| Change flag type / schema field type       | BREAKING | BREAKING | BREAKING |
+| Add new command / endpoint / RPC           | MINOR    | MINOR    | MINOR    |
+| Change exit code semantics                 | BREAKING | —        | —        |
+| Change HTTP status code for same condition | —        | BREAKING | —        |
+| Change response body shape                 | —        | BREAKING | —        |
+| Add field to response body                 | —        | MINOR    | MINOR    |
+| Remove field from response body            | —        | BREAKING | BREAKING |
+
+#### CLI surface definition is inherently fuzzy
+
+Library APIs are defined by source code.  CLI APIs are defined by
+*behaviour* — the same binary may produce different `--help` output
+depending on env vars, config files, or platform.  A CLI plugin must
+decide:
+- **Static analysis** (parse source decorators: Click, argparse, Cobra)
+  — deterministic but limited to supported frameworks.
+- **Runtime introspection** (`--help` parsing, shell completion dump)
+  — sees the real surface but requires execution and may be
+  non-deterministic.
+
+The framework does not need to pick a side.  Both approaches fit the
+plugin API.  Different plugins can coexist (static-cli vs runtime-cli)
+and the multi-document fallback chain handles preference.
+
+### Framework guarantees for future plugins
+
+To avoid painting ourselves into a corner, the framework commits to:
+
+| Guarantee                                                  | Detail                                                                             |
+|------------------------------------------------------------|------------------------------------------------------------------------------------|
+| **`path` stays a generic string**                          | It will never be validated or interpreted by the core.                             |
+| **`SnapshotFormat` + `Comparable` is the stable contract** | Plugins that implement these two protocols will keep working across core upgrades. |
+| **`DiffResult` is the universal output**                   | The core will never require domain-specific diff structures.                       |
+| **`plugin_options` is never inspected**                    | The core will never assign meaning to any key inside `plugin_options`.             |
+| **`include` / `exclude` stay opaque strings**              | The core will never parse, glob, or regex-match them.                              |
+| **`validate_path()` remains overridable**                  | The default checks filesystem existence; plugins may replace it entirely.          |
+
+### What the framework does NOT promise
+
+- A built-in CLI or web snapshot model.  Those belong in plugins.
+- Stable `NormalizedSnapshot` interop for non-library domains — if your
+  domain doesn't map to `functions` + `types`, use a custom snapshot
+  format; don't shoehorn.
+- Any runtime sandboxing for plugins that execute code.
+
 ## Non-goals
 
 * **Glob / regex engine in core** — plugins own their matching logic.
