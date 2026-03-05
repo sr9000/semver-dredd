@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 
-from semverdredd.diff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin
 from snapshot import ChangeKind, NormalizedSnapshot
 
@@ -39,27 +38,19 @@ def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
     return NormalizedSnapshot
 
 
-def _resolve_diff_scorer(plugin: LanguagePlugin | None):
-    """Return the diff scorer to use — the plugin's custom one or the default."""
-    if plugin is not None:
-        scorer = plugin.diff_scorer
-        if scorer is not None:
-            return scorer
-    return DefaultDiffScorer()
-
-
 def _run_diff(old_snapshot, new_snapshot, plugin: LanguagePlugin | None):
-    """Run a diff, preferring the snapshot's own diff_against (Comparable protocol).
+    """Run a diff by calling old_snapshot.diff_against(new_snapshot).
 
-    Falls back to the plugin-supplied DiffScorer for snapshot types that have
-    not yet adopted the protocol.
+    All snapshot types must implement the Comparable protocol.
     """
     from snapshot.protocols import Comparable
 
-    if isinstance(old_snapshot, Comparable):
-        return old_snapshot.diff_against(new_snapshot)
-    scorer = _resolve_diff_scorer(plugin)
-    return scorer.diff(old_snapshot, new_snapshot)
+    if not isinstance(old_snapshot, Comparable):
+        raise TypeError(
+            f"{type(old_snapshot).__name__} does not implement Comparable "
+            "(add a diff_against method)"
+        )
+    return old_snapshot.diff_against(new_snapshot)
 
 
 # ---------------------------------------------------------------------------

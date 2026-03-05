@@ -1,11 +1,14 @@
-# semver-dredd-python
+# python-3.10-dredd
 
-Python language plugin for semver-dredd.
+Python 3.10+ language plugin for semver-dredd.
+
+> **Package renamed:** This package was formerly published as `semver-dredd-python`.
+> The importable module name (`semver_dredd_python`) and the CLI plugin key (`python`) are unchanged.
 
 ## Installation
 
 ```bash
-pip install semver-dredd-python
+pip install python-3.10-dredd
 ```
 
 Or install from local path (development):
@@ -23,7 +26,7 @@ Once installed, the plugin is automatically discovered by semver-dredd:
 semver-dredd plugin list
 
 # Generate snapshot for a Python package
-semver-dredd snapshot --lang python --path ./mypackage --version 1.0.0
+semver-dredd snapshot --plugin python --path ./mypackage --version 1.0.0
 
 # Use with init/status/bake commands
 semver-dredd init ./mypackage

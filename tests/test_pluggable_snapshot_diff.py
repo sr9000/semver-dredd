@@ -3,7 +3,7 @@
 Verifies that:
 - The default behaviour is unchanged when plugin returns None.
 - A plugin can provide a custom SnapshotFormat class.
-- A plugin can provide a custom DiffScorer.
+- All snapshot types implement the Comparable protocol (diff_against).
 - The SnapshotFormat protocol is satisfied by NormalizedSnapshot.
 - The UUID-based snapshot registry works correctly.
 """
@@ -20,7 +20,6 @@ import yaml
 from semverdredd import (
     ChangeKind,
     DiffResult,
-    DiffScorer,
     SnapshotFormat,
     SnapshotRegistry,
     default_registry,
@@ -196,7 +195,7 @@ class TestDefaultDiffScorer:
 
 
 # ---------------------------------------------------------------------------
-# Custom SnapshotFormat + custom DiffScorer via LanguagePlugin
+# Custom SnapshotFormat with Comparable (diff_against) via LanguagePlugin
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -226,13 +225,12 @@ class ToySnapshot:
     def to_dict(self) -> dict[str, Any]:
         return {"snapshot_type_id": self.SNAPSHOT_TYPE_ID, "version": self.version, "names": sorted(self.names)}
 
-
-class ToyDiffScorer(DiffScorer):
-    """Scores diffs of ToySnapshot: removed names → breaking, added → minor."""
-
-    def diff(self, old: ToySnapshot, new: ToySnapshot) -> DiffResult:
-        removed = old.names - new.names
-        added = new.names - old.names
+    def diff_against(self, other: "ToySnapshot") -> DiffResult:
+        """Compare by set membership: removed names → breaking, added → minor."""
+        if not isinstance(other, ToySnapshot):
+            raise TypeError(f"Expected ToySnapshot, got {type(other).__name__}")
+        removed = self.names - other.names
+        added = other.names - self.names
         if removed:
             kind = ChangeKind.BREAKING
         elif added:
@@ -247,7 +245,7 @@ class ToyDiffScorer(DiffScorer):
 
 
 class ToyPlugin(LanguagePlugin):
-    """A toy plugin that uses a custom snapshot format and diff scorer."""
+    """A toy plugin that uses a custom snapshot format."""
 
     @property
     def name(self) -> str:
@@ -261,9 +259,6 @@ class ToyPlugin(LanguagePlugin):
     def snapshot_format_class(self) -> type[SnapshotFormat] | None:
         return ToySnapshot  # type: ignore[return-value]
 
-    @property
-    def diff_scorer(self) -> DiffScorer | None:
-        return ToyDiffScorer()
 
 
 class TestCustomPlugin:
@@ -274,30 +269,35 @@ class TestCustomPlugin:
         assert loaded.version == snap.version
         assert loaded.names == snap.names
 
-    def test_toy_diff_scorer_no_change(self):
+    def test_toy_diff_against_no_change(self):
         old = ToySnapshot(version="1.0.0", names=frozenset(["a", "b"]))
         new = ToySnapshot(version="1.0.0", names=frozenset(["a", "b"]))
-        result = ToyDiffScorer().diff(old, new)
+        result = old.diff_against(new)
         assert result.change_kind == ChangeKind.NONE
 
-    def test_toy_diff_scorer_minor(self):
+    def test_toy_diff_against_minor(self):
         old = ToySnapshot(version="1.0.0", names=frozenset(["a"]))
         new = ToySnapshot(version="1.0.0", names=frozenset(["a", "b"]))
-        result = ToyDiffScorer().diff(old, new)
+        result = old.diff_against(new)
         assert result.change_kind == ChangeKind.MINOR
         assert ("added: b",) == result.added
 
-    def test_toy_diff_scorer_breaking(self):
+    def test_toy_diff_against_breaking(self):
         old = ToySnapshot(version="1.0.0", names=frozenset(["a", "b"]))
         new = ToySnapshot(version="1.0.0", names=frozenset(["a"]))
-        result = ToyDiffScorer().diff(old, new)
+        result = old.diff_against(new)
         assert result.change_kind == ChangeKind.BREAKING
         assert ("removed: b",) == result.breaking
+
+    def test_toy_diff_against_type_error(self):
+        old = ToySnapshot(version="1.0.0", names=frozenset(["a"]))
+        other = NormalizedSnapshot(version="1.0.0")
+        with pytest.raises(TypeError):
+            old.diff_against(other)
 
     def test_plugin_hooks(self):
         plugin = ToyPlugin()
         assert plugin.snapshot_format_class is ToySnapshot
-        assert isinstance(plugin.diff_scorer, ToyDiffScorer)
 
     def test_default_plugin_hooks_are_none(self):
         class MinimalPlugin(LanguagePlugin):
@@ -309,7 +309,6 @@ class TestCustomPlugin:
 
         p = MinimalPlugin()
         assert p.snapshot_format_class is None
-        assert p.diff_scorer is None
 
     def test_toy_snapshot_save_load(self, tmp_path):
         snap = ToySnapshot(version="0.5.0", names=frozenset(["alpha", "beta"]))
@@ -334,16 +333,6 @@ class TestResolveHelpers:
         plugin = ToyPlugin()
         assert _resolve_snapshot_class(plugin) is ToySnapshot
 
-    def test_resolve_diff_scorer_default(self):
-        from semverdredd import _resolve_diff_scorer
-        scorer = _resolve_diff_scorer(None)
-        assert isinstance(scorer, DefaultDiffScorer)
-
-    def test_resolve_diff_scorer_custom(self):
-        from semverdredd import _resolve_diff_scorer
-        plugin = ToyPlugin()
-        scorer = _resolve_diff_scorer(plugin)
-        assert isinstance(scorer, ToyDiffScorer)
 
 
 # ---------------------------------------------------------------------------

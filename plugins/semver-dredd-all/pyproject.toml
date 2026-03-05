@@ -1,6 +1,6 @@
 [project]
 name = "semver-dredd-all"
-version = "1.0.0"
+version = "1.1.0"
 description = "Meta-package that installs semver-dredd with all official language plugins"
 authors = [
     {name = "sr9000", email = "no@mail.org"}
@@ -9,9 +9,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "semver-dredd>=0.1.0",
-    "semver-dredd-python>=1.0.0",
-    "semver-dredd-go>=1.0.0",
-    "semver-dredd-java>=1.0.0",
+    "python-3.10-dredd>=1.1.0",
+    "go-1.20-dredd>=1.1.0",
+    "java-1.8-dredd>=1.1.0",
 ]
 
 [build-system]

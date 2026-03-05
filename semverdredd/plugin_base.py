@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from snapshot.protocols import DiffScorer, SnapshotFormat
+from snapshot.protocols import SnapshotFormat
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ class LanguagePlugin(ABC):
         """Generate a YAML snapshot string."""
 
     # ------------------------------------------------------------------
-    # Optional hooks for pluggable snapshot format & diff scoring
+    # Optional hook for pluggable snapshot format
     # ------------------------------------------------------------------
 
     @property
@@ -67,15 +67,8 @@ class LanguagePlugin(ABC):
         """Return a custom snapshot class, or ``None`` to use the default.
 
         The returned class must satisfy the :class:`SnapshotFormat` protocol
-        (``to_yaml``, ``from_yaml_str``, ``from_file``, ``to_dict``).
-        """
-        return None
-
-    @property
-    def diff_scorer(self) -> DiffScorer | None:
-        """Return a custom diff scorer, or ``None`` to use the default.
-
-        The scorer receives snapshots produced by :attr:`snapshot_format_class`
-        (or ``NormalizedSnapshot`` when that is ``None``).
+        (``to_yaml``, ``from_yaml_str``, ``from_file``, ``to_dict``) and the
+        :class:`~snapshot.protocols.Comparable` protocol
+        (``diff_against``).
         """
         return None

@@ -267,12 +267,6 @@ def _go_snapshot_to_normalized(snap: "GoSnapshot"):
     )
 
 
-class _GoDiffScorer:
-    """Backward-compatible scorer: delegates to GoSnapshot.diff_against."""
-
-    def diff(self, old: "GoSnapshot", new: "GoSnapshot"):
-        return old.diff_against(new)
-
 
 # ---------------------------------------------------------------------------
 # Parser helpers
@@ -335,9 +329,6 @@ class GoPlugin(LanguagePlugin):
     def get_parser_resource_path(self) -> Optional[Path]:
         return _get_parser_dir()
 
-    @property
-    def diff_scorer(self):
-        return _GoDiffScorer()
 
     def generate_snapshot(
         self, path: str, version: str, options: Optional[dict[str, Any]] = None

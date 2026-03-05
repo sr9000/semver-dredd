@@ -62,7 +62,7 @@ from snapshot.change_kind import ChangeKind
 from snapshot.models import NormalizedSnapshot
 
 # Protocols and diff types
-from snapshot.protocols import DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import DiffResult, SnapshotFormat
 
 
 def _description_for_change(change: ChangeKind) -> str:
@@ -90,14 +90,6 @@ def _resolve_snapshot_class(plugin: LanguagePlugin | None) -> type:
             return cls
     return NormalizedSnapshot
 
-
-def _resolve_diff_scorer(plugin: LanguagePlugin | None) -> DiffScorer:
-    """Return the diff scorer to use — the plugin's custom one or the default."""
-    if plugin is not None:
-        scorer = plugin.diff_scorer
-        if scorer is not None:
-            return scorer
-    return DefaultDiffScorer()
 
 
 def compare(
@@ -153,16 +145,15 @@ def compare(
     old_snapshot = snap_cls.from_yaml_str(old_result.yaml_content)
     new_snapshot = snap_cls.from_yaml_str(new_result.yaml_content)
 
-    # Prefer the snapshot's own diff_against (Comparable protocol).
-    # Fall back to the plugin-supplied DiffScorer for snapshot types that
-    # haven't yet adopted the protocol.
+    # All snapshot types must implement Comparable (diff_against).
     from snapshot.protocols import Comparable
 
-    if isinstance(old_snapshot, Comparable):
-        diff_result = old_snapshot.diff_against(new_snapshot)
-    else:
-        scorer = _resolve_diff_scorer(lang_plugin)
-        diff_result = scorer.diff(old_snapshot, new_snapshot)
+    if not isinstance(old_snapshot, Comparable):
+        raise TypeError(
+            f"{type(old_snapshot).__name__} does not implement Comparable "
+            "(add a diff_against method)"
+        )
+    diff_result = old_snapshot.diff_against(new_snapshot)
     change = diff_result.change_kind
 
     return CompareResult(
@@ -232,7 +223,6 @@ __all__ = [
     "LanguagePlugin",
     "SnapshotResult",
     "SnapshotFormat",
-    "DiffScorer",
     "DiffResult",
     "DefaultDiffScorer",
     "PluginManager",

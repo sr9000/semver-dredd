@@ -152,8 +152,9 @@ The core engine calls `old_snapshot.diff_against(new_snapshot)` and receives a
 `DiffResult(change_kind, breaking, added)`.  It never inspects the snapshot's
 internal structure.
 
-TODO: REMOVE `DiffScorer` (the older fallback interface), every snapshot types MUST work with `Comparable`.
-More specifically, snapshot can expect `other` to be of the same type, and raise if not.
+> ✅ `DiffScorer` (the older fallback interface) has been removed.  Every
+> snapshot type **must** implement `Comparable` (`diff_against`).  Snapshots
+> may raise `TypeError` when `other` is not of the expected type.
 
 ### 5. SnapshotRegistry
 
@@ -468,11 +469,14 @@ Distribution (PyPI) names follow the scheme:
 ```
 # (vendor-aware, supports multiple implementations):
 <lang>-<lang_version>-<vendor>-<plugin_version>
-# e.g.: python-3.10-core-1.0.0, go-1.20-gogen-1.0.0
+# e.g.: python-3.10-dredd, go-1.20-dredd, java-1.8-dredd
 ```
 
-TODO: existing plugins that don't follow this convention (e.g. `semver-dredd-python`) should be renamed
-in a future major release to avoid confusion with the importable module name.
+> ✅ All official plugins have been renamed to follow this convention:
+> `python-3.10-dredd`, `go-1.20-dredd`, `java-1.8-dredd`.
+> Importable module names (`semver_dredd_python`, `semver_dredd_go`,
+> `semver_dredd_java`) and entry-point keys (`python`, `go`, `java`) are
+> unchanged for backward compatibility.
 
 The importable module name and entry-point key defined in pyproject.toml.
 
@@ -599,11 +603,11 @@ fi
 
 ## Official Plugins
 
-| Package                   | Language                          | Entry-point key | Snapshot class                                       |
-|---------------------------|-----------------------------------|-----------------|------------------------------------------------------|
-| `python-3.10-dredd-1.0.0` | Python 3.x                        | `python`        | `PythonSnapshot` (custom; extends predefined models) |
-| `go-1.20-dredd-1.0.0`     | Go (any version via `go run`)     | `go`            | `NormalizedSnapshot`                                 |
-| `java-1.8-dredd-1.0.0`    | Java (any JDK via `javac`/`java`) | `java`          | `NormalizedSnapshot`                                 |
+| Package                 | Language                          | Entry-point key | Snapshot class                                       |
+|-------------------------|-----------------------------------|-----------------|------------------------------------------------------|
+| `python-3.10-dredd`     | Python 3.x                        | `python`        | `PythonSnapshot` (custom; extends predefined models) |
+| `go-1.20-dredd`         | Go (any version via `go run`)     | `go`            | `GoSnapshot` (custom; extends predefined models)     |
+| `java-1.8-dredd`        | Java (any JDK via `javac`/`java`) | `java`          | `JavaSnapshot` (custom; extends predefined models)   |
 
 The Python plugin goes beyond the basic interface:
 - Defines `PythonArgument` (extends `Argument` with `position_only`,

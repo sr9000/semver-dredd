@@ -12,7 +12,6 @@ from typing import Any, Optional
 
 import yaml
 
-from semverdredd.diff import DefaultDiffScorer
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from snapshot.models import (
     Field,
@@ -397,7 +396,7 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
 # ---------------------------------------------------------------------------
 
 def _to_normalized(snap: PythonSnapshot) -> NormalizedSnapshot:
-    """Convert a PythonSnapshot to NormalizedSnapshot for DefaultDiffScorer."""
+    """Convert a PythonSnapshot to NormalizedSnapshot for diff_against."""
     functions: dict[str, FunctionSignature] = {}
     for name, func in snap.functions.items():
         params = tuple(
@@ -433,13 +432,6 @@ def _to_normalized(snap: PythonSnapshot) -> NormalizedSnapshot:
     )
 
 
-class PythonDiffScorer(DefaultDiffScorer):
-    """Backward-compatible scorer: delegates to PythonSnapshot.diff_against."""
-
-    def diff(self, old: PythonSnapshot, new: PythonSnapshot) -> "DiffResult":  # type: ignore[override]
-        return old.diff_against(new)
-
-
 # ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
@@ -464,9 +456,6 @@ class PythonPlugin(LanguagePlugin):
     def snapshot_format_class(self) -> type:
         return PythonSnapshot
 
-    @property
-    def diff_scorer(self) -> PythonDiffScorer:
-        return PythonDiffScorer()
 
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)

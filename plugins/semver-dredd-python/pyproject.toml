@@ -1,7 +1,7 @@
 [project]
-name = "semver-dredd-python"
-version = "1.0.0"
-description = "Python language plugin for semver-dredd"
+name = "python-3.10-dredd"
+version = "1.1.0"
+description = "Python 3.10+ language plugin for semver-dredd"
 authors = [
     {name = "sr9000", email = "no@mail.org"}
 ]

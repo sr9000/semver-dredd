@@ -1,11 +1,14 @@
-# semver-dredd-java
+# java-1.8-dredd
 
-Java language plugin for semver-dredd.
+Java 1.8+ language plugin for semver-dredd.
+
+> **Package renamed:** This package was formerly published as `semver-dredd-java`.
+> The importable module name (`semver_dredd_java`) and the CLI plugin key (`java`) are unchanged.
 
 ## Installation
 
 ```bash
-pip install semver-dredd-java
+pip install java-1.8-dredd
 ```
 
 Or install from local path (development):
@@ -29,7 +32,7 @@ Once installed, the plugin is automatically discovered by semver-dredd:
 semver-dredd plugin list
 
 # Generate snapshot for a Java source directory
-semver-dredd snapshot --lang java --path ./src/main/java --version 1.0.0
+semver-dredd snapshot --plugin java --path ./src/main/java --version 1.0.0
 ```
 
 ## How it works

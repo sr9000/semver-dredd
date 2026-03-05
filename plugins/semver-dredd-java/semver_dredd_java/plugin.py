@@ -267,12 +267,6 @@ def _java_snapshot_to_normalized(snap: "JavaSnapshot"):
     )
 
 
-class _JavaDiffScorer:
-    """Backward-compatible scorer: delegates to JavaSnapshot.diff_against."""
-
-    def diff(self, old: "JavaSnapshot", new: "JavaSnapshot"):
-        return old.diff_against(new)
-
 
 # ---------------------------------------------------------------------------
 # Parser helpers
@@ -335,9 +329,6 @@ class JavaPlugin(LanguagePlugin):
     def get_parser_resource_path(self) -> Optional[Path]:
         return _get_parser_dir()
 
-    @property
-    def diff_scorer(self):
-        return _JavaDiffScorer()
 
     def _get_jar_path(self) -> Optional[Path]:
         parser_dir = _get_parser_dir()

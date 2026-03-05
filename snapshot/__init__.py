@@ -29,7 +29,7 @@ from snapshot.models import (
 )
 
 # Protocols / ABCs
-from snapshot.protocols import Comparable, DiffResult, DiffScorer, SnapshotFormat
+from snapshot.protocols import Comparable, DiffResult, SnapshotFormat
 
 __all__ = [
     # Enum
@@ -37,7 +37,6 @@ __all__ = [
     # Protocols
     "Comparable",
     "DiffResult",
-    "DiffScorer",
     "SnapshotFormat",
     # Models
     "NORMALIZED_SNAPSHOT_TYPE_ID",

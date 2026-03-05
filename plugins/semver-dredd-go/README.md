@@ -1,11 +1,14 @@
-# semver-dredd-go
+# go-1.20-dredd
 
-Go language plugin for semver-dredd.
+Go 1.20+ language plugin for semver-dredd.
+
+> **Package renamed:** This package was formerly published as `semver-dredd-go`.
+> The importable module name (`semver_dredd_go`) and the CLI plugin key (`go`) are unchanged.
 
 ## Installation
 
 ```bash
-pip install semver-dredd-go
+pip install go-1.20-dredd
 ```
 
 Or install from local path (development):
@@ -29,7 +32,7 @@ Once installed, the plugin is automatically discovered by semver-dredd:
 semver-dredd plugin list
 
 # Generate snapshot for a Go package
-semver-dredd snapshot --lang go --path ./mypackage --version 1.0.0
+semver-dredd snapshot --plugin go --path ./mypackage --version 1.0.0
 ```
 
 ## How it works

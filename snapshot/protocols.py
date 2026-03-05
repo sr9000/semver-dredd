@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -10,13 +9,13 @@ from typing import Any, Protocol, runtime_checkable
 from snapshot import ChangeKind
 
 # ---------------------------------------------------------------------------
-# DiffResult — universal return value of any diff scorer
+# DiffResult — universal return value of any diff operation
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class DiffResult:
-    """Universal diff result returned by a :class:`DiffScorer`.
+    """Universal diff result returned by a snapshot's :meth:`diff_against`.
 
     Plugins may subclass to carry richer information, but the core engine
     only inspects ``change_kind`` and the two description tuples.
@@ -76,45 +75,22 @@ class SnapshotFormat(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Comparable — snapshot elements that know how to diff themselves
+# Comparable — snapshot types that know how to diff themselves
 # ---------------------------------------------------------------------------
 
 
 @runtime_checkable
 class Comparable(Protocol):
-    """Protocol for snapshot elements that can compare themselves against another.
+    """Protocol for snapshot types that can compare themselves against another.
 
-    Implementors return a :class:`DiffResult` whose messages are **relative**
-    to the element itself (no outer context prefix).  Callers are responsible
-    for prepending the appropriate prefix (e.g. ``"function foo: "``).
+    **All** snapshot types must implement this protocol.  The core engine
+    calls ``old_snapshot.diff_against(new_snapshot)`` exclusively; there
+    is no fallback scorer interface.
+
+    Implementations may raise :class:`TypeError` when *other* is not the
+    same concrete type as *self*.
     """
 
     def diff_against(self, other: "Comparable") -> DiffResult:
-        """Compare *self* against *other* and return a relative :class:`DiffResult`."""
+        """Compare *self* against *other* and return a :class:`DiffResult`."""
         ...
-
-
-# ---------------------------------------------------------------------------
-# DiffScorer — pluggable comparison logic
-# ---------------------------------------------------------------------------
-
-
-class DiffScorer(ABC):
-    """Abstract base class for diff / scoring logic.
-
-    Plugins that need custom comparison semantics should subclass this and
-    return an instance from ``LanguagePlugin.diff_scorer``.
-    """
-
-    @abstractmethod
-    def diff(self, old: Any, new: Any) -> DiffResult:
-        """Compare *old* and *new* snapshots and return a :class:`DiffResult`.
-
-        The snapshot objects are whatever the plugin's
-        ``snapshot_format_class`` produces (or ``NormalizedSnapshot`` by
-        default).
-        """
-
-    def compare(self, old: Any, new: Any) -> DiffResult:
-        """Convenience alias for :meth:`diff`."""
-        return self.diff(old, new)
