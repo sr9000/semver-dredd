@@ -12,32 +12,29 @@ the semver analysis.
 
 ## Multi-document `.semver.yaml`
 
-Real-world repositories are often polyglot — a Java backend, Python
-scripts, and a Go CLI living side by side.  Each language needs its own
-plugin, include/exclude rules, file paths, and `plugin_options`.
+A single API surface may be analysable by several plugins — a project
+might prefer `javaparser` (AST-based, accurate) but accept `java`
+(regex-based, no JDK required) as a fallback.  Rather than forcing the
+user to pick one up-front, `.semver.yaml` becomes a **multi-document YAML
+file** (documents separated by `---`) where each document is a **plugin
+candidate** listed in **priority order**.
 
-To support this without splitting into multiple config files,
-`.semver.yaml` becomes a **multi-document YAML file** (documents separated
-by `---`).
+The CLI walks the list, picks the first candidate whose plugin is
+installed and whose `validate_path()` succeeds, and uses that document's
+config.
 
 ### Layout
 
 ```yaml
 # ── Document 0: shared defaults ──────────────────────────────
-# No `plugin` key → these values apply to every plugin unless
-# a per-plugin document overrides them.
+# No `plugin` key → inherited by every candidate below.
 policies:
   allow_breaking_changes: false
 output:
   color: true
 ---
-# ── Document 1: Java backend ─────────────────────────────────
+# ── Document 1: preferred — AST-based parser ─────────────────
 plugin: javaparser
-
-files:
-  baked:   java-baked.yaml
-  current: java-current.yaml
-  version: VERSION
 
 include:
   - com.example.api
@@ -49,40 +46,30 @@ plugin_options:
   source_encoding: UTF-8
   compiler_source_level: "11"
 ---
-# ── Document 2: Python tooling ───────────────────────────────
-plugin: python
-
-files:
-  baked:   py-baked.yaml
-  current: py-current.yaml
+# ── Document 2: fallback — regex-based parser ────────────────
+plugin: java
 
 include:
-  - mypackage.core
-  - mypackage.utils
+  - com.example.api
+  - com.example.spi
 exclude:
-  - mypackage.core._private
----
-# ── Document 3: Go CLI ───────────────────────────────────────
-plugin: go
-
-files:
-  baked:   go-baked.yaml
-  current: go-current.yaml
-
-include:
-  - github.com/org/repo/cmd
+  - com.example.api.internal
 ```
+
+Here both documents describe the **same** API surface.  If the
+`javaparser` plugin is installed and the JDK is available, document 1 is
+used.  Otherwise the CLI falls through to document 2 (`java`).
 
 ### Resolution rules
 
-| # | Rule                                | Detail                                                                                                                                                                                                                                                          |
-|---|-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | **Parse all documents**             | `yaml.safe_load_all()` instead of `yaml.safe_load()`.                                                                                                                                                                                                           |
-| 2 | **Shared defaults**                 | The first document that has **no `plugin` key** (or whose `plugin` is absent/null) is the *defaults document*. Its keys are inherited by every plugin-specific document. At most one such document may exist; if absent, defaults are empty.                    |
-| 3 | **Per-plugin documents**            | Every document that **has a `plugin` key** is plugin-specific. When the CLI resolves config for a plugin (via `--plugin` or `SEMVER_DREDD_PLUGIN`), it deep-merges the defaults document with the matching plugin document — plugin document wins on conflicts. |
-| 4 | **Single-document backward compat** | A file with one document and no `---` separators works exactly as today — the loader treats it as a combined defaults + plugin document. **No existing config breaks.**                                                                                         |
-| 5 | **Duplicate plugin documents**      | If multiple documents declare the same `plugin`, the **last one wins** (like duplicate YAML keys). A warning is logged.                                                                                                                                         |
-| 6 | **CLI `--plugin` selects**          | `semver-dredd snapshot --plugin javaparser` → loader picks the `javaparser` document, merges with defaults, and uses that as the active config.                                                                                                                 |
+| # | Rule | Detail |
+|---|------|--------|
+| 1 | **Parse all documents** | `yaml.safe_load_all()` instead of `yaml.safe_load()`. |
+| 2 | **Shared defaults** | A document with **no `plugin` key** (or `plugin: null`) is the *defaults document*.  Its keys are inherited by every candidate. At most one such document may exist; if absent, defaults are empty. |
+| 3 | **Ordered candidate list** | Documents **with a `plugin` key** form an ordered list of candidates.  The same plugin name MAY appear more than once (e.g. different `include` scopes tried in order). |
+| 4 | **First-match wins** | The CLI iterates candidates top-to-bottom.  For each candidate it checks: (a) is the plugin installed? (b) does `validate_path()` succeed?  The first candidate that passes both checks is selected. |
+| 5 | **`--plugin` overrides** | `semver-dredd snapshot --plugin java` skips the priority walk and directly selects the first candidate whose `plugin` equals `java`.  If none matches, error. |
+| 6 | **Single-document backward compat** | A file with one document and no `---` separators works exactly as today — the loader treats it as a combined defaults + single candidate. **No existing config breaks.** |
 
 ### Core loader changes (sketch)
 
@@ -101,25 +88,58 @@ def _load_yaml_config(path: Path) -> dict[str, Any]:
     if len(docs) == 1:
         return docs[0] or {}
 
-    # Multi-document: split into defaults + per-plugin.
+    # Multi-document: split into defaults + ordered candidates.
     defaults = {}
-    by_plugin: dict[str, dict] = {}
+    candidates: list[dict] = []
     for doc in docs:
         if not isinstance(doc, dict):
             continue
         if "plugin" not in doc or doc["plugin"] is None:
-            defaults = doc  # last one without plugin wins
+            defaults = doc
         else:
-            by_plugin[doc["plugin"]] = doc
+            candidates.append(doc)
 
-    # Stash everything so load_config() can resolve later.
-    return {"_defaults": defaults, "_per_plugin": by_plugin}
+    return {"_defaults": defaults, "_candidates": candidates}
 ```
 
 The existing `load_config()` gains an optional `plugin_name` parameter.
-When `_per_plugin` is present, it deep-merges `_defaults` with the
-matching plugin document (or falls back to `_defaults` alone if no
-document matches).
+When `_candidates` is present and `plugin_name` is given, it finds the
+first candidate matching that name and deep-merges with `_defaults`.
+When `plugin_name` is `None`, it walks candidates in order, probing
+each plugin for availability, and returns the first viable match merged
+with `_defaults`.
+
+### Polyglot repositories
+
+A multi-document `.semver.yaml` describes **one API surface**, not an
+entire repository.  Polyglot projects that expose multiple independent
+API surfaces should place a **separate `.semver.yaml`** (and `VERSION`
+file) in each surface's directory:
+
+```
+my-repo/
+├── backend/
+│   ├── .semver.yaml      ← Java API surface
+│   ├── VERSION
+│   └── src/main/java/…
+├── sdk-python/
+│   ├── .semver.yaml      ← Python SDK surface
+│   ├── VERSION
+│   └── mypackage/…
+└── cli-go/
+    ├── .semver.yaml      ← Go CLI surface
+    ├── VERSION
+    └── cmd/…
+```
+
+Each surface is versioned independently.  CI runs `semver-dredd` once
+per directory:
+
+```bash
+cd backend      && semver-dredd snapshot
+cd sdk-python   && semver-dredd snapshot
+cd cli-go       && semver-dredd snapshot
+```
 
 ## Configuration Format
 
@@ -273,61 +293,61 @@ exclude:
   - mypackage.core._private
 ```
 
-### Polyglot project (multi-document)
+### Plugin fallback chain
+
+The user prefers `javaparser` but accepts `java` when no JDK is
+available:
 
 ```yaml
-# ── Shared ────────────────────────────────────────────────────
+# ── defaults ──────────────────────────────────────────────────
 policies:
   allow_breaking_changes: false
 ---
-# ── Java ──────────────────────────────────────────────────────
+# ── preferred: AST-based ─────────────────────────────────────
 plugin: javaparser
-
-files:
-  baked:   java-baked.yaml
-  current: java-current.yaml
 
 include:
   - com.example.api
-  - com.example.spi
 exclude:
   - com.example.api.internal
 
 plugin_options:
   compiler_source_level: "11"
 ---
-# ── Python ────────────────────────────────────────────────────
-plugin: python
-
-files:
-  baked:   py-baked.yaml
-  current: py-current.yaml
+# ── fallback: regex-based ────────────────────────────────────
+plugin: java
 
 include:
-  - mypackage.core
-  - mypackage.utils
+  - com.example.api
 exclude:
-  - mypackage.core._private
----
-# ── Go ────────────────────────────────────────────────────────
-plugin: go
-
-files:
-  baked:   go-baked.yaml
-  current: go-current.yaml
-
-include:
-  - github.com/org/repo/pkg
-exclude:
-  - github.com/org/repo/pkg/internal
+  - com.example.api.internal
 ```
 
-Usage:
+```bash
+semver-dredd snapshot          # auto-picks javaparser, falls back to java
+semver-dredd snapshot --plugin java   # force the fallback
+```
+
+### Polyglot repo (one `.semver.yaml` per surface)
+
+```
+my-repo/
+├── backend/
+│   ├── .semver.yaml          ← javaparser → java fallback
+│   └── VERSION
+├── sdk-python/
+│   ├── .semver.yaml          ← python only
+│   └── VERSION
+└── cli-go/
+    ├── .semver.yaml          ← go only
+    └── VERSION
+```
 
 ```bash
-semver-dredd snapshot --plugin javaparser   # uses Java document
-semver-dredd snapshot --plugin python       # uses Python document
-semver-dredd snapshot --plugin go           # uses Go document
+# CI runs each surface independently
+for dir in backend sdk-python cli-go; do
+  (cd "$dir" && semver-dredd snapshot)
+done
 ```
 
 ## Non-goals
@@ -337,6 +357,5 @@ semver-dredd snapshot --plugin go           # uses Go document
   in the framework.
 * **Enforcing a single syntax** — languages are too different for a
   universal pattern language to be practical.
-* **Cross-document references** — plugin documents are independent; one
-  document cannot reference or inherit from another plugin document (only
-  from the shared defaults).
+* **Multiple API surfaces in one config** — each `.semver.yaml` describes
+  exactly one API surface.  Polyglot repos use one config per directory.
