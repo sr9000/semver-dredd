@@ -14,7 +14,6 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-JAVA_PARSER="$PROJECT_ROOT/plugins/semver-dredd-java/semver_dredd_java/parser"
 JAVAGEOM1="$SCRIPT_DIR/java/javageometry1"
 JAVAGEOM2="$SCRIPT_DIR/java/javageometry2"
 WORK_DIR=$(mktemp -d)
@@ -31,26 +30,10 @@ cd "$WORK_DIR"
 # Ensure we can import from the project
 export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
-# Check for Java and compile parser if needed
+# Check for Java
 if ! command -v java &> /dev/null; then
     echo -e "${RED}Error: Java is not installed. Please install JDK 21+${NC}"
     exit 1
-fi
-
-# Check/create snakeyaml library directory
-SNAKEYAML_JAR="$JAVA_PARSER/lib/snakeyaml-2.2.jar"
-if [ ! -f "$SNAKEYAML_JAR" ]; then
-    echo -e "${YELLOW}Downloading snakeyaml...${NC}"
-    mkdir -p "$JAVA_PARSER/lib"
-    curl -sL "https://repo1.maven.org/maven2/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar" -o "$SNAKEYAML_JAR"
-fi
-
-# Compile Java parser if not compiled
-if [ ! -f "$JAVA_PARSER/main.class" ]; then
-    echo -e "${YELLOW}Compiling Java parser...${NC}"
-    cd "$JAVA_PARSER"
-    javac -cp "lib/snakeyaml-2.2.jar" main.java
-    cd "$WORK_DIR"
 fi
 
 echo -e "${GREEN}Step 1: Show Java source files${NC}"
@@ -77,12 +60,12 @@ echo "----------------------------------------"
 echo ""
 
 echo -e "${GREEN}Step 2: Generate API snapshot for javageometry1${NC}"
-echo -e "Command: ${YELLOW}java -cp parser/java/lib/snakeyaml-2.2.jar:parser/java main --dir ./example/java/javageometry1 --version 1.0.0${NC}"
+echo -e "Command: ${YELLOW}semver-dredd snapshot --plugin java --path ./example/java/javageometry1 --version 1.0.0${NC}"
 echo ""
-java -cp "$JAVA_PARSER/lib/snakeyaml-2.2.jar:$JAVA_PARSER" main --dir "$JAVAGEOM1" --version 1.0.0 --out "$WORK_DIR/baked.yaml"
-echo -e "${YELLOW}baked.yaml:${NC}"
+semver-dredd snapshot --plugin java --path "$JAVAGEOM1" --version 1.0.0 --out "$WORK_DIR/snapshot_preview.yaml"
+echo -e "${YELLOW}snapshot_preview.yaml:${NC}"
 echo "----------------------------------------"
-cat "$WORK_DIR/baked.yaml"
+cat "$WORK_DIR/snapshot_preview.yaml"
 echo "----------------------------------------"
 echo ""
 
@@ -92,14 +75,13 @@ echo "1.0.0" > "$WORK_DIR/VERSION"
 echo -e "${GREEN}Step 3: Initialize project with semver-dredd (Java)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd init ./example/java/javageometry1 --plugin java --version 1.0.0${NC}"
 echo ""
-python -m cli init "$JAVAGEOM1" --plugin java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+semver-dredd init "$JAVAGEOM1" --plugin java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 4: Check status (no changes)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry1 --plugin java --details${NC}"
 echo ""
-cd "$WORK_DIR"
-python -m cli status "$JAVAGEOM1" --plugin java --details || true
+semver-dredd status "$JAVAGEOM1" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with javageometry2 (against javageometry1 baseline)${NC}"
@@ -110,7 +92,7 @@ echo -e "  - Added Point.z field (3D coordinate)"
 echo -e "  - Added Point.translate() method"
 echo -e "  - Added Geometry.volume() static method"
 echo ""
-python -m cli status "$JAVAGEOM2" --plugin java --details || true
+semver-dredd status "$JAVAGEOM2" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -123,7 +105,7 @@ echo ""
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
 echo -e "Command: ${YELLOW}semver-dredd bake ./example/java/javageometry2 --plugin java${NC}"
 echo ""
-python -m cli bake "$JAVAGEOM2" --plugin java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+semver-dredd bake "$JAVAGEOM2" --plugin java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

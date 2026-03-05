@@ -32,7 +32,7 @@ export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 echo -e "${GREEN}Step 1: Initialize project with pygeometry1${NC}"
 echo -e "Command: ${YELLOW}semver-dredd init example.py.pygeometry1 --version 1.0.0${NC}"
 echo ""
-python -m cli init example.py.pygeometry1 --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+semver-dredd init example.py.pygeometry1 --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 2: Show baked API snapshot${NC}"
@@ -45,7 +45,7 @@ echo ""
 echo -e "${GREEN}Step 3: Check status (no changes)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status example.py.pygeometry1 --details${NC}"
 echo ""
-python -m cli status example.py.pygeometry1 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+semver-dredd status example.py.pygeometry1 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 4: Compare pygeometry1 vs pygeometry2 (minor changes)${NC}"
@@ -56,13 +56,13 @@ echo -e "  - Point.z field (3D coordinate)"
 echo -e "  - Point.translate() method"
 echo -e "  - volume() function"
 echo ""
-python -m cli compare example.py.pygeometry1 example.py.pygeometry2 --details --current 1.0.0 || true
+semver-dredd compare example.py.pygeometry1 example.py.pygeometry2 --details --current 1.0.0 || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with pygeometry2 (against pygeometry1 baseline)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status example.py.pygeometry2 --details${NC}"
 echo ""
-python -m cli status example.py.pygeometry2 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+semver-dredd status example.py.pygeometry2 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -75,7 +75,7 @@ echo ""
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
 echo -e "Command: ${YELLOW}semver-dredd bake example.py.pygeometry2${NC}"
 echo ""
-python -m cli bake example.py.pygeometry2 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+semver-dredd bake example.py.pygeometry2 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"
