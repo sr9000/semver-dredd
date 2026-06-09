@@ -9,6 +9,7 @@ Priority order (lowest to highest):
 """
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -113,20 +114,47 @@ def _parse_bool(value: str | bool | None) -> bool | None:
 
 
 def _load_yaml_config(path: Path) -> dict[str, Any]:
-    """Load configuration from a YAML file."""
+    """Load configuration from a YAML file.
+
+    Parse errors are reported on stderr (instead of being silently
+    swallowed) so users notice malformed config files.
+    """
     if not path.exists():
         return {}
 
     try:
         import yaml
+    except ImportError:
+        print(
+            f"[WARN] PyYAML is not installed; ignoring config file: {path}",
+            file=sys.stderr,
+        )
+        return {}
 
+    try:
         with open(path, "r") as f:
             config = yaml.safe_load(f)
-        return config or {}
-    except ImportError:
+    except yaml.YAMLError as e:
+        print(
+            f"[WARN] Failed to parse config file {path}: {e}",
+            file=sys.stderr,
+        )
         return {}
-    except Exception:
+    except OSError as e:
+        print(
+            f"[WARN] Failed to read config file {path}: {e}",
+            file=sys.stderr,
+        )
         return {}
+
+    if config is not None and not isinstance(config, dict):
+        print(
+            f"[WARN] Config file {path} must contain a YAML mapping; ignoring it",
+            file=sys.stderr,
+        )
+        return {}
+
+    return config or {}
 
 
 def _set_nested(d: dict, path: tuple[str, ...], value: Any) -> None:

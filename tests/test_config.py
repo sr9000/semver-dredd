@@ -114,6 +114,42 @@ policies:
         result = _load_yaml_config(config_file)
         assert result == {}
 
+    def test_load_yaml_config_malformed_warns(self, tmp_path, capsys):
+        """Malformed YAML produces a stderr warning and returns {}."""
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("plugin: [unclosed\npolicies: {bad")
+        result = _load_yaml_config(config_file)
+        assert result == {}
+        captured = capsys.readouterr()
+        assert "Failed to parse config file" in captured.err
+        assert str(config_file) in captured.err
+
+    def test_load_yaml_config_non_mapping_warns(self, tmp_path, capsys):
+        """A YAML file that is not a mapping warns and returns {}."""
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("- just\n- a\n- list\n")
+        result = _load_yaml_config(config_file)
+        assert result == {}
+        captured = capsys.readouterr()
+        assert "must contain a YAML mapping" in captured.err
+
+    def test_load_yaml_config_valid_no_warning(self, tmp_path, capsys):
+        """Valid config produces no warning."""
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("plugin: go\n")
+        result = _load_yaml_config(config_file)
+        assert result == {"plugin": "go"}
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    def test_load_yaml_config_missing_no_warning(self, tmp_path, capsys):
+        """Missing config file produces no warning."""
+        config_file = tmp_path / ".semver.yaml.nonexistent"
+        result = _load_yaml_config(config_file)
+        assert result == {}
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
 
 class TestLoadConfig:
     """Test the full config loading with priority."""
