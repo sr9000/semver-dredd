@@ -30,6 +30,15 @@ logger = logging.getLogger(__name__)
 ENTRY_POINT_GROUP = "semver_dredd.plugins"
 DEFAULT_USER_PLUGIN_DIR = Path.home() / ".semver-dredd" / "plugins"
 
+# Fallback import specs for the plugins bundled with this repository.
+# Used ONLY when entry-point discovery did not find them (editable/dev
+# installs without dist metadata). (module, class, plugin name)
+_BUILTIN_FALLBACK_SPECS: list[tuple[str, str, str]] = [
+    ("semver_dredd_python.plugin", "PythonPlugin", "python"),
+    ("semver_dredd_go.plugin", "GoPlugin", "go"),
+    ("semver_dredd_java.plugin", "JavaPlugin", "java"),
+]
+
 
 @dataclass(frozen=True)
 class PluginInfo:
@@ -72,49 +81,7 @@ class PluginManager:
             pass
 
         # ------------------------------------------------------------------
-        # Built-in plugins (available in this repository / distribution)
-        # ------------------------------------------------------------------
-
-        # NOTE: In some environments (e.g. tests, editable installs) entry
-        # points may not be installed. We register built-ins by import.
-        #
-        # Guard against circular imports: if a plugin module is already in
-        # sys.modules but still being initialized (the class attribute won't
-        # exist yet), skip it here — the entry-point loader or a later
-        # load_plugins(force=True) call will pick it up.
-        builtins: list[type[LanguagePlugin]] = []
-        _builtin_specs: list[tuple[str, str, str]] = [
-            ("semver_dredd_python.plugin", "PythonPlugin", "Python"),
-            ("semver_dredd_go.plugin", "GoPlugin", "Go"),
-            ("semver_dredd_java.plugin", "JavaPlugin", "Java"),
-        ]
-        for _mod_name, _cls_name, _label in _builtin_specs:
-            try:
-                # Check if the submodule is mid-import (circular dependency).
-                _partial = sys.modules.get(_mod_name)
-                if _partial is not None and not hasattr(_partial, _cls_name):
-                    logger.debug(
-                        "Skipping partially-loaded builtin plugin '%s'", _label
-                    )
-                    continue
-                _mod = __import__(_mod_name, fromlist=[_cls_name])
-                builtins.append(getattr(_mod, _cls_name))
-            except Exception:
-                pass
-
-        for cls in builtins:
-            try:
-                plugin = cls()
-                self.register(plugin, origin="builtin")
-            except Exception as e:
-                logger.warning(
-                    "Failed to init builtin plugin '%s': %s",
-                    getattr(cls, "__name__", "<unknown>"),
-                    e,
-                )
-
-        # ------------------------------------------------------------------
-        # Discover via entry points
+        # Discover via entry points (preferred mechanism)
         # ------------------------------------------------------------------
         try:
             discovered = entry_points(group=ENTRY_POINT_GROUP)
@@ -152,6 +119,43 @@ class PluginManager:
                 logger.warning(
                     "Failed to load plugin '%s': %s",
                     getattr(ep, "name", "<unknown>"),
+                    e,
+                )
+
+        # ------------------------------------------------------------------
+        # Built-in fallback (editable/dev installs without entry points)
+        # ------------------------------------------------------------------
+        # When the bundled plugins are pip-installed, entry-point discovery
+        # above already registered them and this list is never consulted.
+        # It only matters for editable/dev checkouts where the plugin
+        # packages are importable but their dist metadata is not installed.
+        #
+        # Guard against circular imports: if a plugin module is already in
+        # sys.modules but still being initialized (the class attribute won't
+        # exist yet), skip it here — a later load_plugins(force=True) call
+        # will pick it up.
+        for _mod_name, _cls_name, _plugin_name in _BUILTIN_FALLBACK_SPECS:
+            if _plugin_name in self._registry:
+                continue  # already discovered via entry points
+            try:
+                # Check if the submodule is mid-import (circular dependency).
+                _partial = sys.modules.get(_mod_name)
+                if _partial is not None and not hasattr(_partial, _cls_name):
+                    logger.debug(
+                        "Skipping partially-loaded builtin plugin '%s'", _plugin_name
+                    )
+                    continue
+                _mod = __import__(_mod_name, fromlist=[_cls_name])
+                cls = getattr(_mod, _cls_name)
+            except Exception:
+                continue  # plugin package not importable — not installed
+
+            try:
+                self.register(cls(), origin="builtin")
+            except Exception as e:
+                logger.warning(
+                    "Failed to init builtin plugin '%s': %s",
+                    getattr(cls, "__name__", "<unknown>"),
                     e,
                 )
 

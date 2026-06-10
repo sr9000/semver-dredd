@@ -235,6 +235,33 @@ def test_duplicate_snapshot_type_id_warns(caplog, tmp_path):
         default_registry.unregister(SnapFormatA.SNAPSHOT_TYPE_ID)
 
 
+class TestDiscoveryPrecedence:
+    """Entry points are preferred; the builtin list is only a fallback."""
+
+    def test_entry_points_win_when_installed(self, tmp_path):
+        """With plugins pip-installed, discovery uses entry points."""
+        mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
+        mgr.load_plugins()
+        infos = {i.name: i for i in mgr.list_plugins()}
+        # The test environment installs the bundled plugins via pip,
+        # so they must be discovered through entry points.
+        for name in ("python", "go", "java"):
+            assert name in infos, f"plugin '{name}' not discovered"
+            assert infos[name].origin == "entry_point"
+
+    def test_builtin_fallback_without_entry_points(self, monkeypatch, tmp_path):
+        """Editable/dev installs still discover python/go/java via fallback."""
+        import semverdredd.plugin_manager as pm
+
+        monkeypatch.setattr(pm, "entry_points", lambda **kw: [])
+        mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
+        mgr.load_plugins()
+        infos = {i.name: i for i in mgr.list_plugins()}
+        for name in ("python", "go", "java"):
+            assert name in infos, f"plugin '{name}' not discovered via fallback"
+            assert infos[name].origin == "builtin"
+
+
 class TestPluginManifest:
     """plugin install/remove manifest handling."""
 

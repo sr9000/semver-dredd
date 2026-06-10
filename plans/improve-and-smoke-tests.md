@@ -86,11 +86,11 @@ installed-plugin manifest; log UUID/registration conflicts loudly in
 in `plugin_manager.py`; keep the list only as an editable-install fallback.
 
 **DoD:**
-- [ ] With plugins pip-installed, discovery works with no reference to the
+- [x] With plugins pip-installed, discovery works with no reference to the
       hardcoded list.
-- [ ] Editable/dev installs still discover python/go/java via fallback.
-- [ ] `semver-dredd plugin list` output unchanged for a full install.
-- [ ] `tests/test_plugin_manager.py` passes.
+- [x] Editable/dev installs still discover python/go/java via fallback.
+- [x] `semver-dredd plugin list` output unchanged for a full install.
+- [x] `tests/test_plugin_manager.py` passes.
 
 ---
 
