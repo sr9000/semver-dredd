@@ -420,6 +420,31 @@ bash example/demo_go.sh
 bash example/demo_java.sh
 ```
 
+### Smoke Tests (Docker Compose)
+
+Containerized end-to-end tests that run each language demo with outcome
+assertions (geometry1 → geometry2 must be `MINOR`, the reverse must be
+`BREAKING`) plus the full pytest suite. No local Go/JDK needed — each
+language runs in its own image (see [`docker/README.md`](docker/README.md)).
+
+```bash
+# Build and run all smoke tests (python, go, java, unit)
+bash scripts/smoke.sh
+
+# Run a subset
+bash scripts/smoke.sh python unit
+```
+
+Assertions live in `tests/smoke/assert_demo.sh` and can also run directly on
+the host when the relevant toolchains are installed:
+
+```bash
+bash tests/smoke/assert_demo.sh python
+```
+
+CI runs the same suite on every push and pull request
+(`.github/workflows/smoke.yml`).
+
 ## Project Structure
 
 ```

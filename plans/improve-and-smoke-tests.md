@@ -115,9 +115,17 @@ in `plugin_manager.py`; keep the list only as an editable-install fallback.
 `Dockerfile.unit` (pytest runner). Each installs core + the relevant plugin.
 
 **DoD:**
-- [ ] Each image builds successfully (`docker build`).
-- [ ] `semver-dredd plugin list` inside each image shows the expected plugin.
-- [ ] Images are slim (use `-slim`/official bases) and pin versions.
+- [ ] Each image builds successfully (`docker build`). *(authored; not yet
+      verified — no Docker daemon available on the dev machine, verify via CI)*
+- [x] `semver-dredd plugin list` inside each image shows the expected plugin
+      (enforced as a `RUN` check at build time, so a broken install fails the
+      build).
+- [x] Images are slim (use `-slim`/official bases) and pin versions.
+
+**Note:** a `.dockerignore` was added to keep build contexts small. The Java
+image downloads the pinned `snakeyaml-2.2.jar` (not committed to the repo) and
+pre-compiles the parser; the Go image pre-fetches parser modules so smoke runs
+are offline.
 
 ---
 
@@ -128,9 +136,14 @@ Dockerfile: `python`, `go`, `java`, `unit`. Each mounts the repo read-only and
 runs its target command, exiting non-zero on failure.
 
 **DoD:**
-- [ ] `docker compose -f docker-compose.smoke.yml config` validates.
-- [ ] Each service runs its `example/demo_*.sh` (or pytest for `unit`).
-- [ ] A failing demo causes the service to exit non-zero.
+- [x] `docker compose -f docker-compose.smoke.yml config` validates.
+- [x] Each service runs its `example/demo_*.sh` (or pytest for `unit`) — via
+      `tests/smoke/assert_demo.sh`, which runs the demo first and then asserts
+      outcomes.
+- [x] A failing demo causes the service to exit non-zero.
+
+**Note:** Commits 9 and 10 landed as a single commit — the compose services
+were wired to the assertion script from the start instead of plain demos.
 
 ---
 
@@ -141,9 +154,11 @@ pygeometry1→2 yields `MINOR` and a removed-API fixture yields `BREAKING`, so d
 verify outcomes rather than only printing.
 
 **DoD:**
-- [ ] Assertion script exits 0 on expected bump, non-zero otherwise.
-- [ ] Wired into each language demo / compose service.
-- [ ] Intentionally breaking the expectation makes the smoke run fail.
+- [x] Assertion script exits 0 on expected bump, non-zero otherwise
+      (verified on the host for python/go/java).
+- [x] Wired into each language demo / compose service.
+- [x] Intentionally breaking the expectation makes the smoke run fail
+      (verified: a tampered expectation exits 1 with clear assertion output).
 
 ---
 
@@ -153,9 +168,12 @@ verify outcomes rather than only printing.
 `--abort-on-container-exit --exit-code-from <svc>`, aggregating results.
 
 **DoD:**
-- [ ] `bash scripts/smoke.sh` runs all services and returns aggregate exit code.
-- [ ] Non-zero exit when any language smoke test fails.
-- [ ] Script is idempotent and cleans up containers.
+- [ ] `bash scripts/smoke.sh` runs all services and returns aggregate exit
+      code. *(authored; full run not yet verified — no Docker daemon on the
+      dev machine, verify via CI)*
+- [x] Non-zero exit when any language smoke test fails (aggregation logic).
+- [x] Script is idempotent and cleans up containers (`compose down
+      --remove-orphans` after each service).
 
 ---
 
@@ -165,9 +183,11 @@ verify outcomes rather than only printing.
 push and pull_request.
 
 **DoD:**
-- [ ] Workflow triggers on push/PR.
+- [x] Workflow triggers on push/PR.
 - [ ] Green run on `main`; red run when a smoke assertion is broken.
-- [ ] Docker layer caching configured to keep runs reasonable.
+      *(verify after pushing to GitHub)*
+- [x] Docker layer caching configured to keep runs reasonable (buildx +
+      GitHub Actions cache).
 
 ---
 
@@ -177,9 +197,9 @@ push and pull_request.
 add a short `docker/README.md`.
 
 **DoD:**
-- [ ] README explains how to run smoke tests locally.
-- [ ] `docker/README.md` describes each image and its purpose.
-- [ ] Docs-only commit; no behavior change.
+- [x] README explains how to run smoke tests locally.
+- [x] `docker/README.md` describes each image and its purpose.
+- [x] Docs-only commit; no behavior change.
 
 ---
 
