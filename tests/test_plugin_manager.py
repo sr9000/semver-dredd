@@ -145,3 +145,155 @@ def test_plugin_without_options_still_works():
         assert "1.0.0" in yaml_str
     finally:
         mgr.unregister("mock")
+
+
+# ---------------------------------------------------------------------------
+# Plugin lifecycle hardening: conflicts + manifest-based removal
+# ---------------------------------------------------------------------------
+
+
+class AnotherMockPlugin(LanguagePlugin):
+    """A different class that claims the same plugin name as MockPlugin."""
+
+    @property
+    def name(self) -> str:
+        return "mock"
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "other")
+
+
+def test_register_name_conflict_warns(caplog):
+    """Registering a different class under an existing name warns loudly."""
+    import logging
+
+    mgr = PluginManager()
+    mgr.register(MockPlugin())
+    with caplog.at_level(logging.WARNING, logger="semverdredd.plugin_manager"):
+        mgr.register(AnotherMockPlugin())
+    assert any("conflict" in rec.getMessage().lower() for rec in caplog.records)
+
+
+def test_register_same_class_is_quiet(caplog):
+    """Re-registering the same plugin class does not warn."""
+    import logging
+
+    mgr = PluginManager()
+    mgr.register(MockPlugin())
+    with caplog.at_level(logging.WARNING, logger="semverdredd.plugin_manager"):
+        mgr.register(MockPlugin())
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_duplicate_snapshot_type_id_warns(caplog, tmp_path):
+    """Two plugins claiming the same SNAPSHOT_TYPE_ID produce a warning."""
+    import logging
+
+    class SnapFormatA:
+        SNAPSHOT_TYPE_ID = "11111111-2222-3333-4444-555555555555"
+
+    class SnapFormatB:
+        SNAPSHOT_TYPE_ID = "11111111-2222-3333-4444-555555555555"
+
+    class PluginA(LanguagePlugin):
+        @property
+        def name(self):
+            return "snap-a"
+
+        @property
+        def snapshot_format_class(self):
+            return SnapFormatA
+
+        def generate_snapshot(self, path, version, options=None):
+            return SnapshotResult(True, "")
+
+    class PluginB(LanguagePlugin):
+        @property
+        def name(self):
+            return "snap-b"
+
+        @property
+        def snapshot_format_class(self):
+            return SnapFormatB
+
+        def generate_snapshot(self, path, version, options=None):
+            return SnapshotResult(True, "")
+
+    from semverdredd.registry import default_registry
+
+    mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
+    mgr.register(PluginA())
+    mgr.register(PluginB())
+    try:
+        with caplog.at_level(logging.WARNING, logger="semverdredd.plugin_manager"):
+            mgr.load_plugins(force=True)
+        assert any(
+            "snapshot type conflict" in rec.getMessage().lower()
+            for rec in caplog.records
+        )
+    finally:
+        default_registry.unregister(SnapFormatA.SNAPSHOT_TYPE_ID)
+
+
+class TestPluginManifest:
+    """plugin install/remove manifest handling."""
+
+    def _make_manager(self, monkeypatch, tmp_path):
+        import semverdredd.plugin_manager as pm
+
+        mgr = PluginManager(user_plugin_dir=tmp_path)
+        mgr._loaded = True  # skip discovery in tests
+        monkeypatch.setattr(pm, "get_plugin_manager", lambda: mgr)
+        return mgr
+
+    def test_manifest_roundtrip(self, tmp_path):
+        from cli.commands.plugin import _load_manifest, _record_installation
+
+        _record_installation(
+            tmp_path, ["go"], "plugins/go-1.20-dredd", ["semver_dredd_go", "x.dist-info"]
+        )
+        manifest = _load_manifest(tmp_path)
+        assert manifest["go"]["source"] == "plugins/go-1.20-dredd"
+        assert manifest["go"]["paths"] == ["semver_dredd_go", "x.dist-info"]
+
+    def test_remove_uses_manifest(self, monkeypatch, tmp_path, capsys):
+        import argparse
+
+        from cli.commands.plugin import _record_installation, cmd_plugin_remove
+
+        self._make_manager(monkeypatch, tmp_path)
+
+        # Simulate a previous install
+        (tmp_path / "semver_dredd_fake").mkdir()
+        (tmp_path / "fake-1.0.dist-info").mkdir()
+        (tmp_path / "unrelated_pkg").mkdir()
+        _record_installation(
+            tmp_path, ["fake"], "fake-src", ["semver_dredd_fake", "fake-1.0.dist-info"]
+        )
+
+        args = argparse.Namespace(name="fake", color=False)
+        assert cmd_plugin_remove(args) == 0
+
+        assert not (tmp_path / "semver_dredd_fake").exists()
+        assert not (tmp_path / "fake-1.0.dist-info").exists()
+        # Unrelated content is untouched
+        assert (tmp_path / "unrelated_pkg").exists()
+
+        # Manifest entry is gone
+        from cli.commands.plugin import _load_manifest
+
+        assert "fake" not in _load_manifest(tmp_path)
+
+    def test_remove_untracked_reports_clearly(self, monkeypatch, tmp_path, capsys):
+        import argparse
+
+        from cli.commands.plugin import cmd_plugin_remove
+
+        self._make_manager(monkeypatch, tmp_path)
+
+        args = argparse.Namespace(name="ghost", color=False)
+        assert cmd_plugin_remove(args) == 1
+
+        err = capsys.readouterr().err
+        assert "not tracked" in err
+        assert "Nothing removable" in err

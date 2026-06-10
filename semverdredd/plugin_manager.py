@@ -165,6 +165,15 @@ class PluginManager:
                 snap_cls = getattr(info.plugin, "snapshot_format_class", None)
                 if snap_cls is not None:
                     default_registry.register(snap_cls)
+            except ValueError as e:
+                # Duplicate SNAPSHOT_TYPE_ID across plugins — this means two
+                # plugins claim the same snapshot format UUID. Snapshots may
+                # deserialize with the wrong class; make it loud.
+                logger.warning(
+                    "Snapshot type conflict for plugin '%s': %s",
+                    info.name,
+                    e,
+                )
             except Exception as e:
                 logger.debug(
                     "Failed to register snapshot type for plugin '%s': %s",
@@ -182,8 +191,22 @@ class PluginManager:
         entry_point: str | None = None,
     ) -> None:
         name = plugin.name.lower()
-        if name in self._registry:
-            logger.info("Replacing existing plugin: %s", name)
+        existing = self._registry.get(name)
+        if existing is not None:
+            if type(existing.plugin) is type(plugin):
+                # Same plugin class rediscovered (e.g. builtin + entry point);
+                # benign, keep it quiet.
+                logger.debug("Re-registering plugin: %s", name)
+            else:
+                logger.warning(
+                    "Plugin name conflict: '%s' (%s from %s) is being replaced "
+                    "by %s from %s",
+                    name,
+                    type(existing.plugin).__qualname__,
+                    existing.origin,
+                    type(plugin).__qualname__,
+                    origin,
+                )
         self._registry[name] = PluginInfo(
             name=name, plugin=plugin, origin=origin, entry_point=entry_point
         )

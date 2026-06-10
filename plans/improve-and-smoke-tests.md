@@ -73,10 +73,10 @@ installed-plugin manifest; log UUID/registration conflicts loudly in
 `plugin_manager.py` (raise/warn instead of `debug`).
 
 **DoD:**
-- [ ] `plugin install` records installed plugins in a manifest file.
-- [ ] `plugin remove` uses the manifest; reports clearly when nothing removable.
-- [ ] Duplicate `SNAPSHOT_TYPE_ID` across plugins produces a visible warning.
-- [ ] `tests/test_plugin_manager.py` covers conflict + remove paths.
+- [x] `plugin install` records installed plugins in a manifest file.
+- [x] `plugin remove` uses the manifest; reports clearly when nothing removable.
+- [x] Duplicate `SNAPSHOT_TYPE_ID` across plugins produces a visible warning.
+- [x] `tests/test_plugin_manager.py` covers conflict + remove paths.
 
 ---
 
