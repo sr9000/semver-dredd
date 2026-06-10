@@ -58,10 +58,12 @@ def cmd_bake(args: argparse.Namespace) -> int:
         change = diff_result.change_kind
 
         current_version = Version.parse(baked.version)
-        version = str(current_version.increment(change))
+        scheme = getattr(args, "patch_scheme", None) or "date"
+        version = str(current_version.increment(change, scheme=scheme))
     else:
         # Default initial version
-        version = f"0.1.{generate_patch()}"
+        scheme = getattr(args, "patch_scheme", None) or "date"
+        version = f"0.1.{generate_patch(scheme=scheme)}"
 
     # Generate and save snapshot with final version
     exit_code, yaml_str = _generate_snapshot_yaml(

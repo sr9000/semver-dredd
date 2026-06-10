@@ -1,7 +1,10 @@
 """
 Version management for semver-dredd.
 
-Handles semantic versioning with custom patch format: YYYYMMDDZZZ
+Handles semantic versioning with two patch schemes:
+
+- "date" (default): YYYYMMDDZZZ — date-encoded patch with a daily counter
+- "integer": conventional incrementing patch numbers (0, 1, 2, ...)
 """
 
 from __future__ import annotations
@@ -11,6 +14,11 @@ from datetime import date
 from pathlib import Path
 
 # from typing import Self  # Removed to support Python 3.10 without typing_extensions
+
+PATCH_SCHEME_DATE = "date"
+PATCH_SCHEME_INTEGER = "integer"
+PATCH_SCHEMES = (PATCH_SCHEME_DATE, PATCH_SCHEME_INTEGER)
+DEFAULT_PATCH_SCHEME = PATCH_SCHEME_DATE
 
 
 @dataclass
@@ -91,17 +99,27 @@ class Version:
             return 0
         return int(patch_str[8:])
 
-    def increment(self, change_type, today: date | None = None) -> Version:
+    def increment(
+        self,
+        change_type,
+        today: date | None = None,
+        scheme: str = DEFAULT_PATCH_SCHEME,
+    ) -> Version:
         """
         Increment version based on change type.
 
         Args:
             change_type: Type of API change detected (ChangeKind enum or compatible)
-            today: Date to use for patch version (defaults to today)
+            today: Date to use for patch version (defaults to today; "date"
+                scheme only)
+            scheme: Patch scheme — "date" (YYYYMMDDZZZ, default) or "integer"
+                (conventional incrementing patch, reset to 0 on major/minor)
 
         Returns:
             New Version object with incremented version
         """
+        _validate_scheme(scheme)
+
         if today is None:
             today = date.today()
 
@@ -112,11 +130,15 @@ class Version:
 
         if change_name == "BREAKING":
             # Major bump: increment major, reset minor, new patch
+            if scheme == PATCH_SCHEME_INTEGER:
+                return Version(major=self.major + 1, minor=0, patch=0)
             return Version(
                 major=self.major + 1, minor=0, patch=generate_patch(today=today)
             )
         elif change_name == "MINOR":
             # Minor bump: increment minor, new patch
+            if scheme == PATCH_SCHEME_INTEGER:
+                return Version(major=self.major, minor=self.minor + 1, patch=0)
             return Version(
                 major=self.major,
                 minor=self.minor + 1,
@@ -124,6 +146,14 @@ class Version:
             )
         else:
             # PATCH or NONE: new patch version (any code change = new release)
+            if scheme == PATCH_SCHEME_INTEGER:
+                return Version(
+                    major=self.major,
+                    minor=self.minor,
+                    patch=generate_patch(
+                        current_patch=self.patch, scheme=PATCH_SCHEME_INTEGER
+                    ),
+                )
             current_patch = self.patch if self.patch_date == today else None
             return Version(
                 major=self.major,
@@ -157,17 +187,35 @@ class Version:
         return self == other or self > other
 
 
-def generate_patch(current_patch: int | None = None, today: date | None = None) -> int:
+def _validate_scheme(scheme: str) -> None:
+    if scheme not in PATCH_SCHEMES:
+        raise ValueError(
+            f"Unknown patch scheme: {scheme!r}. Valid schemes: {', '.join(PATCH_SCHEMES)}"
+        )
+
+
+def generate_patch(
+    current_patch: int | None = None,
+    today: date | None = None,
+    scheme: str = DEFAULT_PATCH_SCHEME,
+) -> int:
     """
-    Generate a patch version number in YYYYMMDDZZZ format.
+    Generate a new patch version number.
 
     Args:
-        current_patch: Current patch version to increment (if same day)
-        today: Date to use (defaults to today)
+        current_patch: Current patch version to increment
+        today: Date to use (defaults to today; "date" scheme only)
+        scheme: Patch scheme — "date" (YYYYMMDDZZZ, default) or "integer"
+            (conventional incrementing patch numbers)
 
     Returns:
         New patch version number
     """
+    _validate_scheme(scheme)
+
+    if scheme == PATCH_SCHEME_INTEGER:
+        return (current_patch or 0) + 1
+
     if today is None:
         today = date.today()
 

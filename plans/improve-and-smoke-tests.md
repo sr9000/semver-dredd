@@ -59,10 +59,10 @@ snapshots with `"0.0.0"`.
 in `semverdredd/version.py`, defaulting to `date` (current behavior).
 
 **DoD:**
-- [ ] `integer` mode produces conventional incrementing patch numbers.
-- [ ] `date` mode is unchanged and remains the default.
-- [ ] `tests/test_version.py` covers both modes.
-- [ ] README "Versioning Scheme" section documents the option.
+- [x] `integer` mode produces conventional incrementing patch numbers.
+- [x] `date` mode is unchanged and remains the default.
+- [x] `tests/test_version.py` covers both modes.
+- [x] README "Versioning Scheme" section documents the option.
 
 ---
 

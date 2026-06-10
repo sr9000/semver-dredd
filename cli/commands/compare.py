@@ -97,7 +97,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if getattr(args, "current", None):
         try:
             current = Version.parse(args.current)
-            new_version = current.increment(change)
+            scheme = getattr(args, "patch_scheme", None) or "date"
+            new_version = current.increment(change, scheme=scheme)
             print(f"Current version: {current}")
             print(f"Suggested version: {new_version}")
         except ValueError as e:

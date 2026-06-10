@@ -111,7 +111,10 @@ def cmd_status(args: argparse.Namespace) -> int:
     change_descriptions = _get_change_descriptions()
 
     try:
-        suggested_version = current_version.increment(change, today=target_date)
+        scheme = getattr(args, "patch_scheme", None) or "date"
+        suggested_version = current_version.increment(
+            change, today=target_date, scheme=scheme
+        )
     except ValueError as e:
         _print_level("error", str(e), use_color=use_color)
         return EXIT_ERROR

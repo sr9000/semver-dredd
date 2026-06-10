@@ -13,9 +13,10 @@ def cmd_patch(args: argparse.Namespace) -> int:
     use_color = _should_use_color(getattr(args, "color", None))
 
     current = int(args.current) if args.current else None
+    scheme = getattr(args, "patch_scheme", None) or "date"
 
     try:
-        new_patch = generate_patch(current_patch=current)
+        new_patch = generate_patch(current_patch=current, scheme=scheme)
         print(new_patch)
         return EXIT_OK
     except ValueError as e:

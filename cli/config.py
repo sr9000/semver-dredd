@@ -47,6 +47,9 @@ class Config:
     current_file: str = "current.yaml"
     version_file: str = "VERSION"
 
+    # Versioning
+    patch_scheme: str = "date"  # "date" (YYYYMMDDZZZ) or "integer"
+
     # Analysis scope (opaque strings, interpreted by the plugin)
     include: list[str] = field(default_factory=list)
     exclude: list[str] = field(default_factory=list)
@@ -256,6 +259,17 @@ def load_config(
     current_file = str(files.get("current", "current.yaml"))
     version_file = str(files.get("version", "VERSION"))
 
+    # Parse versioning options
+    versioning = merged.get("versioning", {})
+    patch_scheme = str(versioning.get("patch_scheme", "date")).lower()
+    if patch_scheme not in ("date", "integer"):
+        print(
+            f"[WARN] Unknown versioning.patch_scheme {patch_scheme!r}; "
+            'falling back to "date"',
+            file=sys.stderr,
+        )
+        patch_scheme = "date"
+
     # Parse analysis scope and free-form plugin options
     include = _parse_str_list(merged.get("include"))
     exclude = _parse_str_list(merged.get("exclude"))
@@ -271,6 +285,7 @@ def load_config(
         baked_file=baked_file,
         current_file=current_file,
         version_file=version_file,
+        patch_scheme=patch_scheme,
         include=include,
         exclude=exclude,
         plugin_options=plugin_options,
@@ -321,3 +336,7 @@ def apply_config_defaults(args: Any, config: Config) -> None:
     # There is no CLI flag for these yet, so config is the only source.
     if getattr(args, "snapshot_options", None) is None:
         args.snapshot_options = config.snapshot_options()
+
+    # Patch scheme used when incrementing/generating patch numbers.
+    if getattr(args, "patch_scheme", None) is None:
+        args.patch_scheme = config.patch_scheme

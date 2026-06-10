@@ -301,13 +301,28 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 |-----------|-------------|---------|
 | **Major** | Incremented on breaking API changes | `2.0.0` |
 | **Minor** | Incremented on new features (backward compatible) | `1.3.0` |
-| **Patch** | Date-based format: `YYYYMMDDZZZ` | `20260305001` |
+| **Patch** | Date-based format: `YYYYMMDDZZZ` (default) | `20260305001` |
 
 Patch format breakdown:
 - `YYYY` — year
 - `MM` — month (zero-padded)
 - `DD` — day (zero-padded)
 - `ZZZ` — daily increment (001 – 999)
+
+### Patch Scheme
+
+The patch component is pluggable via `versioning.patch_scheme` in `.semver.yaml`:
+
+```yaml
+versioning:
+  patch_scheme: date     # default — YYYYMMDDZZZ
+  # patch_scheme: integer  # conventional incrementing patch: 0, 1, 2, ...
+```
+
+| Scheme | Patch bump | Major/minor bump |
+|--------|-----------|------------------|
+| `date` (default) | New `YYYYMMDDZZZ` value (daily counter) | Fresh `YYYYMMDD001` |
+| `integer` | `patch + 1` | Patch resets to `0` |
 
 ## Exit Codes
 

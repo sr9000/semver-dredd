@@ -33,7 +33,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
     version_path = Path(getattr(args, "version_file", None) or DEFAULT_VERSION_FILE)
 
-    version = getattr(args, "version", None) or f"0.1.{generate_patch()}"
+    scheme = getattr(args, "patch_scheme", None) or "date"
+    version = getattr(args, "version", None) or f"0.1.{generate_patch(scheme=scheme)}"
 
     # Create config if not exists
     if not config_path.exists():

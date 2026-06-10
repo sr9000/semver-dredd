@@ -36,7 +36,8 @@ def cmd_bump(args: argparse.Namespace) -> int:
         )
         return EXIT_ERROR
 
-    new_version = current.increment(change)
+    scheme = getattr(args, "patch_scheme", None) or "date"
+    new_version = current.increment(change, scheme=scheme)
 
     if args.quiet:
         print(new_version)

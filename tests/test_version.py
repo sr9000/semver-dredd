@@ -232,3 +232,78 @@ class TestGeneratePatch:
         """Test error when exceeding max daily releases."""
         with pytest.raises(ValueError, match="Maximum daily releases"):
             generate_patch(current_patch=20260214999, today=date(2026, 2, 14))
+
+
+class TestIntegerPatchScheme:
+    """The "integer" scheme produces conventional incrementing patch numbers."""
+
+    def test_default_scheme_is_date(self):
+        from semverdredd.version import DEFAULT_PATCH_SCHEME, PATCH_SCHEME_DATE
+
+        assert DEFAULT_PATCH_SCHEME == PATCH_SCHEME_DATE
+
+    def test_generate_patch_starts_at_one(self):
+        assert generate_patch(scheme="integer") == 1
+
+    def test_generate_patch_increments(self):
+        assert generate_patch(current_patch=41, scheme="integer") == 42
+
+    def test_increment_breaking_resets_patch(self):
+        v = Version(1, 2, 3).increment(ChangeKind.BREAKING, scheme="integer")
+        assert (v.major, v.minor, v.patch) == (2, 0, 0)
+
+    def test_increment_minor_resets_patch(self):
+        v = Version(1, 2, 3).increment(ChangeKind.MINOR, scheme="integer")
+        assert (v.major, v.minor, v.patch) == (1, 3, 0)
+
+    def test_increment_patch(self):
+        v = Version(1, 2, 3).increment(ChangeKind.PATCH, scheme="integer")
+        assert (v.major, v.minor, v.patch) == (1, 2, 4)
+
+    def test_increment_none_bumps_patch(self):
+        v = Version(1, 2, 3).increment(ChangeKind.NONE, scheme="integer")
+        assert (v.major, v.minor, v.patch) == (1, 2, 4)
+
+    def test_date_scheme_explicit_matches_default(self):
+        v_default = Version(1, 2, 20260213001).increment(
+            ChangeKind.PATCH, today=date(2026, 2, 14)
+        )
+        v_explicit = Version(1, 2, 20260213001).increment(
+            ChangeKind.PATCH, today=date(2026, 2, 14), scheme="date"
+        )
+        assert v_default == v_explicit
+
+
+class TestInvalidPatchScheme:
+    def test_generate_patch_rejects_unknown_scheme(self):
+        with pytest.raises(ValueError, match="Unknown patch scheme"):
+            generate_patch(scheme="roman-numerals")
+
+    def test_increment_rejects_unknown_scheme(self):
+        with pytest.raises(ValueError, match="Unknown patch scheme"):
+            Version(1, 0, 0).increment(ChangeKind.PATCH, scheme="bogus")
+
+
+class TestConfigPatchScheme:
+    """versioning.patch_scheme is parsed from .semver.yaml."""
+
+    def test_default_is_date(self, tmp_path):
+        from cli.config import load_config
+
+        config = load_config(cwd=tmp_path)
+        assert config.patch_scheme == "date"
+
+    def test_integer_from_yaml(self, tmp_path):
+        from cli.config import load_config
+
+        (tmp_path / ".semver.yaml").write_text("versioning:\n  patch_scheme: integer\n")
+        config = load_config(cwd=tmp_path)
+        assert config.patch_scheme == "integer"
+
+    def test_invalid_scheme_warns_and_falls_back(self, tmp_path, capsys):
+        from cli.config import load_config
+
+        (tmp_path / ".semver.yaml").write_text("versioning:\n  patch_scheme: bogus\n")
+        config = load_config(cwd=tmp_path)
+        assert config.patch_scheme == "date"
+        assert "patch_scheme" in capsys.readouterr().err
