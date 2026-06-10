@@ -246,6 +246,65 @@ SEMVER_DREDD_ALLOW_BREAKING=true
             assert config.color is True
 
 
+class TestScopeOptions:
+    """Test include / exclude / plugin_options parsing and forwarding."""
+
+    def test_defaults_empty(self, tmp_path):
+        config = load_config(cwd=tmp_path)
+        assert config.include == []
+        assert config.exclude == []
+        assert config.plugin_options == {}
+        assert config.snapshot_options() == {}
+
+    def test_load_from_yaml(self, tmp_path):
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("""
+plugin: python
+include:
+  - mypackage.core
+  - mypackage.utils
+exclude:
+  - mypackage.core._private
+plugin_options:
+  timeout_seconds: 30
+  extra_classpath: ["/opt/libs/custom.jar"]
+""")
+        config = load_config(cwd=tmp_path)
+        assert config.include == ["mypackage.core", "mypackage.utils"]
+        assert config.exclude == ["mypackage.core._private"]
+        assert config.plugin_options == {
+            "timeout_seconds": 30,
+            "extra_classpath": ["/opt/libs/custom.jar"],
+        }
+
+    def test_scalar_include_coerced_to_list(self, tmp_path):
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("include: mypackage\n")
+        config = load_config(cwd=tmp_path)
+        assert config.include == ["mypackage"]
+
+    def test_snapshot_options_only_set_keys(self, tmp_path):
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text("include:\n  - pkg\n")
+        config = load_config(cwd=tmp_path)
+        opts = config.snapshot_options()
+        assert opts == {"include": ["pkg"]}
+        # exclude / plugin_options must be absent so plugins that ignore
+        # these keys behave exactly as before
+        assert "exclude" not in opts
+        assert "plugin_options" not in opts
+
+    def test_apply_config_defaults_sets_snapshot_options(self):
+        import argparse
+        args = argparse.Namespace()
+        config = Config(include=["pkg"], plugin_options={"a": 1})
+        apply_config_defaults(args, config)
+        assert args.snapshot_options == {
+            "include": ["pkg"],
+            "plugin_options": {"a": 1},
+        }
+
+
 class TestApplyConfigDefaults:
     """Test applying config to argparse namespace."""
 

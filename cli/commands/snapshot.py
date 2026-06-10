@@ -17,7 +17,11 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     out_path = args.out
 
     exit_code, yaml_str = _generate_snapshot_yaml(
-        plugin_name, args.path, version, use_color
+        plugin_name,
+        args.path,
+        version,
+        use_color,
+        extra_options=getattr(args, "snapshot_options", None),
     )
     if exit_code != EXIT_OK:
         return exit_code

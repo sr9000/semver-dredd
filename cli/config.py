@@ -47,6 +47,13 @@ class Config:
     current_file: str = "current.yaml"
     version_file: str = "VERSION"
 
+    # Analysis scope (opaque strings, interpreted by the plugin)
+    include: list[str] = field(default_factory=list)
+    exclude: list[str] = field(default_factory=list)
+
+    # Free-form plugin options (never validated by the framework)
+    plugin_options: dict[str, Any] = field(default_factory=dict)
+
     # Raw config dict for advanced options
     _raw: dict[str, Any] = field(default_factory=dict)
 
@@ -59,6 +66,21 @@ class Config:
             else:
                 return default
         return current
+
+    def snapshot_options(self) -> dict[str, Any]:
+        """Build the options dict forwarded to LanguagePlugin.generate_snapshot.
+
+        Keys are only present when configured, so plugins that ignore them
+        behave exactly as before.
+        """
+        options: dict[str, Any] = {}
+        if self.include:
+            options["include"] = list(self.include)
+        if self.exclude:
+            options["exclude"] = list(self.exclude)
+        if self.plugin_options:
+            options["plugin_options"] = dict(self.plugin_options)
+        return options
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -164,6 +186,17 @@ def _set_nested(d: dict, path: tuple[str, ...], value: Any) -> None:
     d[path[-1]] = value
 
 
+def _parse_str_list(value: Any) -> list[str]:
+    """Coerce a config value into a flat list of strings."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value]
+    return []
+
+
 def load_config(
     config_file: str | Path | None = None,
     env_file: str | Path | None = None,
@@ -223,6 +256,14 @@ def load_config(
     current_file = str(files.get("current", "current.yaml"))
     version_file = str(files.get("version", "VERSION"))
 
+    # Parse analysis scope and free-form plugin options
+    include = _parse_str_list(merged.get("include"))
+    exclude = _parse_str_list(merged.get("exclude"))
+    plugin_options_raw = merged.get("plugin_options")
+    plugin_options = (
+        dict(plugin_options_raw) if isinstance(plugin_options_raw, dict) else {}
+    )
+
     return Config(
         allow_breaking_changes=allow_breaking,
         color=color,
@@ -230,6 +271,9 @@ def load_config(
         baked_file=baked_file,
         current_file=current_file,
         version_file=version_file,
+        include=include,
+        exclude=exclude,
+        plugin_options=plugin_options,
         _raw=merged,
     )
 
@@ -272,3 +316,8 @@ def apply_config_defaults(args: Any, config: Config) -> None:
     if hasattr(args, "version_file"):
         if getattr(args, "version_file", None) is None:
             args.version_file = config.version_file
+
+    # Scope/options forwarded to LanguagePlugin.generate_snapshot.
+    # There is no CLI flag for these yet, so config is the only source.
+    if getattr(args, "snapshot_options", None) is None:
+        args.snapshot_options = config.snapshot_options()

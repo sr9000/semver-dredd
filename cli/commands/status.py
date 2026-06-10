@@ -71,7 +71,11 @@ def cmd_status(args: argparse.Namespace) -> int:
 
     # Generate current snapshot (use "0.0.0" placeholder, we'll compute suggested version)
     exit_code, yaml_str = _generate_snapshot_yaml(
-        plugin_name, args.module, "0.0.0", use_color
+        plugin_name,
+        args.module,
+        "0.0.0",
+        use_color,
+        extra_options=getattr(args, "snapshot_options", None),
     )
     if exit_code != EXIT_OK:
         return exit_code

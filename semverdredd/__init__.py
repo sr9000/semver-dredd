@@ -95,6 +95,7 @@ def compare(
     old_path: str,
     new_path: str,
     plugin: str = "python",
+    options: dict | None = None,
 ) -> CompareResult:
     """Programmatic compare that returns structured data (no printing).
 
@@ -104,6 +105,8 @@ def compare(
         old_path: Path to old module/package (or module name for Python)
         new_path: Path to new module/package (or module name for Python)
         plugin: Language plugin to use (default: "python")
+        options: Optional dict forwarded to LanguagePlugin.generate_snapshot
+            (e.g. include/exclude/plugin_options)
 
     Returns:
         CompareResult with change_kind/description/severity/diff
@@ -126,13 +129,13 @@ def compare(
         raise RuntimeError(f"Invalid new path: {msg}")
 
     # Generate snapshots
-    old_result = lang_plugin.generate_snapshot(old_path, "0.0.0")
+    old_result = lang_plugin.generate_snapshot(old_path, "0.0.0", options=options)
     if not old_result.success:
         raise RuntimeError(
             f"Failed to generate snapshot for old: {old_result.error_message}"
         )
 
-    new_result = lang_plugin.generate_snapshot(new_path, "0.0.0")
+    new_result = lang_plugin.generate_snapshot(new_path, "0.0.0", options=options)
     if not new_result.success:
         raise RuntimeError(
             f"Failed to generate snapshot for new: {new_result.error_message}"
@@ -168,6 +171,7 @@ def compare_and_suggest(
     new_path: str,
     current_version: Version | str,
     plugin: str = "python",
+    options: dict | None = None,
 ) -> SuggestVersionResult:
     """Compare two modules/packages and compute a suggested next version.
 
@@ -179,6 +183,7 @@ def compare_and_suggest(
         new_path: Path to new module/package (or module name for Python)
         current_version: Version or version string
         plugin: Language plugin to use (default: "python")
+        options: Optional dict forwarded to LanguagePlugin.generate_snapshot
 
     Returns:
         SuggestVersionResult
@@ -192,7 +197,7 @@ def compare_and_suggest(
         if isinstance(current_version, Version)
         else Version.parse(str(current_version))
     )
-    base = compare(old_path, new_path, plugin=plugin)
+    base = compare(old_path, new_path, plugin=plugin, options=options)
     suggested = current.increment(base.change_kind)
     return SuggestVersionResult(
         change_kind=base.change_kind,

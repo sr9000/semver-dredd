@@ -36,14 +36,24 @@ def cmd_compare(args: argparse.Namespace) -> int:
             use_color=use_color,
         )
 
+    snapshot_options = getattr(args, "snapshot_options", None)
+
     exit_code, old_yaml = _generate_snapshot_yaml(
-        plugin_name, args.old_module, "0.0.0", use_color
+        plugin_name,
+        args.old_module,
+        "0.0.0",
+        use_color,
+        extra_options=snapshot_options,
     )
     if exit_code != EXIT_OK:
         return exit_code
 
     exit_code, new_yaml = _generate_snapshot_yaml(
-        plugin_name, args.new_module, "0.0.0", use_color
+        plugin_name,
+        args.new_module,
+        "0.0.0",
+        use_color,
+        extra_options=snapshot_options,
     )
     if exit_code != EXIT_OK:
         return exit_code

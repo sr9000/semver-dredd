@@ -138,9 +138,17 @@ def _get_language_plugin(
 
 
 def _generate_snapshot_yaml(
-    plugin_name: str, path: str, version: str, use_color: bool
+    plugin_name: str,
+    path: str,
+    version: str,
+    use_color: bool,
+    extra_options: dict | None = None,
 ) -> tuple[int, str]:
-    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str)."""
+    """Generate snapshot YAML using language-specific parser. Returns (exit_code, yaml_str).
+
+    extra_options (e.g. include/exclude/plugin_options from .semver.yaml) are
+    merged into the options dict passed to the plugin.
+    """
     exit_code, plugin = _get_language_plugin(plugin_name, use_color)
     if exit_code != EXIT_OK or plugin is None:
         return EXIT_ERROR, ""
@@ -150,7 +158,11 @@ def _generate_snapshot_yaml(
         _print_level("error", msg, use_color=use_color)
         return EXIT_ERROR, ""
 
-    result = plugin.generate_snapshot(path, version, options={"use_color": use_color})
+    options: dict = {"use_color": use_color}
+    if extra_options:
+        options.update(extra_options)
+
+    result = plugin.generate_snapshot(path, version, options=options)
 
     if not result.success:
         _print_level(

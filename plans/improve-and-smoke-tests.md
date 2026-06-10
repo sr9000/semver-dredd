@@ -32,11 +32,11 @@ emit a warning when `.semver.yaml` fails to parse instead of silently returning 
 the command modules and `semverdredd/__init__.py` (currently always `None`).
 
 **DoD:**
-- [ ] `Config` exposes `include`, `exclude`, `plugin_options`.
-- [ ] `options` dict reaches `LanguagePlugin.generate_snapshot` (verified by a
+- [x] `Config` exposes `include`, `exclude`, `plugin_options`.
+- [x] `options` dict reaches `LanguagePlugin.generate_snapshot` (verified by a
       stub plugin in tests).
-- [ ] Plugins ignoring these keys behave exactly as before (backward compatible).
-- [ ] New tests in `tests/test_config.py` + `tests/test_plugin_manager.py` pass.
+- [x] Plugins ignoring these keys behave exactly as before (backward compatible).
+- [x] New tests in `tests/test_config.py` + `tests/test_plugin_manager.py` pass.
 
 ---
 
