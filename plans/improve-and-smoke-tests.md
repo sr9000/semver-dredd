@@ -1,7 +1,9 @@
 # Plan: Improve semver-dredd & Add Docker Compose Smoke Tests
 
 **Date:** June 10, 2026
-**Status:** Proposed
+**Status:** Implemented (June 10, 2026) — all commits landed; the only
+unchecked DoD items are Docker-build/CI verifications that require a running
+Docker daemon or a push to GitHub (see notes inside Part B).
 **Scope:** Tool improvements + containerized smoke tests
 
 This plan is organized as a **commit-by-commit roadmap**. Each step is a single,
@@ -203,9 +205,11 @@ add a short `docker/README.md`.
 
 ---
 
-## Open Questions (to confirm before/at kickoff)
+## Open Questions — resolved during implementation
 
-1. Implement both Part A and Part B now, or Part B first (self-contained)?
-2. Which Part A commits are in scope — all 7, or quick wins (1–3) only?
-3. CI target — GitHub Actions assumed; confirm.
-4. Base images — `python:3.10-slim`, `golang:1.20`, `eclipse-temurin` JDK OK?
+1. ~~Implement both Part A and Part B now, or Part B first?~~ → Both
+   implemented, Part A first (commits 1–7), then Part B (commits 8–13).
+2. ~~Which Part A commits are in scope?~~ → All 7.
+3. ~~CI target?~~ → GitHub Actions (`.github/workflows/smoke.yml`).
+4. ~~Base images?~~ → `python:3.10-slim`, `golang:1.20-bookworm`,
+   `eclipse-temurin:21-jdk-jammy` (demo scripts require JDK 21+).

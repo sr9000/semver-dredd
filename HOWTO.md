@@ -152,6 +152,14 @@ class MyLangPlugin(LanguagePlugin):
         - Shell out to an external tool (compiler, AST parser)
         - Use a library binding
 
+        The ``options`` dict carries framework- and user-provided hints.
+        Keys you may receive (all optional — ignore what you don't use):
+        - ``use_color`` (bool): set by the CLI for log styling
+        - ``include`` / ``exclude`` (list[str]): analysis scope from
+          .semver.yaml; interpretation is up to your plugin
+        - ``plugin_options`` (dict): free-form options from .semver.yaml,
+          never validated by the framework
+
         Must return a SnapshotResult with success=True and yaml_content
         containing a valid YAML string, or success=False with an error_message.
         """

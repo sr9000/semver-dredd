@@ -77,34 +77,31 @@ files:
   # CLI: --version-file
   version: VERSION
 
-# Module paths for Python projects (optional)
-# Specify additional module paths to include in API analysis
-# module_paths:
-#   - mypackage
-#   - ../anotherpackage
+# Versioning configuration
+versioning:
+  # Patch numbering scheme:
+  #   date (default) - YYYYMMDDZZZ (date + daily counter)
+  #   integer        - conventional incrementing patch (0, 1, 2, ...);
+  #                    resets to 0 on major/minor bumps
+  patch_scheme: date
 
-# Go-specific configuration (optional)
-# go:
-#   # Go module name (from go.mod)
-#   module: mymodule
-#   # Output directory for generated files
-#   output: ./gen
+# Analysis scope (optional)
+# Flat lists of opaque strings forwarded to the language plugin via its
+# options dict. Interpretation (packages, paths, globs) is plugin-specific.
+# NOTE: the bundled python/go/java plugins receive these but do not filter
+# by them yet (see INCLUDE-EXCLUDE-PROPOSAL.md).
+# include:
+#   - mypackage.core
+#   - mypackage.utils
+# exclude:
+#   - mypackage.core._private
 
-# Java-specific configuration (optional)
-# java:
-#   # Source directory for Java files
-#   source: ./src/main/java
-#   # Output directory for generated files
-#   output: ./gen
-
-# Advanced options (experimental)
-# advanced:
-#   # Whether to include private API in snapshots (default: false)
-#   include_private: false
-#   # Custom ignore patterns for API elements
-#   ignore_patterns:
-#     - "test_*"
-#     - "*_internal"
+# Free-form plugin options (optional)
+# Forwarded to the plugin as-is; never validated by the framework.
+# Plugins must silently ignore unknown keys.
+# plugin_options:
+#   timeout_seconds: 30
+#   source_encoding: "UTF-8"
 
 # Environment Variables Reference:
 # ================================

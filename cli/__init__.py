@@ -373,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
     plugin_install.set_defaults(func=cmd_plugin_install)
     plugin_remove = plugin_sub.add_parser(
         "remove",
-        help="Remove a plugin from the user plugin directory (best-effort)",
+        help="Remove a plugin from the user plugin directory (manifest-tracked)",
     )
     plugin_remove.add_argument(
         "name",

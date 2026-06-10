@@ -201,6 +201,11 @@ semver-dredd plugin install python-3.10-dredd
 semver-dredd plugin remove python
 ```
 
+Installs are recorded in a manifest (`installed_plugins.json` in the user
+plugin directory), so `plugin remove` deletes exactly what an install
+created. Plugins installed by other means fall back to best-effort removal
+with a clear warning.
+
 ## Python API
 
 ```python
@@ -223,6 +228,15 @@ print(result.suggested_version)  # 1.1.20260305001
 
 # Works for Go / Java too — pass directory paths
 result = compare("./v1/pkg", "./v2/pkg", plugin="go")
+
+# Optional: forward scope/options to the plugin and embed real versions
+result = compare(
+    "mymodule.v1", "mymodule.v2",
+    plugin="python",
+    options={"include": ["mymodule.core"], "plugin_options": {"x": 1}},
+    old_version="1.0.0",
+    new_version="1.1.0",
+)
 ```
 
 ## Configuration
@@ -261,7 +275,26 @@ files:
   baked: baked.yaml
   current: current.yaml
   version: VERSION
+
+versioning:
+  patch_scheme: date  # "date" (YYYYMMDDZZZ, default) or "integer"
+
+# Analysis scope — opaque strings forwarded to the plugin via its
+# options dict (interpretation is plugin-specific)
+include:
+  - mypackage.core
+exclude:
+  - mypackage.core._private
+
+# Free-form options forwarded to the plugin as-is (never validated
+# by the framework)
+plugin_options:
+  timeout_seconds: 30
 ```
+
+> The bundled python/go/java plugins receive `include`/`exclude`/
+> `plugin_options` but do not filter by them yet — see
+> [`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md) for status.
 
 ### `.env`
 
@@ -478,7 +511,19 @@ semver-dredd/
 │   ├── demo_python.sh      # End-to-end Python demo
 │   ├── demo_go.sh          # End-to-end Go demo
 │   └── demo_java.sh        # End-to-end Java demo
+├── docker/                 # Smoke-test images (see docker/README.md)
+│   ├── Dockerfile.python
+│   ├── Dockerfile.go
+│   ├── Dockerfile.java
+│   └── Dockerfile.unit
+├── docker-compose.smoke.yml # Smoke-test services (python/go/java/unit)
+├── scripts/
+│   └── smoke.sh            # Build + run all smoke tests, aggregate results
+├── .github/workflows/
+│   └── smoke.yml           # CI: smoke tests on push/PR
 └── tests/
+    ├── smoke/
+    │   └── assert_demo.sh  # Demo outcome assertions (MINOR / BREAKING)
     ├── test_cli.py
     ├── test_config.py
     ├── test_cross_language.py

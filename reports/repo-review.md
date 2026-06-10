@@ -4,6 +4,23 @@
 **Scope:** Usability and extensibility of the tool
 **Reviewer:** Automated code review (GitHub Copilot)
 
+> **Resolution status (June 10, 2026):** most findings below have since been
+> addressed — see `plans/improve-and-smoke-tests.md` for the commit-by-commit
+> record. In particular:
+>
+> | Finding | Status |
+> |---------|--------|
+> | Silent config failures (§2.2) | ✅ Fixed — malformed `.semver.yaml` warns on stderr |
+> | `include`/`exclude`/`plugin_options` not implemented (§4) | ✅ Plumbed through config → plugins (plugin-side filtering still pending) |
+> | `compare()` hardcodes `"0.0.0"` (§2.2) | ✅ Fixed — real versions threaded through |
+> | Non-pluggable patch scheme (§2.2) | ✅ Fixed — `versioning.patch_scheme: date\|integer` |
+> | Fragile plugin removal (§2.2) | ✅ Fixed — manifest-tracked install/remove |
+> | Silent `SNAPSHOT_TYPE_ID` conflicts (§3.2) | ✅ Fixed — visible warnings |
+> | Built-in plugins hardcoded in core (§3.2) | ✅ Fixed — entry points preferred, list is a dev fallback |
+> | Docs oversell unimplemented features (§4) | ✅ Fixed — status banners in proposal + README |
+> | `snapshot` vs `semverdredd.models` home confusion (§3.2) | ⬜ Still open |
+> | No plugin compat check (§3.2) | ⬜ Still open |
+
 ---
 
 ## 1. Executive Summary
