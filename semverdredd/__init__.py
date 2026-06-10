@@ -96,6 +96,8 @@ def compare(
     new_path: str,
     plugin: str = "python",
     options: dict | None = None,
+    old_version: str = "0.0.0",
+    new_version: str = "0.0.0",
 ) -> CompareResult:
     """Programmatic compare that returns structured data (no printing).
 
@@ -107,6 +109,10 @@ def compare(
         plugin: Language plugin to use (default: "python")
         options: Optional dict forwarded to LanguagePlugin.generate_snapshot
             (e.g. include/exclude/plugin_options)
+        old_version: Version string embedded in the old snapshot
+            (default "0.0.0" when unknown)
+        new_version: Version string embedded in the new snapshot
+            (default "0.0.0" when unknown)
 
     Returns:
         CompareResult with change_kind/description/severity/diff
@@ -129,13 +135,13 @@ def compare(
         raise RuntimeError(f"Invalid new path: {msg}")
 
     # Generate snapshots
-    old_result = lang_plugin.generate_snapshot(old_path, "0.0.0", options=options)
+    old_result = lang_plugin.generate_snapshot(old_path, old_version, options=options)
     if not old_result.success:
         raise RuntimeError(
             f"Failed to generate snapshot for old: {old_result.error_message}"
         )
 
-    new_result = lang_plugin.generate_snapshot(new_path, "0.0.0", options=options)
+    new_result = lang_plugin.generate_snapshot(new_path, new_version, options=options)
     if not new_result.success:
         raise RuntimeError(
             f"Failed to generate snapshot for new: {new_result.error_message}"
@@ -197,7 +203,17 @@ def compare_and_suggest(
         if isinstance(current_version, Version)
         else Version.parse(str(current_version))
     )
-    base = compare(old_path, new_path, plugin=plugin, options=options)
+    # The old snapshot describes the API at the current (known) version.
+    # The new snapshot's version isn't known until the diff is scored, so the
+    # current version is the most meaningful value available for both.
+    base = compare(
+        old_path,
+        new_path,
+        plugin=plugin,
+        options=options,
+        old_version=str(current),
+        new_version=str(current),
+    )
     suggested = current.increment(base.change_kind)
     return SuggestVersionResult(
         change_kind=base.change_kind,

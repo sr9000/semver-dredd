@@ -47,9 +47,9 @@ the command modules and `semverdredd/__init__.py` (currently always `None`).
 snapshots with `"0.0.0"`.
 
 **DoD:**
-- [ ] `compare()` passes meaningful versions to `generate_snapshot`.
-- [ ] Diff results for existing fixtures are unchanged (API-surface diff stable).
-- [ ] `tests/test_programmatic_api.py` updated and passing.
+- [x] `compare()` passes meaningful versions to `generate_snapshot`.
+- [x] Diff results for existing fixtures are unchanged (API-surface diff stable).
+- [x] `tests/test_programmatic_api.py` updated and passing.
 
 ---
 
