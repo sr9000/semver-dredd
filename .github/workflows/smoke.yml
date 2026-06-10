@@ -1,0 +1,29 @@
+name: smoke
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Docker layer caching keeps repeat runs reasonable
+      - name: Expose GitHub Actions cache for buildx
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Build images (cached)
+        env:
+          COMPOSE_BAKE: "true"
+          BUILDX_BAKE_GITHUB_ACTIONS_CACHE: "true"
+        run: docker compose -f docker-compose.smoke.yml build
+
+      - name: Run smoke tests
+        run: bash scripts/smoke.sh
