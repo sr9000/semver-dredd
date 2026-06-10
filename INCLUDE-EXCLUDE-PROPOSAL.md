@@ -1,5 +1,18 @@
 # Configuration & Plugin API Evolution Proposal
 
+> **Status (June 2026): partially implemented.**
+>
+> | Feature | Section | Status |
+> |---------|---------|--------|
+> | `include` / `exclude` config plumbing | §3 | ✅ Implemented — parsed from `.semver.yaml` and forwarded to plugins via `options` |
+> | `plugin_options` escape hatch | §4 | ✅ Implemented — forwarded opaquely to plugins via `options` |
+> | Plugin-side interpretation of `include`/`exclude` | §3.1 | 🚧 Proposed — the bundled python/go/java plugins do not filter by these keys yet |
+> | Multi-document priority chain | §2 | 🚧 Proposed — `.semver.yaml` is still single-document |
+> | Domain agnosticism guidance | §5 | ✅ Already true of the current plugin API |
+> | Aggregate `bundle` plugin | §6 | 🚧 Proposed — not yet shipped |
+>
+> See `README.md` → "Feature Status" for the canonical overview.
+
 ## 1. Philosophy & Motivation
 
 The goal of semver-dredd is to provide **language-agnostic** semantic versioning analysis. The core framework should handle the "mechanics" (config loading, snapshot diffing, change verification, report generation) while leaving the "understanding" of code and API surfaces strictly to plugins.

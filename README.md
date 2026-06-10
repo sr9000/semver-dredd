@@ -16,6 +16,14 @@ Automatically increments semver number based on interface changes.
 - **Plugin System**: Discover plugins via entry points, install third-party plugins
 - **CLI & Programmatic API**: Use from the command line or import directly in Python
 
+### Feature Status
+
+Everything documented in this README is implemented. Larger configuration and
+plugin-API evolutions (multi-document `.semver.yaml`, plugin-side
+`include`/`exclude` filtering, the aggregate `bundle` plugin) are tracked in
+[`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md), which carries a
+per-feature implemented/proposed status table.
+
 ## Installation
 
 ```bash

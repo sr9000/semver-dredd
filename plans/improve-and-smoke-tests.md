@@ -100,9 +100,9 @@ in `plugin_manager.py`; keep the list only as an editable-install fallback.
 `INCLUDE-EXCLUDE-PROPOSAL.md`; add a feature-status note in `README.md`.
 
 **DoD:**
-- [ ] Proposal clearly marks which features are implemented vs. proposed.
-- [ ] README points readers to the current feature status.
-- [ ] No code changes; docs only.
+- [x] Proposal clearly marks which features are implemented vs. proposed.
+- [x] README points readers to the current feature status.
+- [x] No code changes; docs only.
 
 ---
 
