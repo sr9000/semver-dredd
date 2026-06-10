@@ -1,0 +1,27 @@
+# Smoke-test image: unit-test runner (pytest against the mounted repo)
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY cli ./cli
+COPY semverdredd ./semverdredd
+COPY snapshot ./snapshot
+COPY plugins/python-3.10-dredd ./plugins/python-3.10-dredd
+COPY plugins/go-1.20-dredd ./plugins/go-1.20-dredd
+COPY plugins/java-1.8-dredd ./plugins/java-1.8-dredd
+
+RUN pip install --no-cache-dir "pytest>=9.0,<10" . \
+    ./plugins/python-3.10-dredd \
+    ./plugins/go-1.20-dredd \
+    ./plugins/java-1.8-dredd
+
+# Sanity check: all bundled plugins must be discoverable
+RUN semver-dredd plugin list | grep -q python \
+    && semver-dredd plugin list | grep -q go \
+    && semver-dredd plugin list | grep -q java
+
+# The repo is mounted read-only at /repo; disable the pytest cache so the
+# run does not attempt to write into the mount.
+WORKDIR /repo
+CMD ["pytest", "tests/", "-p", "no:cacheprovider", "-q"]

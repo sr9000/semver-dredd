@@ -1,0 +1,12 @@
+.git
+.idea
+.pytest_cache
+__pycache__
+*.pyc
+.venv
+reports
+plans
+terminals
+*.class
+plugins/go-1.20-dredd/semver_dredd_go/parser/golang
+plugins/java-1.8-dredd/semver_dredd_java/parser/lib

@@ -1,0 +1,20 @@
+# Smoke-test image: semver-dredd core + python plugin
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install core + python plugin from the build context
+COPY pyproject.toml README.md ./
+COPY cli ./cli
+COPY semverdredd ./semverdredd
+COPY snapshot ./snapshot
+COPY plugins/python-3.10-dredd ./plugins/python-3.10-dredd
+
+RUN pip install --no-cache-dir . ./plugins/python-3.10-dredd
+
+# Sanity check: the plugin must be discoverable
+RUN semver-dredd plugin list | grep -q python
+
+# The repo (with example/ and tests/smoke/) is mounted read-only at /repo
+WORKDIR /repo
+CMD ["bash", "tests/smoke/assert_demo.sh", "python"]
