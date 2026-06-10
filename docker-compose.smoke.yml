@@ -1,0 +1,44 @@
+# Docker Compose smoke tests for semver-dredd.
+#
+# Each service builds an image with core + one language plugin installed,
+# mounts the repository read-only, and runs the language smoke assertions
+# (or pytest for `unit`). Every service exits non-zero on failure.
+#
+# Run all of them via: bash scripts/smoke.sh
+
+services:
+  python:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    image: semver-dredd-smoke-python
+    volumes:
+      - .:/repo:ro
+    command: ["bash", "tests/smoke/assert_demo.sh", "python"]
+
+  go:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.go
+    image: semver-dredd-smoke-go
+    volumes:
+      - .:/repo:ro
+    command: ["bash", "tests/smoke/assert_demo.sh", "go"]
+
+  java:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.java
+    image: semver-dredd-smoke-java
+    volumes:
+      - .:/repo:ro
+    command: ["bash", "tests/smoke/assert_demo.sh", "java"]
+
+  unit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.unit
+    image: semver-dredd-smoke-unit
+    volumes:
+      - .:/repo:ro
+    command: ["pytest", "tests/", "-p", "no:cacheprovider", "-q"]
