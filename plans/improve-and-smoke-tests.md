@@ -18,10 +18,10 @@ satisfied before moving to the next step.
 emit a warning when `.semver.yaml` fails to parse instead of silently returning `{}`.
 
 **DoD:**
-- [ ] Malformed `.semver.yaml` produces a visible warning on stderr.
-- [ ] Valid/missing config still returns a `Config` with no warning.
-- [ ] New unit test in `tests/test_config.py` covers the malformed-file path.
-- [ ] `pytest tests/test_config.py` passes; no regression in existing tests.
+- [x] Malformed `.semver.yaml` produces a visible warning on stderr.
+- [x] Valid/missing config still returns a `Config` with no warning.
+- [x] New unit test in `tests/test_config.py` covers the malformed-file path.
+- [x] `pytest tests/test_config.py` passes; no regression in existing tests.
 
 ---
 
