@@ -16,16 +16,16 @@ MiniMax M3*) can keep everything resident and should dominate the global tier.
 
 ## 1. Branch layout (anti-spoiler design)
 
-Same squashed-baseline scheme as Task 1: `bench/hard-v1` is a **single commit** branched
+Same squashed-baseline scheme as Task 1: `legacy/audit` is a **single commit** branched
 from the FIRST commit of `master`, containing the full tree + scaffolding + seeded
 discrepancies. Candidates see no history revealing what was edited.
 
 ```
 master:          root ── c2 ── … ── tip
                    \
-bench/hard-v1:      └── baseline   (one commit, seeds folded in)
+legacy/audit:      └── baseline   (one commit, seeds folded in)
                           \
-bench/hard-v1-<model>:     └── model's own commits…
+legacy/audit-<model>:     └── model's own commits…
 ```
 
 The candidate-facing problem lives on the branch at [`reports/TASK.md`](../reports/TASK.md).
@@ -33,17 +33,17 @@ The branch contains **no** `benchmarks/` folder and **no** prior model reports.
 
 ## 2. Operator setup
 
-### 2.1 Scaffold (same recipe as Task 1 §2.1, branch name `bench/hard-v1`)
+### 2.1 Scaffold (same recipe as Task 1 §2.1, branch name `legacy/audit`)
 
 ```bash
 ROOT=$(git rev-list --max-parents=0 master)
 git worktree add /tmp/bench-hard "$ROOT"
 cd /tmp/bench-hard
-git checkout -b bench/hard-v1
+git checkout -b legacy/audit
 git checkout master -- .
 rm -rf benchmarks reports && mkdir reports
 # … add reports/TASK.md (see §3) …
-git add -A && git commit -m "bench: hard-v1 baseline"
+git add -A && git commit -m "legacy: import"
 ```
 
 ### 2.2 Seed 15 discrepancies, then fold into the baseline
@@ -56,7 +56,7 @@ git add -A && git commit --amend --no-edit
 ```
 
 Answer key (tier, files involved, which side is wrong, one-line truth, intended repair)
-goes **outside the repo**: `~/bench-keys/hard-v1.md`.
+goes **outside the repo**: `key/audit.md`.
 
 ### 2.3 Discrepancy menu
 
@@ -108,7 +108,7 @@ goes **outside the repo**: `~/bench-keys/hard-v1.md`.
 ### 2.4 Per-model run
 
 ```bash
-git branch bench/hard-v1-<model> bench/hard-v1
+git branch legacy/audit-<model> legacy/audit
 ```
 
 Fresh workspace/conversation on that branch; the only user message:
@@ -139,9 +139,10 @@ Your job:
 3. Write `reports/report.md` and commit it last (`docs: benchmark report`):
 
    | # | commit | claim location(s) | code location(s) | contradiction | wrong side | fix applied |
-   |---|--------|-------------------|------------------|---------------|------------|-------------|
+      |---|--------|-------------------|------------------|---------------|------------|-------------|
 
 Rules:
+
 - The unit test suite passes BEFORE your changes and must still pass (219) AFTER.
 - "X and Y disagree" without picking the wrong side earns at most half credit.
 - Report only real contradictions — not style, not "docs could be clearer."
@@ -152,28 +153,28 @@ Rules:
 ## 4. Collection — named stash per model
 
 ```bash
-bash scripts/bench/stash-from-branch.sh bench/hard-v1 bench/hard-v1-<model> <model-name>
+bash scripts/bench/stash-from-branch.sh legacy/audit legacy/audit-<model> <model-name>
 ```
 
-`git stash list` on `bench/hard-v1` becomes the grading inbox: each named stash holds the
+`git stash list` on `legacy/audit` becomes the grading inbox: each named stash holds the
 model's full diff (repairs + `reports/report.md`).
 
 ## 5. Grading — agent procedure
 
-Run a grader agent on `bench/hard-v1` with the answer key pasted into its prompt
+Run a grader agent on `legacy/audit` with the answer key pasted into its prompt
 (the key never enters the repo):
 
 > For each stash in `git stash list`:
-> 1. `git checkout bench/hard-v1 && git checkout -- . && git clean -fd`
+> 1. `git checkout legacy/audit && git checkout -- . && git clean -fd`
 > 2. `git stash apply "stash^{/<name>}"`; read `reports/report.md`; inspect `git diff`.
 > 3. For each of the 15 key entries classify:
->    **found + correct side + fixed** / **found + wrong side picked** /
->    **found, not fixed** / **missed**.
->    G-tier credit additionally requires the report to name the authoritative file
->    AND at least one wrong file.
+     > **found + correct side + fixed** / **found + wrong side picked** /
+     > **found, not fixed** / **missed**.
+     > G-tier credit additionally requires the report to name the authoritative file
+     > AND at least one wrong file.
 > 4. False positives: report rows or diff hunks matching no key entry. Genuine unseeded
->    discrepancies the model proves are NOT false positives — verify manually and score
->    as tier C (add them to the key for later runs).
+     > discrepancies the model proves are NOT false positives — verify manually and score
+     > as tier C (add them to the key for later runs).
 > 5. Run `poetry run pytest tests/ -q` after applying — must pass.
 > 6. Output one scorecard per model plus a ranking by Score and by Value.
 
@@ -190,14 +191,15 @@ Value = Score / billed_$
 
 ## 6. Expected outcome profile
 
-| Window | Models | Expectation |
-|---|---|---|
-| 131–202k | gpt-oss, Haiku, GLM | L mostly; C partial; G ≈ 0. May overflow mid-run. |
-| 262k | Kimi K2.6 | L + most C; 1–2 G at best |
-| 400k | GPT-5.3-Codex | L + C; partial G (2–3) |
-| 1M+ | Fable 5, GPT-5.5, Opus 4.8, Qwen Max/Plus, MiniMax M3 | Sweep L+C, 3–5 G; differences here are the real capability signal |
+| Window   | Models                                                | Expectation                                                       |
+|----------|-------------------------------------------------------|-------------------------------------------------------------------|
+| 131–202k | gpt-oss, Haiku, GLM                                   | L mostly; C partial; G ≈ 0. May overflow mid-run.                 |
+| 262k     | Kimi K2.6                                             | L + most C; 1–2 G at best                                         |
+| 400k     | GPT-5.3-Codex                                         | L + C; partial G (2–3)                                            |
+| 1M+      | Fable 5, GPT-5.5, Opus 4.8, Qwen Max/Plus, MiniMax M3 | Sweep L+C, 3–5 G; differences here are the real capability signal |
 
 Key comparisons to extract:
+
 - **G-tier recall vs. window size** — the isolated long-context payoff.
 - **Precision under long context** — hallucination rate after 300k+ tokens of reading
   (watch MiniMax and Qwen Plus specifically).
