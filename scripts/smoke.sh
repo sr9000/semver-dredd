@@ -4,29 +4,44 @@
 # Usage:
 #   bash scripts/smoke.sh             # run every service
 #   bash scripts/smoke.sh python go   # run a subset
+#   bash scripts/smoke.sh --no-build  # skip the build step (use when images
+#                                     # were already built externally, e.g. CI)
 #
 # Each service runs in isolation with --abort-on-container-exit and
 # --exit-code-from, results are aggregated, and containers are cleaned up.
 # Exits non-zero when any smoke test fails.
 
-set -u
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/docker-compose.smoke.yml"
 COMPOSE=(docker compose -f "$COMPOSE_FILE")
+NO_BUILD=0
 
-SERVICES=("$@")
+# Parse optional flags; everything else is treated as service names.
+SERVICE_ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--no-build" ]; then
+        NO_BUILD=1
+    else
+        SERVICE_ARGS+=("$arg")
+    fi
+done
+
+SERVICES=("${SERVICE_ARGS[@]}")
 if [ ${#SERVICES[@]} -eq 0 ]; then
     SERVICES=(python go java unit)
 fi
 
 cd "$REPO_ROOT"
 
-echo "==> Building smoke images: ${SERVICES[*]}"
-if ! "${COMPOSE[@]}" build "${SERVICES[@]}"; then
-    echo "==> Image build failed" >&2
-    exit 1
+if [ "$NO_BUILD" -eq 0 ]; then
+    echo "==> Building smoke images: ${SERVICES[*]}"
+    if ! "${COMPOSE[@]}" build "${SERVICES[@]}"; then
+        echo "==> Image build failed" >&2
+        exit 1
+    fi
 fi
 
 declare -A RESULTS

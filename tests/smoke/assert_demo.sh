@@ -9,7 +9,7 @@
 #
 # Exits 0 only when every expectation holds.
 
-set -u
+set -uo pipefail
 
 LANG_NAME="${1:?usage: assert_demo.sh <python|go|java>}"
 
