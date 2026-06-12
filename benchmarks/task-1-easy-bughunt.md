@@ -96,19 +96,29 @@ Scoped file set (~25–30k tokens total reading):
 
 4. `cli/commands/compare.py`: pass `extra_options=snapshot_options` only to the OLD
    snapshot call, drop it from the NEW one (silent asymmetric scoping).
-5. `cli/config.py`: make the invalid-`patch_scheme` fallback silent (or send the warning
-   to stdout) — verify the warning branch isn't covered by a test first.
+5. `cli/config.py`: in `ENV_VAR_MAPPING`, swap the targets of
+   `SEMVER_DREDD_CURRENT_FILE` and `SEMVER_DREDD_VERSION_FILE` so each env var
+   silently configures the other file. (The original menu item — silent
+   invalid-`patch_scheme` fallback — is covered by `tests/test_version.py`
+   and would break the green-suite invariant.)
 6. `.github/workflows/smoke.yml`: delete the `BUILDX_BAKE_GITHUB_ACTIONS_CACHE: "true"`
    env line but keep the comment "Docker layer caching keeps repeat runs reasonable".
-7. `cli/config.py`: in `snapshot_options()`, emit the `include` key even when the list is
-   empty (breaks the documented "absent keys when unset" backward-compat contract).
+7. `cli/config.py`: in `snapshot_options()`, nest the `exclude` emission inside the
+   `if self.include:` branch — a config with only `exclude:` set silently drops the
+   exclusions. (The original menu item — emit `include` when empty — is covered by
+   `tests/test_config.py::TestScopeOptions` and would break the suite.)
 
 **Hard (plant 3, weight ×4):**
 
-8. `semverdredd/plugin_manager.py`: flip discovery precedence — builtin fallback wins
-   over entry points.
-9. `cli/commands/plugin.py`: in manifest-based removal, make the eviction set-logic also
-   evict a sibling plugin's manifest entry.
+8. `semverdredd/plugin_manager.py`: make the force-reload reset a no-op — extend the
+   `load_plugins(force=True)` registry filter to keep every origin
+   (`"manual", "builtin", "entry_point", "user_dir"`), so stale plugins are never
+   evicted on reload. (The original menu item — flip discovery precedence — is pinned
+   by `tests/test_plugin_manager.py::TestDiscoveryPrecedence`.)
+9. `cli/commands/plugin.py`: in manifest-based removal, replace the paths-identity
+   eviction with key-prefix matching (`k.startswith(plugin_name)`) — removing `java`
+   also evicts the unrelated `javaparser` entry, while other names recorded by the
+   same install are left stale.
 10. `docker/Dockerfile.java`: change the build sanity check
     `grep -q java` → `grep -q dredd` (matches ANY plugin — check becomes vacuous).
 

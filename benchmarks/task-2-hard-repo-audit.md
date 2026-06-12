@@ -75,8 +75,9 @@ goes **outside the repo**: `key/audit.md`.
 
 #### Tier C — Cross-file (plant 5, weight ×3): exactly 2 distant files
 
-6. `HOWTO.md`: exit-code table says breaking changes exit `2`
-   (truth: `EXIT_BREAKING_CHANGES_DETECTED = 10` in `cli/utils.py`).
+6. `README.md` Common CLI Options: the `--disallow-breaking` comment says breaking
+   changes exit `2` (truth: `EXIT_BREAKING_CHANGES_DETECTED = 10` in `cli/utils.py`;
+   the repo has no HOWTO exit-code table, so this pair lives in README ↔ cli/utils.py).
 7. `README.md` config section: claim env vars are LOWEST priority
    (`cli/config.py` merges them highest).
 8. `INCLUDE-EXCLUDE-PROPOSAL.md` status table: mark "Multi-document priority chain"
@@ -88,22 +89,28 @@ goes **outside the repo**: `key/audit.md`.
 #### Tier G — Global (plant 5, weight ×6): 3+ far-apart files; the 1M discriminators
 
 11. **Exit-code triangle:** change `tests/smoke/assert_demo.sh` expected code to `12`
-    AND `HOWTO.md` to say `12`, while `cli/utils.py` defines `10` and `example/demo_*.sh`
-    comments say `10`. Two sources agree on the wrong value — only a model holding all
-    four decides which side is authoritative.
+    AND add a HOWTO §9 "CLI gating" bullet claiming exit `12`, while `cli/utils.py`
+    defines `10` and `README.md`'s Exit Codes table says `10`. Two sources agree on
+    the wrong value — only a model holding all four decides which side is
+    authoritative.
 12. **Plugin-name chain:** in `plugins/python-3.10-dredd/pyproject.toml` rename the
     entry point to `python3` while `_BUILTIN_FALLBACK_SPECS`, `docker/Dockerfile.python`'s
     grep check, and `docker-compose.smoke.yml` all expect `python`.
-13. **Fixture drift:** edit `tests/fixtures/go/v2_minor.yaml` to encode a breaking
-    removal while `tests/test_cross_language.py` naming and
-    `example/go/gogeometry2/geom.go` (the source it mirrors) stay additive.
-    (Verify the suite still passes; weaken the edit if a test covers it.)
-14. **Version-flow contradiction:** in `HOWTO.md`'s walkthrough show `bump` producing a
-    date-scheme patch while the walkthrough's own `.semver.yaml` snippet sets
-    `patch_scheme: integer`; `README.md`'s scheme table stays correct.
-15. **Three-way option rename:** in `example/demo_java.sh` use a nonexistent `--options`
-    flag and reference it in `plugins/java-1.8-dredd/README.md`; the real mechanism is
-    config-driven `snapshot_options` (parser truth in `cli/__init__.py`).
+13. **Fixture drift:** edit `tests/fixtures/go/v2_minor.yaml` so `Volume`'s third
+    parameter is typed `int` while `example/go/gogeometry2/geom.go` (the source it
+    mirrors) uses `float64` and `tests/test_cross_language.py` treats v2 as the purely
+    additive mirror. (A true breaking removal is pinned by the suite —
+    `test_additions_only_is_minor` asserts no breaking entries — so the edit is
+    weakened to a signature-type drift.)
+14. **Version-flow contradiction:** add a HOWTO §9 "Trying it end-to-end" walkthrough
+    whose `.semver.yaml` snippet sets `patch_scheme: integer` but whose shown `bump`
+    output is a date-scheme patch (`1.3.20260610001` instead of `1.3.0`);
+    `README.md`'s scheme table and `semverdredd/version.py` stay correct.
+15. **Three-way option rename:** in `example/demo_java.sh` add a nonexistent
+    `--options timeout_seconds=30` to the Step 2 *echoed* command (the executed line
+    stays valid so the demo keeps running) and document the same flag in
+    `plugins/java-1.8-dredd/README.md`; the real mechanism is config-driven
+    `plugin_options`/`snapshot_options` (parser truth in `cli/__init__.py`).
 
 ### 2.4 Per-model run
 
