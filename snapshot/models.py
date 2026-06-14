@@ -278,6 +278,52 @@ class TypeDefinition:
 
 
 # ---------------------------------------------------------------------------
+# Generator provenance block
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class GeneratorInfo:
+    """Stable snapshot provenance block written into new snapshots.
+
+    Keys are deliberately minimal. Absent keys are represented as empty string
+    so older snapshots that pre-date the block can be loaded without error.
+
+    ``plugin_name``    — plugin.name property value, e.g. "python".
+    ``plugin_version`` — plugin.version property value when discoverable.
+    ``plugin_source``  — PluginInfo.origin: "entry_point" | "builtin" | "user_dir" | "manual".
+    ``config_path``    — selected config file path, empty when absent.
+    ``candidate_index``— candidate document index (int) selected from a
+                        multi-document config; -1 for single-document configs.
+    """
+
+    plugin_name: str = ""
+    plugin_version: str = ""
+    plugin_source: str = ""
+    config_path: str = ""
+    candidate_index: int = -1
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "plugin_name": self.plugin_name,
+            "plugin_version": self.plugin_version,
+            "plugin_source": self.plugin_source,
+            "config_path": self.config_path,
+            "candidate_index": self.candidate_index,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "GeneratorInfo":
+        return cls(
+            plugin_name=str(data.get("plugin_name", "")),
+            plugin_version=str(data.get("plugin_version", "")),
+            plugin_source=str(data.get("plugin_source", "")),
+            config_path=str(data.get("config_path", "")),
+            candidate_index=int(data.get("candidate_index", -1)),
+        )
+
+
+# ---------------------------------------------------------------------------
 # NormalizedSnapshot
 # ---------------------------------------------------------------------------
 @dataclass
@@ -299,6 +345,8 @@ class NormalizedSnapshot:
     source_path: str = ""
     functions: dict[str, FunctionSignature] = field(default_factory=dict)
     types: dict[str, TypeDefinition] = field(default_factory=dict)
+    # Provenance block — absent in older snapshots; default=None for back-compat.
+    generator: GeneratorInfo | None = None
 
     # ------------------------------------------------------------------
     # Deserialization
@@ -334,6 +382,12 @@ class NormalizedSnapshot:
         types_data = api.get("types", api.get("classes", {}))
         types = {n: TypeDefinition.from_dict(n, d) for n, d in types_data.items()}
 
+        # Deserialize generator block — absent in older snapshots (back-compat).
+        generator_data = data.get("generator")
+        generator: GeneratorInfo | None = None
+        if isinstance(generator_data, dict):
+            generator = GeneratorInfo.from_dict(generator_data)
+
         return cls(
             schema_version=schema_version,
             version=data.get("version", ""),
@@ -342,6 +396,7 @@ class NormalizedSnapshot:
             source_path=source_path,
             functions=functions,
             types=types,
+            generator=generator,
         )
 
     # ------------------------------------------------------------------
@@ -398,6 +453,9 @@ class NormalizedSnapshot:
                 "types": types,
             },
         }
+        # Include generator block when present (omit for older serialized snapshots).
+        if self.generator is not None:
+            result["generator"] = self.generator.to_dict()
         return result
 
     def to_yaml(self) -> str:

@@ -17,6 +17,7 @@ from cli.utils import (EXIT_ERROR, EXIT_OK, _log_candidate_attempt,
                        _log_config_selected, _log_event, _log_plugin_selected,
                        _print_level)
 from semverdredd.version import load_version_file
+from snapshot.models import GeneratorInfo
 
 logger = logging.getLogger(__name__)
 
@@ -579,6 +580,33 @@ def main(argv: list[str] | None = None) -> int:
     args.snapshot_options = snapshot_options
 
     args._resolved_context = resolved
+
+    # Build generator provenance from resolved plugin context.
+    # Commands that write snapshots should pass args.generator_info to
+    # _generate_snapshot_yaml so new snapshots carry stable provenance.
+    _gen_plugin_version = ""
+    _gen_plugin_source = ""
+    if resolved.plugin:
+        from semverdredd.plugin_manager import get_plugin_manager
+
+        _pm = get_plugin_manager()
+        _pinfo = _pm._registry.get(resolved.plugin.lower())
+        if _pinfo is not None:
+            _gen_plugin_source = _pinfo.origin
+            try:
+                _gen_plugin_version = str(_pinfo.plugin.version)
+            except Exception:
+                _gen_plugin_version = ""
+    args.generator_info = GeneratorInfo(
+        plugin_name=resolved.plugin or "",
+        plugin_version=_gen_plugin_version,
+        plugin_source=_gen_plugin_source,
+        config_path=str(loaded.config_path) if loaded.config_exists else "",
+        candidate_index=(
+            resolved.candidate_index if resolved.candidate_index is not None else -1
+        ),
+    )
+
     # Check for mutually exclusive flags before applying config
     if getattr(args, "command", None) in ("compare", "status"):
         allow = getattr(args, "allow_breaking", False)

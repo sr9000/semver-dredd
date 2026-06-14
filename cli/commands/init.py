@@ -5,15 +5,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from cli.utils import (
-    DEFAULT_BAKED_FILE,
-    DEFAULT_CONFIG_FILE,
-    DEFAULT_VERSION_FILE,
-    EXIT_OK,
-    _generate_snapshot_yaml,
-    _print_level,
-    _should_use_color,
-)
+from cli.utils import (DEFAULT_BAKED_FILE, DEFAULT_CONFIG_FILE,
+                       DEFAULT_VERSION_FILE, EXIT_OK, _generate_snapshot_yaml,
+                       _print_level, _should_use_color)
 from semverdredd import generate_patch
 from semverdredd.plugin_manager import get_plugin
 from semverdredd.version import save_version_file
@@ -85,6 +79,7 @@ output:
         version,
         use_color,
         extra_options=getattr(args, "snapshot_options", None),
+        generator=getattr(args, "generator_info", None),
     )
     if exit_code != EXIT_OK:
         return exit_code
