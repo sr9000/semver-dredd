@@ -2,6 +2,7 @@
 Tests for semver-dredd CLI.
 """
 
+import logging
 import os
 from datetime import date
 from unittest.mock import patch
@@ -39,7 +40,7 @@ class TestCLIBump:
         assert result == 0
         output = capsys.readouterr().out
         # Quiet mode should only have the version number
-        lines = [l for l in output.strip().split('\n') if l]
+        lines = [l for l in output.strip().split("\n") if l]
         assert len(lines) == 1
         assert lines[0].startswith("1.3.")
 
@@ -94,7 +95,9 @@ class TestCLICompare:
         assert "[WARN]" in captured.err
 
     def test_compare_pygeometry_details_lists_added(self, capsys):
-        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--details"])
+        result = main(
+            ["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--details"]
+        )
         assert result == 0
         captured = capsys.readouterr()
         # Should list at least one added item (volume, translate)
@@ -104,13 +107,15 @@ class TestCLICompare:
 
     def test_compare_pygeometry_breaking_details(self, capsys):
         # v2 -> v1 is breaking (removes volume/translate and changes signatures)
-        result = main([
-            "compare",
-            "example.py.pygeometry2",
-            "example.py.pygeometry1",
-            "--details",
-            "--allow-breaking",
-        ])
+        result = main(
+            [
+                "compare",
+                "example.py.pygeometry2",
+                "example.py.pygeometry1",
+                "--details",
+                "--allow-breaking",
+            ]
+        )
         assert result == 0
         captured = capsys.readouterr()
         assert "Breaking changes:" in captured.out
@@ -118,7 +123,9 @@ class TestCLICompare:
         assert "method removed: translate" in captured.out
 
     def test_compare_verbose_explains_inspected_api(self, capsys):
-        result = main(["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--verbose"])
+        result = main(
+            ["compare", "example.py.pygeometry1", "example.py.pygeometry2", "--verbose"]
+        )
         assert result == 0
         captured = capsys.readouterr()
         # Unified plugin-based approach shows "Using plugin" message
@@ -134,12 +141,15 @@ class TestCLICompare:
 
     def test_compare_with_current_version(self, capsys):
         """Test compare with current version suggestion."""
-        result = main([
-            "compare",
-            "example.py.pygeometry1",
-            "example.py.pygeometry2",
-            "--current", "1.0.20260213001"
-        ])
+        result = main(
+            [
+                "compare",
+                "example.py.pygeometry1",
+                "example.py.pygeometry2",
+                "--current",
+                "1.0.20260213001",
+            ]
+        )
         assert result == 0
         output = capsys.readouterr().out
         assert "1.1." in output  # Minor bump
@@ -152,13 +162,15 @@ class TestCLICompare:
         assert "[ERROR]" in err or "error" in err.lower()
 
     def test_compare_mutually_exclusive_breaking_flags(self, capsys):
-        result = main([
-            "compare",
-            "example.py.pygeometry1",
-            "example.py.pygeometry1",
-            "--allow-breaking",
-            "--disallow-breaking",
-        ])
+        result = main(
+            [
+                "compare",
+                "example.py.pygeometry1",
+                "example.py.pygeometry1",
+                "--allow-breaking",
+                "--disallow-breaking",
+            ]
+        )
         assert result == 1
         err = capsys.readouterr().err
         assert "mutually exclusive" in err
@@ -177,17 +189,21 @@ class TestCLIBreakingPolicy:
         assert "Breaking changes are not allowed" in captured.err
 
     def test_breaking_changes_allowed_with_flag(self, capsys):
-        result = main([
-            "compare",
-            "example.py.pygeometry2",
-            "example.py.pygeometry1",
-            "--allow-breaking",
-        ])
+        result = main(
+            [
+                "compare",
+                "example.py.pygeometry2",
+                "example.py.pygeometry1",
+                "--allow-breaking",
+            ]
+        )
         assert result == 0
         captured = capsys.readouterr()
         assert "BREAKING" in captured.out
         assert "[WARN]" in captured.err  # Severity should be WARN when allowed
-        assert "Breaking changes are not allowed" not in captured.err  # No error message
+        assert (
+            "Breaking changes are not allowed" not in captured.err
+        )  # No error message
 
 
 class TestConfigPriority:
@@ -246,7 +262,9 @@ policies:
 
         # Real env var overrides .env
         with patch.dict(os.environ, {"SEMVER_DREDD_ALLOW_BREAKING": "true"}):
-            result = main(["compare", "example.py.pygeometry2", "example.py.pygeometry1"])
+            result = main(
+                ["compare", "example.py.pygeometry2", "example.py.pygeometry1"]
+            )
             assert result == 0  # Should pass because real env overrides .env
             captured = capsys.readouterr()
             assert "BREAKING" in captured.out
@@ -271,42 +289,52 @@ policies:
         # Real env var also sets allow_breaking: true
         with patch.dict(os.environ, {"SEMVER_DREDD_ALLOW_BREAKING": "true"}):
             # But CLI --disallow-breaking should override everything
-            result = main([
-                "compare",
-                "example.py.pygeometry2",
-                "example.py.pygeometry1",
-                "--disallow-breaking",
-            ])
+            result = main(
+                [
+                    "compare",
+                    "example.py.pygeometry2",
+                    "example.py.pygeometry1",
+                    "--disallow-breaking",
+                ]
+            )
             assert result == 10  # Should fail because CLI overrides all
             captured = capsys.readouterr()
             assert "Breaking changes are not allowed" in captured.err
 
 
 class TestRun1ConfigWorkflow:
-    def test_explicit_config_missing_fails_for_non_init(self, tmp_path, monkeypatch, capsys):
+    def test_explicit_config_missing_fails_for_non_init(
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.chdir(tmp_path)
-        result = main([
-            "--config",
-            ".semver.dev.yaml",
-            "status",
-            "example.py.pygeometry1",
-        ])
+        result = main(
+            [
+                "--config",
+                ".semver.dev.yaml",
+                "status",
+                "example.py.pygeometry1",
+            ]
+        )
         assert result == 1
         err = capsys.readouterr().err
         assert "Config file not found" in err
 
-    def test_init_allows_missing_explicit_config_and_creates_it(self, tmp_path, monkeypatch):
+    def test_init_allows_missing_explicit_config_and_creates_it(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
-        result = main([
-            "--config",
-            ".semver.dev.yaml",
-            "init",
-            "example.py.pygeometry1",
-            "--plugin",
-            "python",
-            "--version",
-            "1.0.0",
-        ])
+        result = main(
+            [
+                "--config",
+                ".semver.dev.yaml",
+                "init",
+                "example.py.pygeometry1",
+                "--plugin",
+                "python",
+                "--version",
+                "1.0.0",
+            ]
+        )
         assert result == 0
         assert (tmp_path / ".semver.dev.yaml").exists()
         assert not (tmp_path / ".semver.yaml").exists()
@@ -324,13 +352,15 @@ policies:
   allow_breaking_changes: true
 """)
 
-        result = main([
-            "--config",
-            ".semver.dev.yaml",
-            "compare",
-            "example.py.pygeometry2",
-            "example.py.pygeometry1",
-        ])
+        result = main(
+            [
+                "--config",
+                ".semver.dev.yaml",
+                "compare",
+                "example.py.pygeometry2",
+                "example.py.pygeometry1",
+            ]
+        )
         assert result == 0
         captured = capsys.readouterr()
         assert "BREAKING" in captured.out
@@ -338,14 +368,16 @@ policies:
 
     def test_status_and_bake_are_pathless_after_init(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        init_result = main([
-            "init",
-            "example.py.pygeometry1",
-            "--plugin",
-            "python",
-            "--version",
-            "1.0.0",
-        ])
+        init_result = main(
+            [
+                "init",
+                "example.py.pygeometry1",
+                "--plugin",
+                "python",
+                "--version",
+                "1.0.0",
+            ]
+        )
         assert init_result == 0
 
         status_result = main(["status", "--details"])
@@ -354,16 +386,20 @@ policies:
         bake_result = main(["bake"])
         assert bake_result == 0
 
-    def test_snapshot_defaults_from_config_and_version_file(self, tmp_path, monkeypatch):
+    def test_snapshot_defaults_from_config_and_version_file(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
-        init_result = main([
-            "init",
-            "example.py.pygeometry1",
-            "--plugin",
-            "python",
-            "--version",
-            "1.2.3",
-        ])
+        init_result = main(
+            [
+                "init",
+                "example.py.pygeometry1",
+                "--plugin",
+                "python",
+                "--version",
+                "1.2.3",
+            ]
+        )
         assert init_result == 0
 
         out = tmp_path / "snapshot.yaml"
@@ -371,3 +407,113 @@ policies:
         assert snap_result == 0
         assert out.exists()
         assert "version: 1.2.3" in out.read_text()
+
+
+class TestRun2Verbosity:
+    """Tests for global counted verbosity flag (-v/-vv/-vvv)."""
+
+    def test_no_verbosity_produces_no_selection_output_on_stderr(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Default verbosity (0) should not emit config/plugin selection events to stderr."""
+        monkeypatch.chdir(tmp_path)
+        main(["bump", "-c", "1.0.0", "-t", "none"])
+        err = capsys.readouterr().err
+        # config.selected and plugin.selected events must not appear in stderr at default verbosity
+        assert "config.selected" not in err
+        assert "plugin.selected" not in err
+
+    def test_single_v_emits_config_and_plugin_selection(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """Single -v should log config.selected and plugin.selected at INFO."""
+        monkeypatch.chdir(tmp_path)
+        with caplog.at_level(logging.INFO, logger="cli"):
+            main(["-v", "compare", "example.py.pygeometry1", "example.py.pygeometry1"])
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("cli")]
+        assert any(
+            "config.selected" in m for m in messages
+        ), f"No config.selected in {messages}"
+        assert any(
+            "plugin.selected" in m for m in messages
+        ), f"No plugin.selected in {messages}"
+
+    def test_double_v_emits_candidate_attempt(self, tmp_path, monkeypatch, caplog):
+        """Double -vv should log candidate.attempt events at DEBUG."""
+        monkeypatch.chdir(tmp_path)
+        with caplog.at_level(logging.DEBUG, logger="cli"):
+            main(
+                [
+                    "-v",
+                    "-v",
+                    "compare",
+                    "example.py.pygeometry1",
+                    "example.py.pygeometry1",
+                ]
+            )
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("cli")]
+        assert any(
+            "candidate.attempt" in m for m in messages
+        ), f"No candidate.attempt in {messages}"
+
+    def test_triple_v_emits_args_dump(self, tmp_path, monkeypatch, caplog):
+        """Triple -vvv should log args.dump with command context."""
+        monkeypatch.chdir(tmp_path)
+        with caplog.at_level(logging.DEBUG, logger="cli"):
+            main(
+                [
+                    "-v",
+                    "-v",
+                    "-v",
+                    "compare",
+                    "example.py.pygeometry1",
+                    "example.py.pygeometry1",
+                ]
+            )
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("cli")]
+        assert any(
+            "args.dump" in m and "command=" in m for m in messages
+        ), f"No args.dump in {messages}"
+
+    def test_init_version_flag_is_long_form_only(self, tmp_path, monkeypatch):
+        """init --version should work; -v on top-level is now verbosity."""
+        monkeypatch.chdir(tmp_path)
+        # init --version 1.0.0 should still work
+        result = main(
+            [
+                "init",
+                "example.py.pygeometry1",
+                "--plugin",
+                "python",
+                "--version",
+                "1.0.0",
+            ]
+        )
+        assert result == 0
+        assert (tmp_path / "VERSION").read_text().strip() == "1.0.0"
+
+    def test_config_selected_shows_explicit_for_explicit_config(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """When --config is used, config.selected should report 'explicit'."""
+        monkeypatch.chdir(tmp_path)
+        cfg = tmp_path / ".semver.custom.yaml"
+        cfg.write_text("schema_version: 1\n")
+        with caplog.at_level(logging.INFO, logger="cli"):
+            main(["-v", "--config", str(cfg), "bump", "-c", "1.0.0", "-t", "none"])
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("cli")]
+        assert any(
+            "config.selected" in m and "explicit" in m for m in messages
+        ), f"Expected explicit in config.selected, got: {messages}"
+
+    def test_config_selected_shows_absent_when_no_config(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """When no config file exists, config.selected should report 'absent'."""
+        monkeypatch.chdir(tmp_path)
+        with caplog.at_level(logging.INFO, logger="cli"):
+            main(["-v", "bump", "-c", "1.0.0", "-t", "none"])
+        messages = [r.getMessage() for r in caplog.records if r.name.startswith("cli")]
+        assert any(
+            "config.selected" in m and "absent" in m for m in messages
+        ), f"Expected absent in config.selected, got: {messages}"

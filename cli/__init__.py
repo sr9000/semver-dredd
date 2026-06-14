@@ -3,31 +3,22 @@ CLI tool for semver-dredd that compares modules and manages versions.
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
-from cli.commands import (
-    cmd_bake,
-    cmd_bump,
-    cmd_compare,
-    cmd_init,
-    cmd_patch,
-    cmd_plugin_info,
-    cmd_plugin_install,
-    cmd_plugin_list,
-    cmd_plugin_remove,
-    cmd_snapshot,
-    cmd_status,
-    cmd_template,
-)
-from cli.config import (
-    apply_config_defaults,
-    load_config,
-    load_config_with_meta,
-    resolve_command_context,
-)
-from cli.utils import EXIT_ERROR, EXIT_OK, _print_level
+from cli.commands import (cmd_bake, cmd_bump, cmd_compare, cmd_init, cmd_patch,
+                          cmd_plugin_info, cmd_plugin_install, cmd_plugin_list,
+                          cmd_plugin_remove, cmd_snapshot, cmd_status,
+                          cmd_template)
+from cli.config import (apply_config_defaults, load_config,
+                        load_config_with_meta, resolve_command_context)
+from cli.utils import (EXIT_ERROR, EXIT_OK, _log_candidate_attempt,
+                       _log_config_selected, _log_event, _log_plugin_selected,
+                       _print_level)
 from semverdredd.version import load_version_file
+
+logger = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,6 +31,16 @@ def main(argv: list[str] | None = None) -> int:
         "--config",
         default=None,
         help="Path to config file (default: .semver.yaml)",
+    )
+    parser.add_argument(
+        "-v",
+        dest="verbosity",
+        action="count",
+        default=0,
+        help=(
+            "Increase verbosity: -v info (once per call), "
+            "-vv debug (per candidate/plugin), -vvv debug + arg dump"
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     # Init command
@@ -58,7 +59,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     init_parser.add_argument(
         "--version",
-        "-v",
         help="Initial version (default: 0.1.YYYYMMDD001)",
     )
     init_parser.add_argument(
@@ -471,6 +471,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     plugin_info.set_defaults(func=cmd_plugin_info)
     args = parser.parse_args(argv)
+
+    # Configure stdlib logging based on -v count.
+    # default (0): WARNING only — semver-dredd internal logs stay silent.
+    # -v  (1): INFO  — O(1) config/plugin selection events per call.
+    # -vv (2): DEBUG — O(n) candidate/plugin/include/API-member events.
+    # -vvv(3): DEBUG — same as -vv; arg dump emitted separately below.
+    _verbosity_to_level = {0: logging.WARNING, 1: logging.INFO, 2: logging.DEBUG}
+    _log_level = _verbosity_to_level.get(args.verbosity, logging.DEBUG)
+    logging.basicConfig(
+        level=_log_level,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+
     # Load config with priority: .semver.yaml < .env < env vars < CLI args
     allow_missing_explicit = getattr(args, "command", None) == "init"
     try:
@@ -481,6 +495,15 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as e:
         _print_level("error", str(e))
         return EXIT_ERROR
+
+    # Emit config selection event (-v and above).
+    if loaded.selected_explicitly:
+        _config_how = "explicit"
+    elif loaded.config_exists:
+        _config_how = "default"
+    else:
+        _config_how = "absent"
+    _log_config_selected(str(loaded.config_path), _config_how)
 
     try:
         config = load_config(
@@ -501,6 +524,30 @@ def main(argv: list[str] | None = None) -> int:
         _print_level("error", str(e), use_color=False)
         return EXIT_ERROR
 
+    # Emit candidate attempt events (-vv and above).
+    for attempt in resolved.candidate_attempts:
+        _log_candidate_attempt(
+            attempt.index,
+            attempt.plugin or "(none)",
+            None if attempt.ok else attempt.reason,
+        )
+
+    # Emit plugin selection event (-v and above).
+    if resolved.plugin:
+        _log_plugin_selected(resolved.plugin, resolved.plugin_layer)
+
+    # -vvv: dump resolved args/context for deep debugging.
+    if args.verbosity >= 3:
+        _log_event(
+            "args.dump",
+            f"command={args.command!r} plugin={resolved.plugin!r} "
+            f"source_path={resolved.source_path!r} "
+            f"version_file={resolved.version_file!r} "
+            f"include={list(resolved.include)!r} "
+            f"exclude={list(resolved.exclude)!r}",
+            level=logging.DEBUG,
+        )
+
     for warning in resolved.warnings:
         _print_level("warn", warning, use_color=False)
 
@@ -517,7 +564,9 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 args.version = load_version_file(args.version_file)
             except OSError as e:
-                _print_level("error", f"Failed to read version file {args.version_file}: {e}")
+                _print_level(
+                    "error", f"Failed to read version file {args.version_file}: {e}"
+                )
                 return EXIT_ERROR
 
     snapshot_options: dict[str, object] = {}

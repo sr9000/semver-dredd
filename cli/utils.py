@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 
 from semverdredd.plugin_base import LanguagePlugin
 from snapshot import ChangeKind, NormalizedSnapshot
+
+_cli_logger = logging.getLogger("cli")
 
 # ---------------------------------------------------------------------------
 # Exit codes
@@ -96,6 +99,58 @@ def _print_level(level: str, message: str, *, use_color: bool = False) -> None:
     stream = sys.stdout if level.lower() == "info" else sys.stderr
     styled = _style_level(level, use_color=use_color)
     print(f"[{styled}] {message}", file=stream)
+
+
+# ---------------------------------------------------------------------------
+# Structured log event helpers (verbosity-gated, stdlib logging)
+# ---------------------------------------------------------------------------
+
+# Event topics emitted through stdlib logging so verbosity level controls them.
+# Use INFO for O(1) once-per-call events, DEBUG for O(n) per-item events.
+
+
+def _log_event(topic: str, message: str, *, level: int = logging.INFO) -> None:
+    """Emit a structured log event through the 'cli' logger.
+
+    Callers should pass an INFO level for O(1) once-per-call events (config
+    selection, plugin selection) and DEBUG for O(n) events (candidates,
+    include/exclude items, API members).
+
+    topic: short dot-separated label (e.g. "config.selected", "plugin.selected").
+    """
+    _cli_logger.log(level, "[%s] %s", topic, message)
+
+
+def _log_config_selected(config_path: str, how: str) -> None:
+    """Emit an info event when a config file is selected.
+
+    how: 'explicit' | 'default' | 'absent'
+    """
+    _log_event("config.selected", f"{config_path!r} ({how})", level=logging.INFO)
+
+
+def _log_plugin_selected(plugin_name: str, source: str) -> None:
+    """Emit an info event when a plugin is selected.
+
+    source: e.g. 'cli', 'env', 'config', 'default'
+    """
+    _log_event("plugin.selected", f"{plugin_name!r} from {source}", level=logging.INFO)
+
+
+def _log_candidate_attempt(index: int, plugin: str, reason: str | None) -> None:
+    """Emit a debug event for each candidate selection attempt."""
+    if reason:
+        _log_event(
+            "candidate.attempt",
+            f"[{index}] plugin={plugin!r} failed: {reason}",
+            level=logging.DEBUG,
+        )
+    else:
+        _log_event(
+            "candidate.attempt",
+            f"[{index}] plugin={plugin!r} accepted",
+            level=logging.DEBUG,
+        )
 
 
 def _severity_for_change(change: ChangeKind) -> str:
