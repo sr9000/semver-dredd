@@ -12,6 +12,28 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
     """Generate a baked.yaml-like snapshot using language-specific parsers."""
     use_color = _should_use_color(getattr(args, "color", None))
 
+    if not getattr(args, "plugin", None):
+        _print_level(
+            "error",
+            "No plugin provided. Pass --plugin or configure plugin in config.",
+            use_color=use_color,
+        )
+        return 1
+    if not getattr(args, "path", None):
+        _print_level(
+            "error",
+            "No source path provided. Pass --path or configure source.path.",
+            use_color=use_color,
+        )
+        return 1
+    if not getattr(args, "version", None):
+        _print_level(
+            "error",
+            "No version provided and no readable version file resolved.",
+            use_color=use_color,
+        )
+        return 1
+
     plugin_name = args.plugin.lower()
     version = args.version
     out_path = args.out

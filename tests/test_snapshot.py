@@ -25,7 +25,7 @@ class TestCLIInit:
 
     def test_init_creates_files(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        result = main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
+        result = main(["init", "example.py.pygeometry1", "--plugin", "python", "--version", "1.0.0"])
         assert result == 0
         assert (tmp_path / ".semver.yaml").exists()
         assert (tmp_path / "baked.yaml").exists()
@@ -39,7 +39,7 @@ class TestCLIStatus:
     def test_status_detects_changes(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         # Init with pygeometry1
-        main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
+        main(["init", "example.py.pygeometry1", "--plugin", "python", "--version", "1.0.0"])
         # Check status with pygeometry2 (has additions)
         result = main(["status", "example.py.pygeometry2", "--details"])
         assert result == 0
@@ -55,7 +55,7 @@ class TestCLIBake:
     def test_bake_updates_version(self, capsys, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         # Init with pygeometry1
-        main(["init", "example.py.pygeometry1", "--version", "1.0.0"])
+        main(["init", "example.py.pygeometry1", "--plugin", "python", "--version", "1.0.0"])
         # Bake pygeometry2
         result = main(["bake", "example.py.pygeometry2"])
         assert result == 0

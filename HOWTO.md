@@ -196,9 +196,8 @@ exclude = options.get("exclude", [])
 plugin_options = options.get("plugin_options", {})
 ```
 
-Current core behavior parses `include` and `exclude` as string lists. The
-agreed pre-1.0 contract is broader and should guide new plugins: those keys are
-arrays, but their item syntax is plugin-specific. A plugin may use strings,
+Current core behavior requires `include` and `exclude` to be arrays and keeps
+item shapes unchanged. Item syntax remains plugin-specific. A plugin may use strings,
 objects, paths, package names, URL fragments, operation IDs, or any other shape
 that is natural for its API surface.
 

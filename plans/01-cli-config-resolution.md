@@ -138,15 +138,15 @@ Definition of Done:
 
 Implementation-dependent decisions; tick as resolved and mirror in `00`:
 
-- [ ] Resolved command-context object shape and where it is built in
+- [x] Resolved command-context object shape and where it is built in
   `cli/__init__.py:main()` (after `parse_args` + `load_config`).
-- [ ] How `--path` and the existing positional `module` coexist for
+- [x] How `--path` and the existing positional `module` coexist for
   `status`/`bake` (keep both, or deprecate the positional).
-- [ ] Config keys `init` persists (`source.path`, `files.version`) and whether
+- [x] Config keys `init` persists (`source.path`, `files.version`) and whether
   `schema_version` is bumped from the current `1`.
-- [ ] Collision-warning wording/severity for explicit-vs-config overrides
+- [x] Collision-warning wording/severity for explicit-vs-config overrides
   (plugin/path), routed through the phase 3 logging helpers.
-- [ ] Mechanism (if any) for plugin-driven `options` initialization at `init`
+- [x] Mechanism (if any) for plugin-driven `options` initialization at `init`
   (e.g. an optional plugin hook discovered via phase 5 feature discovery) vs
   deferring it; keep it optional so plugins without it still work.
 

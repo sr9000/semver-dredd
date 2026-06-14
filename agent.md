@@ -24,6 +24,17 @@ suggests/writes versions.
   tests; often extend existing cases) → pre-commit gates (lint/format, full test
   suite, git hooks).
 
+### Commit-splitting policy (enforced)
+
+- Do **not** batch a whole multi-step plan into one uncommitted working tree.
+- After each completed plan step (or tightly coupled 1-3 step slice), create a
+  commit before moving on.
+- Every commit must be independently meaningful and keep the repository green.
+- If work is already accumulated, stop and split it into logical commits using
+  `git add -p` / file-level staging before proceeding.
+- Before final handoff, branch must contain a clean, reviewable commit series
+  matching the executed plan steps.
+
 ## Planning
 
 Plans live in `plans/`. Split a feature into enumerated files
@@ -62,6 +73,13 @@ pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
 poetry run pytest -v
 bash example/demo_python.sh                # go/java need toolchains+plugins
 bash scripts/smoke.sh [python unit ...]    # Docker smoke
+```
+
+**git log — always use non-interactive mode** to avoid blocking on a pager:
+
+```bash
+git --no-pager log                            # suppress pager entirely
+git --no-pager log --oneline --decorate -n 8  # uasge example
 ```
 
 ## Conventions

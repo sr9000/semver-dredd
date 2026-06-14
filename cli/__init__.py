@@ -4,6 +4,7 @@ CLI tool for semver-dredd that compares modules and manages versions.
 
 import argparse
 import sys
+from pathlib import Path
 
 from cli.commands import (
     cmd_bake,
@@ -19,8 +20,14 @@ from cli.commands import (
     cmd_status,
     cmd_template,
 )
-from cli.config import apply_config_defaults, load_config
+from cli.config import (
+    apply_config_defaults,
+    load_config,
+    load_config_with_meta,
+    resolve_command_context,
+)
 from cli.utils import EXIT_ERROR, EXIT_OK, _print_level
+from semverdredd.version import load_version_file
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="semver-dredd",
         description="Automatically increment semver based on API changes",
+    )
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="Path to config file (default: .semver.yaml)",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     # Init command
@@ -41,7 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     init_parser.add_argument(
         "--plugin",
-        help="Language plugin to use (default: python)",
+        required=True,
+        help="Language plugin to use",
     )
     init_parser.add_argument(
         "--version",
@@ -79,7 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     status_parser.add_argument(
         "module",
+        nargs="?",
         help="Module name (Python) or source path (Go/Java)",
+    )
+    status_parser.add_argument(
+        "--path",
+        default=None,
+        help="Explicit source path/module override",
     )
     status_parser.add_argument(
         "--plugin",
@@ -127,6 +146,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_false",
         help="Disable colored log output",
     )
+    status_parser.add_argument(
+        "--include",
+        action="append",
+        default=None,
+        help="Additional include item (repeatable)",
+    )
+    status_parser.add_argument(
+        "--exclude",
+        action="append",
+        default=None,
+        help="Additional exclude item (repeatable)",
+    )
+    status_parser.add_argument(
+        "--override",
+        action="store_true",
+        help="Replace config include/exclude with CLI include/exclude",
+    )
     status_parser.set_defaults(func=cmd_status)
     # Bake command
     bake_parser = subparsers.add_parser(
@@ -135,7 +171,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     bake_parser.add_argument(
         "module",
+        nargs="?",
         help="Module name (Python) or source path (Go/Java)",
+    )
+    bake_parser.add_argument(
+        "--path",
+        default=None,
+        help="Explicit source path/module override",
     )
     bake_parser.add_argument(
         "--plugin",
@@ -167,6 +209,23 @@ def main(argv: list[str] | None = None) -> int:
         dest="color",
         action="store_false",
         help="Disable colored log output",
+    )
+    bake_parser.add_argument(
+        "--include",
+        action="append",
+        default=None,
+        help="Additional include item (repeatable)",
+    )
+    bake_parser.add_argument(
+        "--exclude",
+        action="append",
+        default=None,
+        help="Additional exclude item (repeatable)",
+    )
+    bake_parser.add_argument(
+        "--override",
+        action="store_true",
+        help="Replace config include/exclude with CLI include/exclude",
     )
     bake_parser.set_defaults(func=cmd_bake)
     # Compare command
@@ -319,17 +378,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     snapshot_parser.add_argument(
         "--plugin",
-        required=True,
+        default=None,
         help="Language plugin to use (e.g. python, go, java)",
     )
     snapshot_parser.add_argument(
         "--path",
-        required=True,
+        default=None,
         help="Path to the source directory/package",
     )
     snapshot_parser.add_argument(
         "--version",
-        required=True,
+        default=None,
         help="Version string to embed in the snapshot",
     )
     snapshot_parser.add_argument(
@@ -349,6 +408,28 @@ def main(argv: list[str] | None = None) -> int:
         dest="color",
         action="store_false",
         help="Disable colored log output",
+    )
+    snapshot_parser.add_argument(
+        "--version-file",
+        default=None,
+        help="Path to VERSION file used when --version is omitted",
+    )
+    snapshot_parser.add_argument(
+        "--include",
+        action="append",
+        default=None,
+        help="Additional include item (repeatable)",
+    )
+    snapshot_parser.add_argument(
+        "--exclude",
+        action="append",
+        default=None,
+        help="Additional exclude item (repeatable)",
+    )
+    snapshot_parser.add_argument(
+        "--override",
+        action="store_true",
+        help="Replace config include/exclude with CLI include/exclude",
     )
     snapshot_parser.set_defaults(func=cmd_snapshot)
     # Plugin management
@@ -391,7 +472,64 @@ def main(argv: list[str] | None = None) -> int:
     plugin_info.set_defaults(func=cmd_plugin_info)
     args = parser.parse_args(argv)
     # Load config with priority: .semver.yaml < .env < env vars < CLI args
-    config = load_config()
+    allow_missing_explicit = getattr(args, "command", None) == "init"
+    try:
+        loaded = load_config_with_meta(
+            config_file=getattr(args, "config", None),
+            allow_missing_explicit=allow_missing_explicit,
+        )
+    except FileNotFoundError as e:
+        _print_level("error", str(e))
+        return EXIT_ERROR
+
+    try:
+        config = load_config(
+            config_file=getattr(args, "config", None),
+            allow_missing_explicit=allow_missing_explicit,
+        )
+    except ValueError as e:
+        _print_level("error", str(e))
+        return EXIT_ERROR
+
+    # Apply generic defaults first (allow_breaking, color, etc.)
+    apply_config_defaults(args, config)
+
+    # Resolve command-scoped plugin/path/version/include/exclude context.
+    try:
+        resolved = resolve_command_context(args, loaded, cwd=Path.cwd())
+    except ValueError as e:
+        _print_level("error", str(e), use_color=False)
+        return EXIT_ERROR
+
+    for warning in resolved.warnings:
+        _print_level("warn", warning, use_color=False)
+
+    if hasattr(args, "plugin"):
+        args.plugin = resolved.plugin
+    if hasattr(args, "version_file") and getattr(args, "version_file", None) is None:
+        args.version_file = resolved.version_file
+
+    if getattr(args, "command", None) in ("init", "status", "bake"):
+        args.module = resolved.source_path
+    if getattr(args, "command", None) == "snapshot":
+        args.path = resolved.source_path
+        if not getattr(args, "version", None):
+            try:
+                args.version = load_version_file(args.version_file)
+            except OSError as e:
+                _print_level("error", f"Failed to read version file {args.version_file}: {e}")
+                return EXIT_ERROR
+
+    snapshot_options: dict[str, object] = {}
+    if resolved.include:
+        snapshot_options["include"] = list(resolved.include)
+    if resolved.exclude:
+        snapshot_options["exclude"] = list(resolved.exclude)
+    if resolved.plugin_options:
+        snapshot_options["plugin_options"] = dict(resolved.plugin_options)
+    args.snapshot_options = snapshot_options
+
+    args._resolved_context = resolved
     # Check for mutually exclusive flags before applying config
     if getattr(args, "command", None) in ("compare", "status"):
         allow = getattr(args, "allow_breaking", False)
@@ -402,8 +540,6 @@ def main(argv: list[str] | None = None) -> int:
                 "--allow-breaking and --disallow-breaking are mutually exclusive",
             )
             return EXIT_ERROR
-    # Apply config defaults (respects CLI args as highest priority)
-    apply_config_defaults(args, config)
     return args.func(args)
 
 

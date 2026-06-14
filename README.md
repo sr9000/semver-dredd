@@ -27,9 +27,9 @@ feature is still planned.
 | Plugin discovery, snapshots, diffing, version suggestions | ✅ Implemented |
 | `.semver.yaml` parsing and `.env`/environment/CLI precedence | ✅ Implemented |
 | `include` / `exclude` / `plugin_options` forwarding to plugins | ✅ Implemented |
+| `--config` selection and pathless config-driven `status` / `bake` / `snapshot` defaults | ✅ Implemented |
+| Multi-document `.semver.yaml` fallback candidates | ✅ Implemented |
 | Plugin-side `include` / `exclude` filtering | 🚧 Planned — official plugins receive these keys but do not honor them yet |
-| Multi-document `.semver.yaml` fallback candidates | 🚧 Planned |
-| Config remembered `source.path` and pathless `status` / `bake` | 🚧 Planned |
 | Built-in aggregate `bundle` plugin | 🚧 Planned |
 
 The pre-1.0 completion roadmap and detailed scope/status notes live in the
@@ -66,7 +66,7 @@ pip install -e plugins/javaparser-1.8-dredd
 
 ## Quick Start
 
-Current explicit workflow:
+Current shipped workflow:
 
 ```bash
 # List available language plugins
@@ -76,14 +76,14 @@ semver-dredd plugin list
 semver-dredd init mymodule --plugin python --version 1.0.0
 
 # Check current API status against the baked baseline
-semver-dredd status mymodule --plugin python --details
+semver-dredd status --details
 
 # Bake current API as the new baseline (after release)
-semver-dredd bake mymodule --plugin python
+semver-dredd bake
 ```
 
-Target pre-1.0 workflow (planned): `init` records plugin and source path in
-`.semver.yaml`, so later commands can use config defaults:
+`init` records plugin/source/version-file in `.semver.yaml`, so later commands
+can use config defaults:
 
 ```bash
 semver-dredd init . --plugin python --version 1.0.0
@@ -135,11 +135,7 @@ semver-dredd init ./src --plugin go --version 1.0.0
 
 Creates `.semver.yaml`, `baked.yaml`, and `VERSION`.
 
-Current implementation still defaults to the Python plugin when `--plugin` is
-omitted. Target pre-1.0 behavior is to require `--plugin` for `init`, write the
-plugin and analysed source path to `.semver.yaml`, allow `--version-file` to
-choose the stored `VERSION` path, and allow plugins to initialize their own
-`options` defaults.
+`--plugin` is required for `init`.
 
 ### `status` — Check API changes
 
@@ -159,9 +155,9 @@ semver-dredd status mymodule --date 2026-06-15
 
 Updates `current.yaml` with the current API state and suggested version.
 
-Target pre-1.0 behavior: when `.semver.yaml` contains `source.path`, `status`
-can omit the positional path and use config. If a different source is needed,
-use an explicit path override.
+When `.semver.yaml` contains `source.path`, `status` can omit the positional
+path and use config. If a different source is needed, use `--path` (or the
+legacy positional module/path).
 
 ### `bake` — Lock current API as baseline
 
@@ -175,8 +171,8 @@ semver-dredd bake mymodule --plugin python --version 2.0.0
 
 Updates `baked.yaml` and `VERSION`.
 
-Target pre-1.0 behavior: when `.semver.yaml` contains `source.path`, `bake` can
-omit the positional path and use config.
+When `.semver.yaml` contains `source.path`, `bake` can omit the positional path
+and use config.
 
 ### `compare` — Compare two modules directly
 
@@ -204,9 +200,8 @@ semver-dredd snapshot --plugin python --path mymodule --version 1.0.0
 semver-dredd snapshot --plugin go --path ./pkg --version 1.0.0 --out snapshot.yaml
 ```
 
-Target pre-1.0 behavior: `snapshot` may read plugin/path from `.semver.yaml` and
-version from the configured `VERSION` file by default, while keeping explicit
-flags as overrides.
+`snapshot` reads plugin/path from `.semver.yaml` and version from the resolved
+`VERSION` file by default; explicit flags still override config/env values.
 
 ### `bump` — Manually bump version
 
@@ -311,9 +306,8 @@ Target pre-1.0 precedence is intentionally the same, expressed as:
 CMDARGs -> ENVs -> CONFIG
 ```
 
-Target pre-1.0 behavior also adds `--config` so workflows can select explicit
-modes such as `.semver.yaml`, `.semver.dev.yaml`, or
-`.semver.my-custom_mode.yaml`.
+Use `--config` to select explicit config modes such as `.semver.yaml`,
+`.semver.dev.yaml`, or `.semver.my-custom_mode.yaml`.
 
 ### `.semver.yaml`
 
@@ -323,10 +317,8 @@ schema_version: 1
 # Language plugin (python, go, java)
 plugin: python
 
-# Target pre-1.0: init records the analyzed source path here.
-# Current status/bake still require a positional path unless otherwise supplied.
-# source:
-#   path: .
+source:
+  path: .
 
 policies:
   allow_breaking_changes: false  # Fail on BREAKING by default
@@ -362,20 +354,18 @@ plugin_options:
   timeout_seconds: 30
 ```
 
-> Current implementation note: `include` and `exclude` are parsed as string
-> lists today. The target pre-1.0 contract is broader: the keys must be arrays,
-> but array items may be plugin-specific values or objects.
+`include` and `exclude` must be arrays. Item shapes are plugin-specific and may
+be strings, numbers, or objects.
 
 > The bundled python/go/java/javaparser plugins receive `include`/`exclude`/
 > `plugin_options` but do not filter by them yet — see the
 > [`plans/`](plans/) roadmap for status.
 
-### Multi-document config fallback (planned)
+### Multi-document config fallback
 
-Target pre-1.0 behavior: one config file can describe one API surface with
-ordered plugin candidates. The first viable candidate wins; `--plugin` or
-`SEMVER_DREDD_PLUGIN` may force a candidate and fails if that plugin is absent
-from the document list.
+One config file can describe one API surface with ordered plugin candidates.
+The first viable candidate wins; `--plugin` or `SEMVER_DREDD_PLUGIN` may force
+a candidate and fails if that plugin is absent from the document list.
 
 ```yaml
 # Shared defaults
@@ -392,8 +382,6 @@ plugin: java
 include:
   - com.example.api
 ```
-
-Current implementation is still single-document only.
 
 ### `.env`
 
@@ -425,13 +413,13 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 --disallow-breaking     # Fail on BREAKING changes (exit 10)
 
 # File paths
---config PATH           # Planned: select .semver.yaml mode/config file
---path PATH             # Planned: override configured source.path
+--config PATH           # Select config file/mode
+--path PATH             # Override configured source.path (status/bake)
 --baked PATH            # Custom baked.yaml path
 --current-file PATH     # Custom current.yaml path
 --version-file PATH     # Custom VERSION file path
 
-# Scope overrides (planned advanced usage)
+# Scope overrides
 --include VALUE         # Append to configured include array
 --exclude VALUE         # Append to configured exclude array
 --override              # Replace configured include/exclude with CLI values
