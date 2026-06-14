@@ -129,3 +129,17 @@ Definition of Done:
 
 - Tests prove append behavior, duplicate warnings, and replacement behavior.
 - Precedence remains `CMDARGs -> ENVs -> CONFIG`.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Resolved command-context object shape and where it is built in
+  `cli/__init__.py:main()` (after `parse_args` + `load_config`).
+- [ ] How `--path` and the existing positional `module` coexist for
+  `status`/`bake` (keep both, or deprecate the positional).
+- [ ] Config keys `init` persists (`source.path`, `files.version`) and whether
+  `schema_version` is bumped from the current `1`.
+- [ ] Collision-warning wording/severity for explicit-vs-config overrides
+  (plugin/path), routed through the phase 3 logging helpers.
+

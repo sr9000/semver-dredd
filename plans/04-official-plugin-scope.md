@@ -97,3 +97,16 @@ Definition of Done:
 - Tests cover package-level include/exclude, root-relative resolution, and test
   file exclusion.
 - Go plugin README documents scope syntax.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Python recursion + `__all__` collision-merge algorithm, confirmed against
+  `python_api.py` (no new `plugin_options` keys).
+- [ ] Java/JavaParser filtering location: parser-side vs Python post-filter of
+  parser output.
+- [ ] Go import-path resolution relative to `--path` and the test-exclusion
+  mechanism in `main.go`.
+- [ ] Per-plugin scope-syntax documentation finalized in each plugin README.
+

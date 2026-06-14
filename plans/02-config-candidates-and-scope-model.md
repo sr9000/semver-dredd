@@ -106,3 +106,17 @@ Definition of Done:
 
 - README/HOWTO/proposal docs agree on shipped config behavior.
 - Planned-only claims are removed only after tests prove behavior.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Raw vs resolved config class shapes (e.g. `RawConfigDocument` with
+  index/source metadata vs the merged `Config`).
+- [ ] Where `list[Any]` array validation lives and how non-array
+  `include`/`exclude` errors are surfaced (replacing `_parse_str_list`).
+- [ ] Merge-semantics implementation location, isolated enough to unit-test
+  without the CLI.
+- [ ] Candidate-resolver inputs/outputs and the all-candidates-fail report shape
+  (every attempted plugin + failure reason via `validate_path()`).
+

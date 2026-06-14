@@ -87,3 +87,49 @@ bash scripts/smoke.sh python unit
 
 For Go/Java parser changes, also run the relevant parser build/test commands in
 the plugin package once confirmed by local plugin `agent.md` files.
+
+## Run Grouping & Status
+
+Each plan is small and commit-sized, so an agent run may complete one to three
+plans. The grouping below batches tightly-coupled plans while respecting the
+phase dependencies above. This file is a living tracker: every run updates the
+status here and ticks the `## Milestones` checklist inside the plans it touches.
+No plan files are merged.
+
+| Run | Plans | Theme | Status |
+|-----|-------|-------|--------|
+| 0 | `00`–`07` | Planning/milestone scaffolding (plan-file edits only) | [x] done |
+| 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [ ] todo |
+| 2 | `03` | Observability and snapshot provenance | [ ] todo |
+| 3 | `04` | Official plugin scope behavior | [ ] todo |
+| 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [ ] todo |
+| 5 | `07` | Documentation and release hardening | [ ] todo |
+
+Grouping rationale:
+
+- `01`+`02` share `cli/__init__.py` and `cli/config.py`; `02`'s candidate
+  resolver and `list[Any]` scope model build on `01`'s command context.
+- `03` is isolated infrastructure that later scope/fallback/bundle work depends
+  on, so it runs alone.
+- `04` is the largest unit (five plugin implementations with separate
+  build/test cycles) and runs alone.
+- `05`+`06` both center on `plugin_manager.py`/`plugin_base.py` and the existing
+  `PluginInfo`/`origin` machinery.
+- `07` must run last, after all shipped behavior exists.
+
+If smaller runs are preferred, split Run 1 into `01` then `02`, and Run 4 into
+`05` then `06`, yielding seven one-plan runs in strict phase order.
+
+## Milestones
+
+Cross-cutting decisions deferred to implementation (from the gap report's
+"Remaining Open Details"); each is owned by a plan's local `## Milestones`
+section and ticked there as it is resolved:
+
+- [ ] Raw/resolved config class shapes (`01`, `02`).
+- [ ] Snapshot provenance metadata key names (`03`).
+- [ ] Structured logging implementation + `-v` collision resolution (`03`).
+- [ ] Plugin metadata schema for JSON/YAML output (`05`).
+- [ ] FQN derivation algorithm for bundle dependencies (`06`).
+- [ ] Whether to add the top-level `semver-dredd list` alias (`05`, finalized in `07`).
+

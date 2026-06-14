@@ -92,3 +92,16 @@ Definition of Done:
 
 - A release checklist issue or final plan update identifies no remaining
   product blockers for the pre-1.0 complete scope.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Final decision on the `semver-dredd list` alias (carried from `05`).
+- [ ] Which previously-planned sections flip from "planned" to "shipped" in
+  README/HOWTO/proposal.
+- [ ] Schema docs verified against serialized fixtures (generator block + bundle
+  examples).
+- [ ] Smoke coverage decided for bundle and plugin metadata vs deferred behind
+  toolchain setup.
+

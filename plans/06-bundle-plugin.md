@@ -96,3 +96,16 @@ Definition of Done:
 
 - End-to-end CLI tests cover bundle init/status/bake or equivalent configured
   workflow.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Built-in registration mechanism: always-on core builtin vs entry point
+  (the existing `_BUILTIN_FALLBACK_SPECS` is import-guarded for editable plugin
+  packages, so likely a different path is needed).
+- [ ] FQN derivation algorithm for dependency/member names from VERSION paths.
+- [ ] `BundleSnapshot` serialization (name/path/version fields + a dedicated
+  `snapshot_type_id`).
+- [ ] Include-path resolution base (selected config dir vs source dir).
+

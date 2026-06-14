@@ -79,3 +79,16 @@ Definition of Done:
 Definition of Done:
 
 - Docs describe current command names and do not imply an unimplemented alias.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Feature-discovery hook shape (`have(feature) -> bool` vs metadata property),
+  added with a default impl on the `LanguagePlugin` ABC for back-compat.
+- [ ] Structured plugin-metadata schema and stable key names for
+  `--json`/`--yaml`.
+- [ ] How metadata degrades gracefully for third-party plugins lacking it.
+- [ ] Whether to add the top-level `semver-dredd list` alias (defer ok;
+  finalized in `07`).
+

@@ -92,3 +92,16 @@ Definition of Done:
 
 - Tests cover same-plugin quiet behavior and different-plugin warning behavior.
 - Logs include enough information to identify both generators.
+
+## Milestones
+
+Implementation-dependent decisions; tick as resolved and mirror in `00`:
+
+- [ ] Resolve the `-v` collision with `init --version` (drop the alias vs
+  attach counted verbosity to the top-level parser only).
+- [ ] Structured-logging implementation: stdlib `logging` vs dedicated event
+  helpers in `cli/utils.py`, and how levels map to `-v/-vv/-vvv`.
+- [ ] Snapshot `generator` metadata key names and whether `schema_version` is
+  bumped (real model lives in `snapshot/models.py`).
+- [ ] Back-compat path for `compare --verbose` (preserve alias vs migrate).
+
