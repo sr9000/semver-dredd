@@ -5,11 +5,14 @@ from unittest.mock import patch
 
 from cli.config import (
     load_config,
+    load_config_with_meta,
+    resolve_command_context,
     apply_config_defaults,
     Config,
     _parse_env_file,
     _parse_bool,
     _load_yaml_config,
+    _deep_merge_dicts,
 )
 
 
@@ -277,11 +280,30 @@ plugin_options:
             "extra_classpath": ["/opt/libs/custom.jar"],
         }
 
-    def test_scalar_include_coerced_to_list(self, tmp_path):
+    def test_non_array_include_rejected(self, tmp_path):
         config_file = tmp_path / ".semver.yaml"
         config_file.write_text("include: mypackage\n")
+        import pytest
+
+        with pytest.raises(ValueError, match="include"):
+            load_config(cwd=tmp_path)
+
+    def test_scope_item_shapes_preserved(self, tmp_path):
+        config_file = tmp_path / ".semver.yaml"
+        config_file.write_text(
+            """
+include:
+  - pkg.core
+  - 42
+  - {kind: class, name: Api}
+exclude:
+  - pkg.internal
+  - {kind: module, name: x}
+"""
+        )
         config = load_config(cwd=tmp_path)
-        assert config.include == ["mypackage"]
+        assert config.include == ["pkg.core", 42, {"kind": "class", "name": "Api"}]
+        assert config.exclude == ["pkg.internal", {"kind": "module", "name": "x"}]
 
     def test_snapshot_options_only_set_keys(self, tmp_path):
         config_file = tmp_path / ".semver.yaml"
@@ -369,6 +391,304 @@ class TestApplyConfigDefaults:
         assert args.baked == "custom.yaml"
         assert args.current_file == "custom_current.yaml"
         assert args.version_file == "CUSTOM_VER"
+
+
+class TestMergeSemantics:
+    def test_deep_merge_dicts_rules(self):
+        base = {
+            "obj": {"a": 1, "b": {"x": 1}, "drop": "me"},
+            "arr": [1, 2],
+            "scalar": "old",
+            "remove": 1,
+        }
+        override = {
+            "obj": {"b": {"y": 2}, "drop": None},
+            "arr": [3],
+            "scalar": "new",
+            "remove": None,
+            "added": True,
+        }
+        merged = _deep_merge_dicts(base, override)
+        assert merged["obj"] == {"a": 1, "b": {"x": 1, "y": 2}}
+        assert merged["arr"] == [1, 2, 3]
+        assert merged["scalar"] == "new"
+        assert "remove" not in merged
+        assert merged["added"] is True
+
+
+class TestMultiDocumentConfig:
+    def test_single_document_compat(self, tmp_path):
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text("plugin: go\n")
+        loaded = load_config_with_meta(cwd=tmp_path)
+        assert len(loaded.raw_documents) == 1
+        assert loaded.raw_documents[0].data["plugin"] == "go"
+
+    def test_multi_document_preserves_order_and_candidates(self, tmp_path):
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+include:
+  - base
+---
+plugin: go
+source:
+  path: .
+---
+plugin: java
+source:
+  path: .
+"""
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        assert [d.index for d in loaded.raw_documents] == [0, 1, 2]
+        assert [i for i, _ in loaded.candidate_documents] == [1, 2]
+        first = loaded.candidate_documents[0][1]
+        second = loaded.candidate_documents[1][1]
+        assert first["plugin"] == "go"
+        assert second["plugin"] == "java"
+        assert first["include"] == ["base"]
+
+
+class TestCommandContextResolution:
+    def test_resolved_source_layer_from_config(self, tmp_path, monkeypatch):
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: go
+source:
+  path: .
+files:
+  version: VERSION
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+
+        args = argparse.Namespace(
+            command="status",
+            plugin=None,
+            module=None,
+            path=None,
+            include=None,
+            exclude=None,
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        resolved = resolve_command_context(args, loaded, cwd=tmp_path)
+        assert resolved.plugin == "go"
+        assert resolved.plugin_layer == "config"
+        assert resolved.source_path == "."
+        assert resolved.source_layer == "config"
+        assert resolved.version_file == "VERSION"
+        assert resolved.version_file_layer == "config"
+
+    def test_cli_include_exclude_append_and_override(self, tmp_path, monkeypatch):
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: go
+source:
+  path: .
+include: [a, b]
+exclude: [x]
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+
+        base_args = argparse.Namespace(
+            command="status",
+            plugin=None,
+            module=None,
+            path=None,
+            include=["b", "c"],
+            exclude=["x", "y"],
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        resolved = resolve_command_context(base_args, loaded, cwd=tmp_path)
+        assert resolved.include == ["a", "b", "b", "c"]
+        assert resolved.exclude == ["x", "x", "y"]
+        assert any("Duplicate include" in w for w in resolved.warnings)
+        assert any("Duplicate exclude" in w for w in resolved.warnings)
+
+        override_args = argparse.Namespace(
+            command="status",
+            plugin=None,
+            module=None,
+            path=None,
+            include=["only"],
+            exclude=["none"],
+            override=True,
+            version_file=None,
+        )
+        resolved_override = resolve_command_context(override_args, loaded, cwd=tmp_path)
+        assert resolved_override.include == ["only"]
+        assert resolved_override.exclude == ["none"]
+
+    def test_candidate_fallback_first_valid(self, tmp_path, monkeypatch):
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+---
+plugin: go
+source:
+  path: ./missing
+---
+plugin: go
+source:
+  path: .
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+
+        args = argparse.Namespace(
+            command="status",
+            plugin=None,
+            module=None,
+            path=None,
+            include=None,
+            exclude=None,
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        resolved = resolve_command_context(args, loaded, cwd=tmp_path)
+        assert resolved.candidate_index == 2
+        assert len(resolved.candidate_attempts) == 2
+        assert resolved.candidate_attempts[0].ok is False
+        assert resolved.candidate_attempts[1].ok is True
+
+    def test_candidate_all_fail_lists_attempts(self, tmp_path, monkeypatch):
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+---
+plugin: does-not-exist
+source:
+  path: .
+---
+plugin: go
+source:
+  path: ./missing
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+        import pytest
+
+        args = argparse.Namespace(
+            command="status",
+            plugin=None,
+            module=None,
+            path=None,
+            include=None,
+            exclude=None,
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        with pytest.raises(ValueError) as exc:
+            resolve_command_context(args, loaded, cwd=tmp_path)
+        msg = str(exc.value)
+        assert "doc#1" in msg
+        assert "doc#2" in msg
+        assert "not installed" in msg
+
+    def test_cli_plugin_override_selects_matching_candidate(self, tmp_path, monkeypatch):
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+---
+plugin: python
+source:
+  path: example.py.pygeometry1
+---
+plugin: go
+source:
+  path: .
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+
+        args = argparse.Namespace(
+            command="status",
+            plugin="go",
+            module=None,
+            path=None,
+            include=None,
+            exclude=None,
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        resolved = resolve_command_context(args, loaded, cwd=tmp_path)
+        assert resolved.plugin == "go"
+        assert resolved.candidate_index == 2
+
+    def test_env_plugin_override_and_absent_override_plugin(self, tmp_path, monkeypatch):
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+---
+plugin: python
+source:
+  path: example.py.pygeometry1
+---
+plugin: go
+source:
+  path: .
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+        import pytest
+
+        with patch.dict(os.environ, {"SEMVER_DREDD_PLUGIN": "go"}):
+            args = argparse.Namespace(
+                command="status",
+                plugin=None,
+                module=None,
+                path=None,
+                include=None,
+                exclude=None,
+                override=False,
+                version_file=None,
+            )
+            loaded = load_config_with_meta(cwd=tmp_path)
+            resolved = resolve_command_context(args, loaded, cwd=tmp_path)
+            assert resolved.plugin == "go"
+            assert resolved.candidate_index == 2
+
+        with patch.dict(os.environ, {"SEMVER_DREDD_PLUGIN": "java"}):
+            args = argparse.Namespace(
+                command="status",
+                plugin=None,
+                module=None,
+                path=None,
+                include=None,
+                exclude=None,
+                override=False,
+                version_file=None,
+            )
+            loaded = load_config_with_meta(cwd=tmp_path)
+            with pytest.raises(ValueError, match="not present in any config candidate"):
+                resolve_command_context(args, loaded, cwd=tmp_path)
 
 
 class TestConfigGet:

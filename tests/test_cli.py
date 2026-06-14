@@ -280,3 +280,94 @@ policies:
             assert result == 10  # Should fail because CLI overrides all
             captured = capsys.readouterr()
             assert "Breaking changes are not allowed" in captured.err
+
+
+class TestRun1ConfigWorkflow:
+    def test_explicit_config_missing_fails_for_non_init(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        result = main([
+            "--config",
+            ".semver.dev.yaml",
+            "status",
+            "example.py.pygeometry1",
+        ])
+        assert result == 1
+        err = capsys.readouterr().err
+        assert "Config file not found" in err
+
+    def test_init_allows_missing_explicit_config_and_creates_it(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = main([
+            "--config",
+            ".semver.dev.yaml",
+            "init",
+            "example.py.pygeometry1",
+            "--plugin",
+            "python",
+            "--version",
+            "1.0.0",
+        ])
+        assert result == 0
+        assert (tmp_path / ".semver.dev.yaml").exists()
+        assert not (tmp_path / ".semver.yaml").exists()
+
+    def test_custom_config_selection_over_default(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".semver.yaml").write_text("""
+schema_version: 1
+policies:
+  allow_breaking_changes: false
+""")
+        (tmp_path / ".semver.dev.yaml").write_text("""
+schema_version: 1
+policies:
+  allow_breaking_changes: true
+""")
+
+        result = main([
+            "--config",
+            ".semver.dev.yaml",
+            "compare",
+            "example.py.pygeometry2",
+            "example.py.pygeometry1",
+        ])
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "BREAKING" in captured.out
+        assert "[WARN]" in captured.err
+
+    def test_status_and_bake_are_pathless_after_init(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        init_result = main([
+            "init",
+            "example.py.pygeometry1",
+            "--plugin",
+            "python",
+            "--version",
+            "1.0.0",
+        ])
+        assert init_result == 0
+
+        status_result = main(["status", "--details"])
+        assert status_result == 0
+
+        bake_result = main(["bake"])
+        assert bake_result == 0
+
+    def test_snapshot_defaults_from_config_and_version_file(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        init_result = main([
+            "init",
+            "example.py.pygeometry1",
+            "--plugin",
+            "python",
+            "--version",
+            "1.2.3",
+        ])
+        assert init_result == 0
+
+        out = tmp_path / "snapshot.yaml"
+        snap_result = main(["snapshot", "--out", str(out)])
+        assert snap_result == 0
+        assert out.exists()
+        assert "version: 1.2.3" in out.read_text()
