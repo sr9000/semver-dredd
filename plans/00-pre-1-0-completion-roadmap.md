@@ -102,7 +102,7 @@ No plan files are merged.
 |-----|-------|-------|--------|
 | 0 | `00`–`07` | Planning/milestone scaffolding (plan-file edits only) | [x] done |
 | 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [x] done |
-| 2 | `03` | Observability and snapshot provenance | [ ] todo |
+| 2 | `03` | Observability and snapshot provenance | [x] done |
 | 3 | `04` | Official plugin scope behavior | [ ] todo |
 | 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [ ] todo |
 | 5 | `07` | Documentation and release hardening | [ ] todo |
@@ -128,8 +128,10 @@ Cross-cutting decisions deferred to implementation; each is owned by a plan's
 local `## Milestones` section and ticked there as it is resolved:
 
 - [x] Raw/resolved config class shapes (`01`, `02`).
-- [ ] Snapshot provenance metadata key names (`03`).
-- [ ] Structured logging implementation + `-v` collision resolution (`03`).
+- [x] Snapshot provenance metadata key names (`03`): `plugin_name`, `plugin_version`,
+  `plugin_source`, `config_path`, `candidate_index` in `GeneratorInfo`.
+- [x] Structured logging implementation + `-v` collision resolution (`03`): stdlib
+  `logging` with topic-labelled helpers; `-v` alias dropped from `init --version`.
 - [ ] Plugin metadata schema for JSON/YAML output (`05`).
 - [ ] FQN derivation algorithm for bundle dependencies (`06`).
 - [ ] Whether to add the top-level `semver-dredd list` alias (`05`, finalized in `07`).
