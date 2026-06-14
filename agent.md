@@ -75,6 +75,13 @@ bash example/demo_python.sh                # go/java need toolchains+plugins
 bash scripts/smoke.sh [python unit ...]    # Docker smoke
 ```
 
+**git log — always use non-interactive mode** to avoid blocking on a pager:
+
+```bash
+git --no-pager log                            # suppress pager entirely
+git --no-pager log --oneline --decorate -n 8  # uasge example
+```
+
 ## Conventions
 
 - Python ≥3.10 modern hints (`dict[str, Any]`, `X | None`); prefer `pathlib.Path`.
