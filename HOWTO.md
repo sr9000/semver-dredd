@@ -155,8 +155,8 @@ class MyLangPlugin(LanguagePlugin):
         The ``options`` dict carries framework- and user-provided hints.
         Keys you may receive (all optional — ignore what you don't use):
         - ``use_color`` (bool): set by the CLI for log styling
-        - ``include`` / ``exclude`` (list[str]): analysis scope from
-          .semver.yaml; interpretation is up to your plugin
+        - ``include`` / ``exclude`` (list): analysis scope from
+          .semver.yaml; item syntax is up to your plugin
         - ``plugin_options`` (dict): free-form options from .semver.yaml,
           never validated by the framework
 
@@ -183,6 +183,69 @@ class MyLangPlugin(LanguagePlugin):
 | `display_name` | No | Pretty name (default: `name.capitalize()`) |
 | `validate_path()` | No | Validate source path before analysis |
 | `snapshot_format_class` | No | Custom snapshot class (default: `None` → NormalizedSnapshot) |
+
+### Scope and options contract
+
+The core framework does **not** interpret API scope. It only forwards values to
+your plugin:
+
+```python
+options = options or {}
+include = options.get("include", [])
+exclude = options.get("exclude", [])
+plugin_options = options.get("plugin_options", {})
+```
+
+Current core behavior parses `include` and `exclude` as string lists. The
+agreed pre-1.0 contract is broader and should guide new plugins: those keys are
+arrays, but their item syntax is plugin-specific. A plugin may use strings,
+objects, paths, package names, URL fragments, operation IDs, or any other shape
+that is natural for its API surface.
+
+Recommended semantics, where they make sense for your domain:
+
+- empty `include` means “analyze the whole configured `path` API surface”;
+- non-empty `include` is an allow-list;
+- apply `exclude` after `include`;
+- make `include` recursive by default;
+- support explicit `*` in `exclude` if your users need “exclude nested members”;
+- log invalid patterns and match-nothing patterns, with severity chosen by the
+  plugin.
+
+Example for a package-like domain:
+
+```yaml
+include:
+  - api/v1
+  - api/experimental
+exclude:
+  - api/v1/admin
+  - api/experimental/*
+```
+
+Dot-separated strings such as `com.example.api` or `mypackage.core` are a good
+convention for languages that naturally use them, but they are not a framework
+requirement.
+
+`plugin_options` is the plugin-specific escape hatch for compiler flags,
+timeouts, parser tuning, classpaths, source levels, authentication settings, and
+similar details. The framework never validates this dictionary. Prefer putting
+semantic API-surface selection in `include` / `exclude`, not in
+`plugin_options`.
+
+### Planned optional feature discovery
+
+The minimal versioning contract should remain `generate_snapshot()` plus a
+snapshot that can diff itself. For future optional integrations, the planned
+pre-1.0 direction is a feature-discovery method such as:
+
+```python
+plugin.have("feature name")
+```
+
+This is **not implemented yet**. The intent is to let core use optional plugin
+capabilities, such as richer metadata or timestamps, without making those
+capabilities mandatory for all plugins.
 
 ---
 
@@ -405,6 +468,46 @@ api:
   types: { ... }
 ```
 
+### Snapshot YAML quick reference
+
+Plugin authors should not need to jump between documents for the core envelope.
+Keep this shape in mind even when your domain does not have “functions” or
+“types”:
+
+```yaml
+snapshot_type_id: "stable-plugin-snapshot-uuid"
+schema_version: 3
+version: "1.0.0"
+language: mylang
+source:
+  kind: directory      # module | package | directory | file | URL | aggregate | ...
+  path: ./src
+api:
+  # Domain-specific content. NormalizedSnapshot uses functions/types;
+  # your plugin can use commands, endpoints, messages, dependencies, etc.
+  functions: {}
+  types: {}
+```
+
+For reusable code-like snapshots, the predefined component models serialize in
+the same registry-friendly style:
+
+```yaml
+snapshot_type_id: "<FUNCTION_TYPE_ID>"
+name: compute_area
+result_type: float
+args:
+  - snapshot_type_id: "<ARGUMENT_TYPE_ID>"
+    name: radius
+    type: float
+    default: null
+```
+
+See `docs/schema.md` and `snapshot/README.md` for the full schema reference.
+Planned pre-1.0 snapshot evolution should also record plugin/generator
+provenance so users can trace which plugin and config candidate created a
+snapshot.
+
 ---
 
 ## 6. Implement Diff (Comparable)
@@ -570,6 +673,10 @@ Write tests that verify:
 1. **Snapshot generation** — given source files, the plugin produces valid YAML
 2. **Round-trip** — `from_yaml_str(snap.to_yaml())` reconstructs the same data
 3. **Diff detection** — comparing two snapshots yields correct `ChangeKind`
+4. **Scope behavior** — empty include, include-only, exclude-only,
+   include+exclude, invalid patterns, and match-nothing cases follow your
+   documented semantics
+5. **Option tolerance** — unknown `plugin_options` do not crash the plugin
 
 Example test structure:
 
@@ -620,6 +727,9 @@ Before publishing your plugin, verify:
 - [ ] **`pip install`** works and `semver-dredd plugin list` shows the plugin
 - [ ] **Tests** cover generation, round-trip, and diff scenarios
 - [ ] **README** documents installation and usage
+- [ ] **Plugin docs / `plugin info`** document include/exclude semantics,
+      supported `plugin_options`, external tools, and known limitations
+- [ ] **Scope tests** prove the documented include/exclude behavior
 
 ---
 
@@ -627,10 +737,23 @@ Before publishing your plugin, verify:
 
 | Plugin | Package | Plugin Name | Approach |
 |--------|---------|-------------|----------|
-| Python | `python-3.10-dredd` | `python` | AST via `ast` module |
-| Go | `go-1.20-dredd` | `go` | `go doc` CLI tool |
+| Python | `python-3.10-dredd` | `python` | Runtime import/introspection via `inspect` |
+| Go | `go-1.20-dredd` | `go` | Bundled Go AST parser |
 | Java (regex) | `java-1.8-dredd` | `java` | Regex-based Java parser |
 | Java (AST) | `javaparser-1.8-dredd` | `javaparser` | JavaParser library |
+
+Current status: these official plugins accept the `options` parameter, but do
+not yet honor `include`, `exclude`, or most plugin-specific options during
+analysis.
+
+Planned official scope conventions:
+
+| Plugin | Planned `include` / `exclude` unit |
+|--------|------------------------------------|
+| `python` | Python module/package names; recursive module discovery; respect `__all__`; ignore names starting `_` |
+| `go` | Go import paths; package-level filtering; tests are never API surface |
+| `java` | Java package prefixes |
+| `javaparser` | Java package prefixes |
 
 Study the `javaparser-1.8-dredd` plugin for a complete, well-documented
 example of an entry-point-only plugin with an external parser.

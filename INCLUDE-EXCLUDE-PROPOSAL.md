@@ -6,7 +6,7 @@
 > |---------|---------|--------|
 > | `include` / `exclude` config plumbing | §3 | ✅ Implemented — parsed from `.semver.yaml` and forwarded to plugins via `options` |
 > | `plugin_options` escape hatch | §4 | ✅ Implemented — forwarded opaquely to plugins via `options` |
-> | Plugin-side interpretation of `include`/`exclude` | §3.1 | 🚧 Proposed — the bundled python/go/java plugins do not filter by these keys yet |
+> | Plugin-side interpretation of `include`/`exclude` | §3.1 | 🚧 Proposed — the bundled python/go/java/javaparser plugins do not filter by these keys yet |
 > | Multi-document priority chain | §2 | 🚧 Proposed — `.semver.yaml` is still single-document |
 > | Domain agnosticism guidance | §5 | ✅ Already true of the current plugin API |
 > | Aggregate `bundle` plugin | §6 | 🚧 Proposed — not yet shipped |
@@ -98,7 +98,11 @@ Plugins need to know *what* to analyse. We introduce `include` and `exclude` lis
 
 ### 3.1 Format & Semantics
 
-These are **flat lists of opaque strings**. The framework passes them to the plugin as-is.
+These are **arrays of plugin-specific items**. The framework passes them to the
+plugin as-is. Dot-separated strings are recommended where natural, but this is
+not a universal syntax requirement. Plugins may use strings, paths, package
+names, operation IDs, or object items if their domain needs richer scope
+records. The core requirement is only that `include` and `exclude` are arrays.
 
 ```yaml
 plugin: python
@@ -109,15 +113,38 @@ exclude:
   - mypackage.core._private
 ```
 
-**Core Semantic Defaults:**
-1.  **Plugin Interpretation**: Strings can be packages, directories, glob patterns, or module paths. The plugin decides.
-2.  **Allow/Deny List**: If `include` is present, only matching items are analysed. `exclude` removes items from the set.
-3.  **Recursive by Default**: Including a directory implies including its children.
-4.  **Opaque Dependencies**: Plugins **should not** follow imports outside the included scope. External types are treated as opaque/compatible.
+**Recommended semantic defaults:**
+1.  **Plugin Interpretation**: Items can be packages, directories, module paths,
+    API operation names, objects, or any other plugin-defined selector.
+2.  **Allow/Deny List**: Empty `include` means the whole configured `path` API
+    surface. Non-empty `include` enters allow-list mode. `exclude` removes items
+    after inclusion.
+3.  **Recursive by Default**: Including a package/module/path-like selector
+    should include children where the plugin domain has a natural hierarchy.
+4.  **Explicit Exclusion**: Plugins may support `*` in `exclude` for explicit
+    nested exclusion, e.g. `api/experimental/*`.
+5.  **Opaque Dependencies**: Plugins **should not** follow imports outside the
+    included scope. External types are treated as opaque/compatible.
+6.  **Invalid/Empty Matches**: Invalid patterns and match-nothing cases are
+    plugin-specific. Logging a warning is recommended.
 
 ### 3.2 Recursive vs Non-recursive
 
-Plugins may implement syntax to distinguish recursion if needed (e.g., `pkg` vs `pkg!`). This is plugin-specific behavior.
+`include` should behave recursively by default. If a plugin needs explicit
+nested exclusion, prefer documenting that behavior under `exclude`, for example:
+
+```yaml
+include:
+  - api/v1
+  - api/experimental
+exclude:
+  - api/v1/admin
+  - api/experimental/*
+```
+
+This example tracks `api/v1` and `api/experimental`, excludes `api/v1/admin`,
+and excludes nested experimental members while keeping only the top-level
+experimental surface.
 
 ---
 
@@ -139,8 +166,12 @@ plugin_options:
 
 ### 4.2 Implementation Guidelines
 - Plugins access this via `options.get("plugin_options")`.
-- Plugins **must** silently ignore unknown keys (to allow sharing config between plugins if necessary).
-- This is the place for "power user" features.
+- Plugins should ignore unknown keys unless a key is explicitly documented as
+  required by that plugin.
+- This is the place for "power user" features such as classpaths, source levels,
+  parser timeouts, authentication hints, or external tool options.
+- Do not move semantic API-surface selection here when `include` / `exclude`
+  already expresses it.
 
 ---
 
@@ -236,9 +267,15 @@ source:
   path: .
 api:
   dependencies:
-    backend: "1.3.0"
-    sdk-python: "2.0.2"
-    cli: "1.0.0"
+    backend:
+      path: ./backend/VERSION
+      version: "1.3.0"
+    sdk-python:
+      path: ./sdk-python/VERSION
+      version: "2.0.2"
+    cli:
+      path: ./cli/VERSION
+      version: "1.0.0"
 ```
 
 ### 6.5 Diff Logic
@@ -250,9 +287,15 @@ For each tracked dependency, compare old version → new version:
 | Major bumped (1.x → 2.x)     | BREAKING    |
 | Minor bumped (1.2.x → 1.3.x) | MINOR       |
 | Patch bumped (1.2.3 → 1.2.4) | PATCH       |
+| Patch decreased (1.2.4 → 1.2.3) | PATCH + warning |
+| Minor decreased (1.3.x → 1.2.x) | BREAKING + warning |
+| Major decreased (2.x → 1.x) | BREAKING + warning |
 | No change                    | NONE        |
 | Dependency removed           | BREAKING    |
 | Dependency added             | MINOR       |
+
+A missing tracked `VERSION` file is a hard error, not a diff result. Globs are
+not part of the built-in bundle plugin scope syntax.
 
 The aggregate result is `max(all per-dependency change kinds)`.
 

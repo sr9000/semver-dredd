@@ -18,11 +18,26 @@ Automatically increments semver number based on interface changes.
 
 ### Feature Status
 
-Everything documented in this README is implemented. Larger configuration and
-plugin-API evolutions (multi-document `.semver.yaml`, plugin-side
-`include`/`exclude` filtering, the aggregate `bundle` plugin) are tracked in
-[`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md), which carries a
-per-feature implemented/proposed status table.
+This README documents both the **current shipped behavior** and the agreed
+**pre-1.0 target behavior**. Current behavior is explicitly marked where a
+feature is still planned.
+
+| Area | Current status |
+|------|----------------|
+| Plugin discovery, snapshots, diffing, version suggestions | ✅ Implemented |
+| `.semver.yaml` parsing and `.env`/environment/CLI precedence | ✅ Implemented |
+| `include` / `exclude` / `plugin_options` forwarding to plugins | ✅ Implemented |
+| Plugin-side `include` / `exclude` filtering | 🚧 Planned — official plugins receive these keys but do not honor them yet |
+| Multi-document `.semver.yaml` fallback candidates | 🚧 Planned |
+| Config remembered `source.path` and pathless `status` / `bake` | 🚧 Planned |
+| Built-in aggregate `bundle` plugin | 🚧 Planned |
+
+Detailed status and scope notes live in:
+
+- [`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md)
+- [`reports/include-exclude-status.md`](reports/include-exclude-status.md)
+- [`reports/include-exclude-usability-and-implementation-plan.md`](reports/include-exclude-usability-and-implementation-plan.md)
+- [`reports/complete-semver-tool-gap-report.md`](reports/complete-semver-tool-gap-report.md)
 
 ## Installation
 
@@ -34,8 +49,10 @@ pip install semver-dredd
 pip install python-3.10-dredd
 pip install go-1.20-dredd
 pip install java-1.8-dredd
+pip install javaparser-1.8-dredd
 
-# Or install everything at once
+# Or install the core set of official plugins at once
+# (current meta-package covers python/go/java; install javaparser separately)
 pip install semver-dredd-all
 ```
 
@@ -47,9 +64,12 @@ poetry install
 pip install -e plugins/python-3.10-dredd
 pip install -e plugins/go-1.20-dredd
 pip install -e plugins/java-1.8-dredd
+pip install -e plugins/javaparser-1.8-dredd
 ```
 
 ## Quick Start
+
+Current explicit workflow:
 
 ```bash
 # List available language plugins
@@ -65,8 +85,22 @@ semver-dredd status mymodule --plugin python --details
 semver-dredd bake mymodule --plugin python
 ```
 
+Target pre-1.0 workflow (planned): `init` records plugin and source path in
+`.semver.yaml`, so later commands can use config defaults:
+
+```bash
+semver-dredd init . --plugin python --version 1.0.0
+semver-dredd status --details
+semver-dredd bake
+```
+
+`--plugin` should always take precedence over config. If a command-line plugin
+differs from `.semver.yaml`, the CLI should continue with the explicit value and
+log a warning.
+
 Works the same way for Go and Java — just point to a directory and switch
-the `--plugin` flag:
+the `--plugin` flag. The regex Java plugin is named `java`; the AST-based
+JavaParser plugin is named `javaparser`.
 
 ```bash
 # Go
@@ -76,6 +110,10 @@ semver-dredd status ./pkg/geometry --plugin go --details
 # Java
 semver-dredd init ./src/main/java --plugin java --version 1.0.0
 semver-dredd status ./src/main/java --plugin java --details
+
+# JavaParser
+semver-dredd init ./src/main/java --plugin javaparser --version 1.0.0
+semver-dredd status ./src/main/java --plugin javaparser --details
 ```
 
 ## Managed Files
@@ -94,14 +132,17 @@ semver-dredd manages several files in your project:
 ### `init` — Initialize project
 
 ```bash
-# Initialize with default version (0.1.YYYYMMDD001)
-semver-dredd init mymodule
-
 # Initialize with an explicit version and plugin
 semver-dredd init ./src --plugin go --version 1.0.0
 ```
 
 Creates `.semver.yaml`, `baked.yaml`, and `VERSION`.
+
+Current implementation still defaults to the Python plugin when `--plugin` is
+omitted. Target pre-1.0 behavior is to require `--plugin` for `init`, write the
+plugin and analysed source path to `.semver.yaml`, allow `--version-file` to
+choose the stored `VERSION` path, and allow plugins to initialize their own
+`options` defaults.
 
 ### `status` — Check API changes
 
@@ -121,6 +162,10 @@ semver-dredd status mymodule --date 2026-06-15
 
 Updates `current.yaml` with the current API state and suggested version.
 
+Target pre-1.0 behavior: when `.semver.yaml` contains `source.path`, `status`
+can omit the positional path and use config. If a different source is needed,
+use an explicit path override.
+
 ### `bake` — Lock current API as baseline
 
 ```bash
@@ -132,6 +177,9 @@ semver-dredd bake mymodule --plugin python --version 2.0.0
 ```
 
 Updates `baked.yaml` and `VERSION`.
+
+Target pre-1.0 behavior: when `.semver.yaml` contains `source.path`, `bake` can
+omit the positional path and use config.
 
 ### `compare` — Compare two modules directly
 
@@ -158,6 +206,10 @@ semver-dredd snapshot --plugin python --path mymodule --version 1.0.0
 # Write to a file
 semver-dredd snapshot --plugin go --path ./pkg --version 1.0.0 --out snapshot.yaml
 ```
+
+Target pre-1.0 behavior: `snapshot` may read plugin/path from `.semver.yaml` and
+version from the configured `VERSION` file by default, while keeping explicit
+flags as overrides.
 
 ### `bump` — Manually bump version
 
@@ -190,6 +242,10 @@ semver-dredd template --out .semver.yaml
 ```bash
 # List all discovered plugins
 semver-dredd plugin list
+
+# Planned pre-1.0: machine-readable plugin inventory
+semver-dredd plugin list --json
+semver-dredd plugin list --yaml
 
 # Show details about a plugin
 semver-dredd plugin info python
@@ -242,7 +298,7 @@ result = compare(
 ## Configuration
 
 semver-dredd supports multiple configuration sources with the following
-priority (lowest → highest):
+priority for implemented fields (lowest → highest):
 
 1. **`.semver.yaml`** — Project configuration file
 2. **`.env`** — Environment file in project root
@@ -252,6 +308,16 @@ priority (lowest → highest):
 > **Note**: The programmatic API (`compare`, `compare_and_suggest`) ignores
 > all config files and uses only the arguments passed directly.
 
+Target pre-1.0 precedence is intentionally the same, expressed as:
+
+```text
+CMDARGs -> ENVs -> CONFIG
+```
+
+Target pre-1.0 behavior also adds `--config` so workflows can select explicit
+modes such as `.semver.yaml`, `.semver.dev.yaml`, or
+`.semver.my-custom_mode.yaml`.
+
 ### `.semver.yaml`
 
 ```yaml
@@ -259,6 +325,11 @@ schema_version: 1
 
 # Language plugin (python, go, java)
 plugin: python
+
+# Target pre-1.0: init records the analyzed source path here.
+# Current status/bake still require a positional path unless otherwise supplied.
+# source:
+#   path: .
 
 policies:
   allow_breaking_changes: false  # Fail on BREAKING by default
@@ -279,8 +350,10 @@ files:
 versioning:
   patch_scheme: date  # "date" (YYYYMMDDZZZ, default) or "integer"
 
-# Analysis scope — opaque strings forwarded to the plugin via its
-# options dict (interpretation is plugin-specific)
+# Analysis scope — forwarded to the plugin via its options dict.
+# Target pre-1.0 contract: include/exclude are arrays and each item is
+# plugin-specific. Dot-separated strings are only a recommendation where
+# natural for the language/domain.
 include:
   - mypackage.core
 exclude:
@@ -292,16 +365,45 @@ plugin_options:
   timeout_seconds: 30
 ```
 
-> The bundled python/go/java plugins receive `include`/`exclude`/
+> Current implementation note: `include` and `exclude` are parsed as string
+> lists today. The target pre-1.0 contract is broader: the keys must be arrays,
+> but array items may be plugin-specific values or objects.
+
+> The bundled python/go/java/javaparser plugins receive `include`/`exclude`/
 > `plugin_options` but do not filter by them yet — see
 > [`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md) for status.
+
+### Multi-document config fallback (planned)
+
+Target pre-1.0 behavior: one config file can describe one API surface with
+ordered plugin candidates. The first viable candidate wins; `--plugin` or
+`SEMVER_DREDD_PLUGIN` may force a candidate and fails if that plugin is absent
+from the document list.
+
+```yaml
+# Shared defaults
+source:
+  path: ./src/main/java
+files:
+  version: VERSION
+---
+plugin: javaparser
+include:
+  - com.example.api
+---
+plugin: java
+include:
+  - com.example.api
+```
+
+Current implementation is still single-document only.
 
 ### `.env`
 
 ```bash
 SEMVER_DREDD_ALLOW_BREAKING=true
 SEMVER_DREDD_COLOR=false
-SEMVER_DREDD_LANG=go
+SEMVER_DREDD_PLUGIN=go
 SEMVER_DREDD_BAKED_FILE=api/baked.yaml
 SEMVER_DREDD_CURRENT_FILE=api/current.yaml
 SEMVER_DREDD_VERSION_FILE=api/VERSION
@@ -313,7 +415,7 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 |----------|-------------|--------|
 | `SEMVER_DREDD_ALLOW_BREAKING` | Allow breaking changes | `true` / `false` |
 | `SEMVER_DREDD_COLOR` | Color output mode | `true` / `false` |
-| `SEMVER_DREDD_LANG` | Language plugin | `python`, `go`, `java` |
+| `SEMVER_DREDD_PLUGIN` | Plugin override | `python`, `go`, `java`, `javaparser`, or any installed plugin |
 | `SEMVER_DREDD_BAKED_FILE` | Path to baked.yaml | file path |
 | `SEMVER_DREDD_CURRENT_FILE` | Path to current.yaml | file path |
 | `SEMVER_DREDD_VERSION_FILE` | Path to VERSION file | file path |
@@ -326,15 +428,31 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 --disallow-breaking     # Fail on BREAKING changes (exit 10)
 
 # File paths
+--config PATH           # Planned: select .semver.yaml mode/config file
+--path PATH             # Planned: override configured source.path
 --baked PATH            # Custom baked.yaml path
 --current-file PATH     # Custom current.yaml path
 --version-file PATH     # Custom VERSION file path
+
+# Scope overrides (planned advanced usage)
+--include VALUE         # Append to configured include array
+--exclude VALUE         # Append to configured exclude array
+--override              # Replace configured include/exclude with CLI values
 
 # Output control
 --details               # List added / breaking API items
 --verbose               # Explain what parts of the API are inspected
 --color / --no-color    # Force or disable colored output
 ```
+
+Target pre-1.0 logging replaces ad-hoc verbosity with counted global levels:
+
+| Option | Intended output |
+|--------|-----------------|
+| default | errors and warnings |
+| `-v` | info-level, O(1) logs once per tool call |
+| `-vv` | debug-level, O(n) logs for candidates, scope matches, and API members |
+| `-vvv` | debug-level plus explicit argument/config dump |
 
 ## Versioning Scheme
 
@@ -375,6 +493,8 @@ versioning:
 
 ## Typical Workflow
 
+Current explicit workflow:
+
 1. **Initialize** your project:
    ```bash
    semver-dredd init mymodule --plugin python --version 1.0.0
@@ -396,16 +516,34 @@ versioning:
 
 6. **Commit** the updated `baked.yaml`, `VERSION`, and your code.
 
+Target pre-1.0 config-driven workflow:
+
+```bash
+semver-dredd init . --plugin python --version 1.0.0
+semver-dredd status --details
+semver-dredd bake
+```
+
 ## Language Plugins
 
 semver-dredd uses a plugin system to support multiple languages.
 Each plugin is a separate pip-installable package.
 
-| Plugin | Package             | Requires                           |
-|--------|---------------------|------------------------------------|
-| Python | `python-3.10-dredd` | Python ≥ 3.10                      |
-| Go     | `go-1.20-dredd`     | Go ≥ 1.20                          |
-| Java   | `java-1.8-dredd`    | JDK ≥ 1.8 (for the bundled parser) |
+| Plugin | Package                  | Requires                                  |
+|--------|--------------------------|-------------------------------------------|
+| Python | `python-3.10-dredd`      | Python ≥ 3.10                             |
+| Go     | `go-1.20-dredd`          | Go ≥ 1.20                                 |
+| Java   | `java-1.8-dredd`         | JDK ≥ 1.8 (for the bundled parser)        |
+| JavaParser | `javaparser-1.8-dredd` | JDK + JavaParser-based parser tooling |
+
+Planned official scope semantics:
+
+| Plugin | Planned `include` meaning | Notes |
+|--------|---------------------------|-------|
+| `python` | Python module/package names | Recursive module discovery; respect `__all__`; ignore names starting `_` |
+| `go` | Go import paths | Package-level filtering; test files are never API surface |
+| `java` | Java package prefixes | Regex parser implementation |
+| `javaparser` | Java package prefixes | AST-based implementation |
 
 Plugins are discovered via the `semver_dredd.plugins` entry-point group.
 
@@ -413,14 +551,18 @@ Plugins are discovered via the `semver_dredd.plugins` entry-point group.
 
 Every plugin extends `LanguagePlugin` and provides:
 
-| Method / Property                  | Description                                               |
-|------------------------------------|-----------------------------------------------------------|
-| `name`                             | Unique identifier (`"python"`, `"go"`, `"java"`)          |
-| `version`                          | Plugin version string                                     |
-| `description`                      | Human-readable description                                |
-| `validate_path(path)`              | Check if a path is valid for this language                |
-| `generate_snapshot(path, version)` | Produce a YAML snapshot string                            |
-| `snapshot_format_class`            | *(optional)* Custom snapshot type with its own diff logic |
+| Method / Property                                 | Description                                               |
+|---------------------------------------------------|-----------------------------------------------------------|
+| `name`                                            | Unique identifier (`"python"`, `"go"`, `"java"`, etc.)     |
+| `version`                                         | Plugin version string                                     |
+| `description`                                     | Human-readable description                                |
+| `validate_path(path)`                             | Check if a path is valid for this language/domain         |
+| `generate_snapshot(path, version, options=None)`  | Produce a YAML snapshot string; receives forwarded scope/options |
+| `snapshot_format_class`                           | *(optional)* Custom snapshot type with its own diff logic |
+
+Planned pre-1.0 plugin metadata improvements include optional feature discovery
+(for example `plugin.have("feature name")`) and machine-readable plugin
+descriptions for supported scope syntax and `plugin_options`.
 
 ## Development
 
@@ -432,6 +574,7 @@ poetry install --with dev
 pip install -e plugins/python-3.10-dredd
 pip install -e plugins/go-1.20-dredd
 pip install -e plugins/java-1.8-dredd
+pip install -e plugins/javaparser-1.8-dredd
 
 # Run tests
 poetry run pytest -v
@@ -506,7 +649,10 @@ semver-dredd/
 │   ├── python-3.10-dredd/  # Python plugin (introspection-based)
 │   ├── go-1.20-dredd/      # Go plugin (bundled AST parser)
 │   ├── java-1.8-dredd/     # Java plugin (bundled source parser)
+│   ├── javaparser-1.8-dredd/ # Java plugin (JavaParser-based AST parser)
 │   └── semver-dredd-all/   # Meta-package installing all plugins
+├── docs/                   # Snapshot schema and design documentation
+├── reports/                # Investigation/status/gap reports
 ├── example/
 │   ├── demo_python.sh      # End-to-end Python demo
 │   ├── demo_go.sh          # End-to-end Go demo
