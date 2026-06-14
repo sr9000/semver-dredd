@@ -101,7 +101,7 @@ No plan files are merged.
 | Run | Plans | Theme | Status |
 |-----|-------|-------|--------|
 | 0 | `00`–`07` | Planning/milestone scaffolding (plan-file edits only) | [x] done |
-| 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [ ] todo |
+| 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [x] done |
 | 2 | `03` | Observability and snapshot provenance | [ ] todo |
 | 3 | `04` | Official plugin scope behavior | [ ] todo |
 | 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [ ] todo |
@@ -127,7 +127,7 @@ If smaller runs are preferred, split Run 1 into `01` then `02`, and Run 4 into
 Cross-cutting decisions deferred to implementation; each is owned by a plan's
 local `## Milestones` section and ticked there as it is resolved:
 
-- [ ] Raw/resolved config class shapes (`01`, `02`).
+- [x] Raw/resolved config class shapes (`01`, `02`).
 - [ ] Snapshot provenance metadata key names (`03`).
 - [ ] Structured logging implementation + `-v` collision resolution (`03`).
 - [ ] Plugin metadata schema for JSON/YAML output (`05`).
