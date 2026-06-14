@@ -1,50 +1,36 @@
 # Agent Notes — `docker/`
 
-This directory contains Dockerfiles for isolated smoke-test environments. The
-Compose file is at repo root: `docker-compose.smoke.yml`.
+Dockerfiles for isolated smoke-test environments. Compose file is at repo root:
+`docker-compose.smoke.yml`. Overview/examples in `docker/README.md`.
 
-## Layout
+## Images
 
-- `Dockerfile.python` — installs core + Python plugin; runs Python demo smoke.
-- `Dockerfile.go` — installs core + Go plugin; pre-downloads Go parser modules.
-- `Dockerfile.java` — installs core + Java regex plugin; downloads pinned
-  SnakeYAML JAR and pre-compiles parser.
-- `Dockerfile.unit` — installs core + official plugins + pytest and runs unit
-  tests.
-- `README.md` — smoke image overview and run examples.
+- `Dockerfile.python` — core + Python plugin; runs Python demo smoke.
+- `Dockerfile.go` — core + Go plugin; pre-downloads Go parser modules.
+- `Dockerfile.java` — core + regex Java plugin; downloads pinned SnakeYAML JAR,
+  pre-compiles parser.
+- `Dockerfile.unit` — core + official plugins + pytest; runs unit tests.
 
-## Main commands
+## Commands
 
 ```bash
-# Build and run every smoke service, then clean up
-bash scripts/smoke.sh
-
-# Run only selected services
-bash scripts/smoke.sh python unit
-
-# Skip build when images already exist
+bash scripts/smoke.sh                 # build+run all services, then clean up
+bash scripts/smoke.sh python unit     # selected services only
 bash scripts/smoke.sh --no-build python
-
-# Manual compose invocation
 docker compose -f docker-compose.smoke.yml up \
   --abort-on-container-exit --exit-code-from python python
 ```
 
-## Important behavior
+## Behavior
 
 - Runtime mounts repo read-only at `/repo`; images install code at build time.
-- Builds assert plugin discovery via `semver-dredd plugin list` so broken
-  installation fails early.
-- Go/Java images try to front-load network/toolchain work at build time.
-- `scripts/smoke.sh` runs services one by one and cleans containers between
-  runs.
+- Builds assert discovery via `semver-dredd plugin list` so broken installs fail
+  early; Go/Java images front-load network/toolchain work at build time.
+- `scripts/smoke.sh` runs services one by one and cleans containers between runs.
 
-## Scope-related notes
+## Scope
 
-Smoke tests currently exercise init/status/bake/compare classification for
-Python, Go, and regex Java demos. They do **not** yet assert `include`/`exclude`
-filtering, multi-document config, `javaparser`, or `bundle` behavior.
-
-If implementing proposal features, add smoke coverage only after unit tests
-prove deterministic behavior; parser/toolchain smoke failures are more costly to
-debug.
+Smoke currently covers init/status/bake/compare classification for Python, Go, and
+regex Java demos. It does NOT yet assert `include`/`exclude`, multi-document
+config, `javaparser`, or `bundle`. Add smoke coverage only after unit tests prove
+deterministic behavior — parser/toolchain smoke failures are costly to debug.

@@ -1,140 +1,82 @@
-# Agent Notes — semver-dredd Repository
+# Agent Notes — semver-dredd (repo root)
 
-Purpose: help agents to work with repo and navigate the repo without spending tokens rediscovering
-architecture, workflows, and proposal scope.
+Navigate the repo without rediscovering architecture/workflow each time.
 
-## Task life cycle
+## What it is
 
-Every long running task treated as a sequence of single commit size patches.
-Each patch kept code base in a *green state* (tools work, tests pass).
+Python 3.10+ semantic-versioning tool. Language plugins generate API snapshots;
+core diffs them, classifies the change `NONE`/`PATCH`/`MINOR`/`BREAKING`, and
+suggests/writes versions.
 
-Each task step (git patch) becomes commit when its done.
-Commit message follow pattern `feat/fix(branch-name): brief description`. Branch name could be chosen as short version of task title. After task completed user merges branch manually.
+**Plugins understand APIs; core understands mechanics.**
+- Core: plugin discovery, config, snapshot I/O, diff delegation, CLI, version math.
+- Plugin: parses a language and emits a self-diffing snapshot.
+- Snapshot dispatch is UUID-based via top-level `snapshot_type_id`.
 
-If agent starts task on master branch — it is able to automatically checkout onto new branch. COMMIT to MASTER is **NEVER** allowed.
+## Workflow rules (must follow)
 
-Each task step cycles through phases until committed:
-1. Make sure current *green status* of repository. Can be inherited from
-  last phase of the previous step.
-2. Implement required functionality
-3. Write tests for a new functionality (use-case driven, no dummy/trivial tests)
-  Often it requires to patch existing use-cases rather than write new ones.
-4. Pre-Commit gates:
-    - Run linting/reformatting
-    - Run full test suite regression
-    - Respect git hooks if any
+- Treat long tasks as a sequence of single-commit patches; keep repo **green**
+  (tools run, tests pass) after each.
+- **NEVER commit to master.** If on master, auto-checkout a new branch first.
+- Branch = short task title. Commit msg: `feat/fix(branch-name): brief description`.
+- User merges the branch manually after completion.
+- Per-step cycle: confirm green → implement → write use-case tests (no trivial
+  tests; often extend existing cases) → pre-commit gates (lint/format, full test
+  suite, git hooks).
 
+## Planning
 
-## Task planning
+Plans live in `plans/`. Split a feature into enumerated files
+`##-feature-title.md`, each describing one business-level change as commit-sized
+steps with: **Motivation**, **Touched files**, **Definition of Done** (validating
+use-case). Mark implementation-dependent parts as milestones and update as you go.
 
-Each plan placed in `plans` subdir. If desired feature cannot be implemented
-as single feature or multiple features required at once, produce enumerated
-list of files `##-feature-title.md`.
-
-Each file described single feature/fix on business process level, and consists
-of several steps — technical features/fixes required to support/implement desired behavior.
-
-Each step is a size of single commit (patch). It's description consists of:
-
-- **Motivation:** why these changes is required and what they essentially represent
-- **Touched files:** suggested scope of work, or where is main attention required
-- **Definition of Done (DoD)**: use-case or sequence of actions to validate portion of work
-
-If plan heavily depends on implementation details, mark this parts as milestones and refer them across plan, so agent able to update plan with details as it go.
-
-## What this repo is
-
-`semver-dredd` is a Python 3.10+ semantic-versioning tool. It generates API
-snapshots through language plugins, diffs snapshots, classifies the change as
-`NONE` / `PATCH` / `MINOR` / `BREAKING`, and suggests or writes versions.
-
-Core principle: **plugins understand APIs; core understands mechanics**.
-
-- Core does plugin discovery, config loading, snapshot I/O, diff delegation, CLI
-  orchestration, and version math.
-- Plugins parse a language/domain and produce a snapshot that can diff itself.
-- Snapshot format dispatch is UUID-based via top-level `snapshot_type_id`.
-
-## High-value docs before editing
-
-- `README.md` — user-facing CLI/API overview and project structure.
-- `HOWTO.md` — how to write plugins; best single source for plugin contract.
-- `docs/schema.md` — snapshot YAML envelope and predefined component schemas.
-- `INCLUDE-EXCLUDE-PROPOSAL.md` — proposed config/plugin API evolution.
-- `reports/include-exclude-status.md` — verified implementation status.
-- `reports/include-exclude-usability-and-implementation-plan.md` — usability
-  review, open questions, and staged implementation plan.
-
-## Directory-specific notes
-
-- `semverdredd/agent.md` — core source code boundaries and invariants.
-- `snapshot/agent.md` — snapshot protocols, normalized model, diff result.
-- `plugins/agent.md` — plugin package layout and official plugin notes.
-- `docker/agent.md` — smoke-test Docker images and Compose workflow.
-- `example/agent.md` — demo fixtures/scripts used by smoke tests.
-
-## Module layout quick map
+## Module map
 
 - `cli/` — argparse CLI, config application, command implementations.
-- `semverdredd/` — importable core API and plugin/snapshot registry mechanics.
-- `snapshot/` — snapshot model/protocol package, intentionally separate.
+- `semverdredd/` — importable core API, plugin/snapshot registry mechanics.
+- `snapshot/` — snapshot model/protocol package (kept separate).
 - `plugins/` — separately installable language plugin packages.
-- `example/` — Python/Go/Java demo inputs and demo scripts.
-- `tests/` — unit + integration-style tests; smoke assertions in
-  `tests/smoke/`.
-- `docker/` + `docker-compose.smoke.yml` — isolated smoke-test services.
+- `example/` — Python/Go/Java demo inputs + demo scripts.
+- `tests/` — unit/integration tests; smoke assertions in `tests/smoke/`.
+- `docker/` + `docker-compose.smoke.yml` — isolated smoke services.
 
-## Development commands
+## Per-directory agent.md
+
+`semverdredd/`, `snapshot/`, `plugins/`, `docker/`, `example/` each have an
+`agent.md` with local invariants — read before editing that area.
+
+## Docs to read before editing
+
+- `README.md` — CLI/API overview, project structure.
+- `HOWTO.md` — plugin authoring; best source for the plugin contract.
+- `docs/schema.md` — snapshot YAML envelope + component schemas.
+- `INCLUDE-EXCLUDE-PROPOSAL.md` — proposed config/plugin API evolution.
+- `reports/` — gap analysis and Q&A on tool/scope status.
+
+## Dev commands
 
 ```bash
-# Install core dev deps
 poetry install --with dev
-
-# Install official plugins editable, if needed for local plugin discovery
-pip install -e plugins/python-3.10-dredd
-pip install -e plugins/go-1.20-dredd
-pip install -e plugins/java-1.8-dredd
-pip install -e plugins/javaparser-1.8-dredd
-
-# Run tests
+pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
 poetry run pytest -v
-poetry run pytest tests/test_config.py -v
-
-# Run demos directly (requires relevant toolchains/plugins)
-bash example/demo_python.sh
-bash example/demo_go.sh
-bash example/demo_java.sh
-
-# Run smoke tests in Docker
-bash scripts/smoke.sh
-bash scripts/smoke.sh python unit
+bash example/demo_python.sh                # go/java need toolchains+plugins
+bash scripts/smoke.sh [python unit ...]    # Docker smoke
 ```
 
-## Code style / conventions
+## Conventions
 
-- Python >= 3.10; use modern type hints (`dict[str, Any]`, `X | None`).
-- Prefer `pathlib.Path` for filesystem paths.
-- Core data structures often use `dataclass`; snapshot protocols use runtime
-  `Protocol` checks.
-- Keep `semverdredd/` mostly pure-data / core logic. Printing belongs in `cli/`.
-- Plugins return `SnapshotResult`; do not raise for expected parser failures.
-- Plugin options must be backward-compatible: unknown keys should be ignored.
-- Avoid adding core assumptions about language API shape; custom snapshots own
-  their own `diff_against()` behavior.
+- Python ≥3.10 modern hints (`dict[str, Any]`, `X | None`); prefer `pathlib.Path`.
+- `dataclass` for data; runtime `Protocol` for snapshot contracts.
+- Keep `semverdredd/` pure logic — printing belongs in `cli/`.
+- Plugins return `SnapshotResult`; don't raise/print on expected parser failures.
+- Plugin options stay backward-compatible: ignore unknown keys.
+- No core assumptions about language API shape; snapshots own `diff_against()`.
 
-## Scope-related current status
+## Scope status
 
-`include`, `exclude`, and `plugin_options` are parsed and forwarded to plugins.
-Official plugins currently do **not** implement filtering. Multi-document config
-and the `bundle` plugin are still proposed.
-
-If changing scope behavior, read these first:
-
-1. `INCLUDE-EXCLUDE-PROPOSAL.md`
-2. `reports/include-exclude-status.md`
-3. `reports/include-exclude-usability-and-implementation-plan.md`
-4. `plugins/agent.md`
-
-Important usability caution: once official plugins start honoring
-`include`/`exclude`, existing configs containing those keys may produce narrower
-snapshots than before.
+`include`/`exclude`/`plugin_options` are parsed and forwarded but **no official
+plugin honors filtering yet**. Multi-document config and the `bundle` plugin are
+still proposed. Before changing scope behavior, read `INCLUDE-EXCLUDE-PROPOSAL.md`,
+`reports/`, and `plugins/agent.md`. Caution: once plugins honor `include`/
+`exclude`, existing configs with those keys will yield narrower snapshots.
