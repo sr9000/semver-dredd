@@ -1,6 +1,8 @@
 # Pre-1.0 Completion Roadmap
 
-Source report: `reports/complete-semver-tool-gap-report.md`.
+These phase plans capture the agreed pre-1.0 requirements directly and are
+self-contained. User-facing behavior is mirrored in `README.md`; the plugin
+author contract is mirrored in `HOWTO.md`.
 
 ## Goal
 
@@ -47,8 +49,8 @@ provenance, a built-in `bundle` plugin, and synchronized documentation/tests.
   remain loadable.
 - The built-in `bundle` plugin implements the full VERSION dependency diff
   matrix.
-- README, HOWTO, schema docs, include/exclude proposal, plugin READMEs, and tests
-  all describe and verify the same shipped behavior.
+- README, HOWTO, schema docs, plugin READMEs, and tests all describe and verify
+  the same shipped behavior.
 
 ## Phase Order
 
@@ -122,9 +124,8 @@ If smaller runs are preferred, split Run 1 into `01` then `02`, and Run 4 into
 
 ## Milestones
 
-Cross-cutting decisions deferred to implementation (from the gap report's
-"Remaining Open Details"); each is owned by a plan's local `## Milestones`
-section and ticked there as it is resolved:
+Cross-cutting decisions deferred to implementation; each is owned by a plan's
+local `## Milestones` section and ticked there as it is resolved:
 
 - [ ] Raw/resolved config class shapes (`01`, `02`).
 - [ ] Snapshot provenance metadata key names (`03`).

@@ -89,7 +89,7 @@ versioning:
 # Flat lists of opaque strings forwarded to the language plugin via its
 # options dict. Interpretation (packages, paths, globs) is plugin-specific.
 # NOTE: the bundled python/go/java plugins receive these but do not filter
-# by them yet (see INCLUDE-EXCLUDE-PROPOSAL.md).
+# by them yet (see the plans/ roadmap for status).
 # include:
 #   - mypackage.core
 #   - mypackage.utils

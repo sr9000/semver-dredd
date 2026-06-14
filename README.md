@@ -32,12 +32,9 @@ feature is still planned.
 | Config remembered `source.path` and pathless `status` / `bake` | 🚧 Planned |
 | Built-in aggregate `bundle` plugin | 🚧 Planned |
 
-Detailed status and scope notes live in:
-
-- [`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md)
-- [`reports/include-exclude-status.md`](reports/include-exclude-status.md)
-- [`reports/include-exclude-usability-and-implementation-plan.md`](reports/include-exclude-usability-and-implementation-plan.md)
-- [`reports/complete-semver-tool-gap-report.md`](reports/complete-semver-tool-gap-report.md)
+The pre-1.0 completion roadmap and detailed scope/status notes live in the
+[`plans/`](plans/) directory, starting with
+[`plans/00-pre-1-0-completion-roadmap.md`](plans/00-pre-1-0-completion-roadmap.md).
 
 ## Installation
 
@@ -370,8 +367,8 @@ plugin_options:
 > but array items may be plugin-specific values or objects.
 
 > The bundled python/go/java/javaparser plugins receive `include`/`exclude`/
-> `plugin_options` but do not filter by them yet — see
-> [`INCLUDE-EXCLUDE-PROPOSAL.md`](INCLUDE-EXCLUDE-PROPOSAL.md) for status.
+> `plugin_options` but do not filter by them yet — see the
+> [`plans/`](plans/) roadmap for status.
 
 ### Multi-document config fallback (planned)
 
@@ -652,7 +649,7 @@ semver-dredd/
 │   ├── javaparser-1.8-dredd/ # Java plugin (JavaParser-based AST parser)
 │   └── semver-dredd-all/   # Meta-package installing all plugins
 ├── docs/                   # Snapshot schema and design documentation
-├── reports/                # Investigation/status/gap reports
+├── plans/                  # Pre-1.0 completion roadmap and phase plans
 ├── example/
 │   ├── demo_python.sh      # End-to-end Python demo
 │   ├── demo_go.sh          # End-to-end Go demo

@@ -19,7 +19,7 @@ plus a resolver that can validate plugin candidates in command context.
 - `tests/test_cli.py`
 - `tests/test_plugin_manager.py` if candidate validation touches discovery
 - `README.md`
-- `INCLUDE-EXCLUDE-PROPOSAL.md`
+- `HOWTO.md`
 
 ## Commit-Sized Steps
 
@@ -104,7 +104,7 @@ Definition of Done:
 
 Definition of Done:
 
-- README/HOWTO/proposal docs agree on shipped config behavior.
+- README and HOWTO docs agree on shipped config behavior.
 - Planned-only claims are removed only after tests prove behavior.
 
 ## Milestones

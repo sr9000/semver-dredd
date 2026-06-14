@@ -51,8 +51,8 @@ use-case). Mark implementation-dependent parts as milestones and update as you g
 - `README.md` — CLI/API overview, project structure.
 - `HOWTO.md` — plugin authoring; best source for the plugin contract.
 - `docs/schema.md` — snapshot YAML envelope + component schemas.
-- `INCLUDE-EXCLUDE-PROPOSAL.md` — proposed config/plugin API evolution.
-- `reports/` — gap analysis and Q&A on tool/scope status.
+- `plans/` — pre-1.0 completion roadmap and per-phase plans (config/plugin API
+  evolution, scope model, bundle plugin, observability).
 
 ## Dev commands
 
@@ -77,6 +77,6 @@ bash scripts/smoke.sh [python unit ...]    # Docker smoke
 
 `include`/`exclude`/`plugin_options` are parsed and forwarded but **no official
 plugin honors filtering yet**. Multi-document config and the `bundle` plugin are
-still proposed. Before changing scope behavior, read `INCLUDE-EXCLUDE-PROPOSAL.md`,
-`reports/`, and `plugins/agent.md`. Caution: once plugins honor `include`/
-`exclude`, existing configs with those keys will yield narrower snapshots.
+still planned. Before changing scope behavior, read the `plans/` roadmap and
+`plugins/agent.md`. Caution: once plugins honor `include`/`exclude`, existing
+configs with those keys will yield narrower snapshots.

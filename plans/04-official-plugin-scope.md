@@ -9,6 +9,26 @@ for Python, Go, regex Java, and JavaParser, while keeping syntax plugin-specific
 Before editing any plugin package, read `plugins/agent.md` and the local
 `agent.md` for that plugin directory.
 
+## Shared Scope Conventions
+
+These are the agreed cross-plugin recommendations. Item *syntax* stays
+plugin-specific (strings, package names, import paths, or objects), but every
+official plugin should follow this behavior where its domain has a natural
+hierarchy:
+
+- `include`/`exclude` are arrays; an empty `include` means "analyze the whole
+  configured `path` API surface", a non-empty `include` is allow-list mode.
+- `include` is recursive by default.
+- `exclude` is applied after `include` and supports a trailing `*` for explicit
+  nested exclusion (e.g. `api/experimental/*` keeps only the top-level
+  `api/experimental` surface). `exclude` is the single home for exclusion.
+- Official plugins do **not** support glob syntax; the default selector shape is
+  `path/to/module` / dotted names, not `src/**/*.go`.
+- Invalid patterns and match-nothing cases are logged (severity chosen by the
+  plugin; warning recommended) rather than silently ignored.
+- `plugin_options` stays orthogonal to scope — it is for fine-tuning
+  (classpaths, source levels, timeouts), never for API-surface selection.
+
 ## Touched Files
 
 - `plugins/agent.md` and per-plugin `agent.md` as required reading, not edits by
@@ -63,8 +83,9 @@ Definition of Done:
 
 - Treat `include` items as Java package prefixes.
 - Empty include means all parsed public API under `--path`.
-- Apply exclude after include.
-- Keep parser-specific options in `plugin_options` and separate from scope.
+- Apply exclude after include, honoring the trailing `*` nested-exclusion rule.
+- Reject glob syntax; keep parser-specific options in `plugin_options` and
+  separate from scope.
 
 Definition of Done:
 

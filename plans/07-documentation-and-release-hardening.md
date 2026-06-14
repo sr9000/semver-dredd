@@ -10,7 +10,6 @@ prevents docs, examples, and tests from drifting after the core feature phases.
 
 - `README.md`
 - `HOWTO.md`
-- `INCLUDE-EXCLUDE-PROPOSAL.md`
 - `docs/schema.md`
 - plugin `README.md` files
 - `example/`
@@ -56,15 +55,23 @@ Definition of Done:
 
 - Schema docs match serialized test fixtures.
 
-### 4. Refresh include/exclude proposal status
+### 4. Consolidate include/exclude scope documentation
 
-- Mark resolved decisions as implemented once shipped.
-- Leave unresolved or future ideas explicitly marked as future work.
-- Link to official plugin READMEs for exact syntax.
+The standalone `INCLUDE-EXCLUDE-PROPOSAL.md` has been removed; its resolved
+decisions now live in `README.md`, `HOWTO.md`, and the plugin READMEs. This step
+keeps those authoritative homes consistent.
+
+- Ensure the scope contract (arrays of plugin-specific items; recursive
+  `include`; `*` nested `exclude`; no globs in official plugins; empty-include
+  semantics) is documented once in README/HOWTO and referenced elsewhere.
+- Mark resolved decisions as implemented once shipped; keep future ideas in a
+  clearly labeled planned section.
+- Link to official plugin READMEs for exact per-plugin syntax.
 
 Definition of Done:
 
-- Proposal/status document no longer contradicts README/HOWTO.
+- README, HOWTO, and plugin READMEs agree on scope semantics with no
+  contradictions and no references to the removed proposal file.
 
 ### 5. Expand end-to-end and smoke coverage
 
@@ -99,7 +106,7 @@ Implementation-dependent decisions; tick as resolved and mirror in `00`:
 
 - [ ] Final decision on the `semver-dredd list` alias (carried from `05`).
 - [ ] Which previously-planned sections flip from "planned" to "shipped" in
-  README/HOWTO/proposal.
+  README/HOWTO and plugin READMEs.
 - [ ] Schema docs verified against serialized fixtures (generator block + bundle
   examples).
 - [ ] Smoke coverage decided for bundle and plugin metadata vs deferred behind

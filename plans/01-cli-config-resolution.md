@@ -84,6 +84,10 @@ Definition of Done:
   and bake) and persist its value into config.
 - Preserve `--version` as the initial semantic version value written to the
   version file.
+- Allow the selected plugin to contribute its own `options`/scope defaults when
+  writing the initial config (plugin-driven initialization), while keeping core
+  ignorant of plugin-specific option meaning. A plugin that does not implement
+  this simply yields no extra defaults.
 
 Definition of Done:
 
@@ -142,4 +146,8 @@ Implementation-dependent decisions; tick as resolved and mirror in `00`:
   `schema_version` is bumped from the current `1`.
 - [ ] Collision-warning wording/severity for explicit-vs-config overrides
   (plugin/path), routed through the phase 3 logging helpers.
+- [ ] Mechanism (if any) for plugin-driven `options` initialization at `init`
+  (e.g. an optional plugin hook discovered via phase 5 feature discovery) vs
+  deferring it; keep it optional so plugins without it still work.
+
 
