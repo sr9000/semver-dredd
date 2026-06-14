@@ -34,6 +34,13 @@ def cmd_status(args: argparse.Namespace) -> int:
     """
     use_color = _should_use_color(getattr(args, "color", None))
     plugin_name = (getattr(args, "plugin", None) or "python").lower()
+    if not getattr(args, "module", None):
+        _print_level(
+            "error",
+            "No source path/module provided. Pass positional module/--path or configure source.path.",
+            use_color=use_color,
+        )
+        return EXIT_ERROR
 
     # Parse --date if provided
     from datetime import date as date_type

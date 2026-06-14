@@ -15,6 +15,7 @@ from cli.utils import (
     _should_use_color,
 )
 from semverdredd import generate_patch
+from semverdredd.plugin_manager import get_plugin
 from semverdredd.version import save_version_file
 
 
@@ -26,10 +27,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     """
     use_color = _should_use_color(getattr(args, "color", None))
 
-    # Handle default plugin
     plugin_name = (getattr(args, "plugin", None) or "python").lower()
 
-    config_path = Path(DEFAULT_CONFIG_FILE)
+    config_path = Path(getattr(args, "config", None) or DEFAULT_CONFIG_FILE)
     baked_path = Path(getattr(args, "baked", None) or DEFAULT_BAKED_FILE)
     version_path = Path(getattr(args, "version_file", None) or DEFAULT_VERSION_FILE)
 
@@ -38,9 +38,30 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # Create config if not exists
     if not config_path.exists():
+        plugin_defaults = ""
+        plugin = get_plugin(plugin_name)
+        if plugin is not None and hasattr(plugin, "initial_config_defaults"):
+            try:
+                defaults = plugin.initial_config_defaults(args.module)  # optional hook
+                if isinstance(defaults, dict):
+                    import yaml
+
+                    rendered = yaml.safe_dump(defaults, sort_keys=False).rstrip()
+                    if rendered:
+                        plugin_defaults = f"\n{rendered}\n"
+            except Exception:
+                # Optional plugin hook, best effort only.
+                plugin_defaults = ""
+
         default_config = f"""# semver-dredd configuration
 schema_version: 1
 plugin: {plugin_name}
+
+source:
+  path: {args.module}
+
+files:
+  version: {version_path}
 
 policies:
   allow_breaking_changes: false
@@ -51,7 +72,7 @@ output:
     patch: info
     minor: warn
     major: error
-"""
+""" + plugin_defaults
         config_path.write_text(default_config)
         _print_level("info", f"Created {config_path}", use_color=use_color)
     else:
