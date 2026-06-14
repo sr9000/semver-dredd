@@ -10,7 +10,8 @@ plus a resolver that can validate plugin candidates in command context.
 ## Touched Files
 
 - `cli/config.py`
-- `cli/__main__.py`
+- `cli/__init__.py` — argparse setup and the `load_config()` call live here, not
+  in the 8-line `cli/__main__.py` shim.
 - `cli/utils.py`
 - `semverdredd/plugin_manager.py`
 - `semverdredd/plugin_base.py` if validation typing changes are needed
@@ -25,10 +26,14 @@ plus a resolver that can validate plugin candidates in command context.
 ### 1. Preserve plugin-specific scope item shapes
 
 - Change the config model for `include` and `exclude` from `list[str]` to
-  `list[Any]`.
+  `list[Any]`. Today `cli/config.py` declares `Config.include`/`Config.exclude`
+  as `list[str]` and runs values through `_parse_str_list()`, which calls
+  `str(item)` on every element (so objects/numbers are flattened to strings).
 - Validate only that top-level values are arrays.
-- Stop coercing items to strings.
-- Keep `plugin_options` opaque.
+- Stop coercing items to strings; replace/retire `_parse_str_list()` for these
+  two keys while keeping the scalar-to-single-item convenience if desired.
+- Keep `plugin_options` opaque (already passed through untouched via
+  `Config.snapshot_options()`).
 
 Definition of Done:
 

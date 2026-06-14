@@ -36,8 +36,16 @@ include:
 ### 1. Decide and document built-in registration path
 
 - Register `bundle` through package entry points or a documented built-in
-  fallback in plugin discovery.
-- Ensure built-in discovery reports source as `built-in` for snapshot provenance.
+  fallback in plugin discovery. Note the existing machinery in
+  `semverdredd/plugin_manager.py`: discovery uses the entry-point group
+  `semver_dredd.plugins`, and there is already a `_BUILTIN_FALLBACK_SPECS` list
+  plus an `origin="builtin"` registration path and a `PluginInfo.origin` field
+  (`entry_point|user_dir|builtin|manual`). The current fallback only triggers
+  when a bundled plugin *package* is importable but lacks dist metadata, so
+  `bundle` (which ships inside core, not as a separate package) likely needs an
+  always-on built-in registration rather than reusing that import-guarded list.
+- Ensure built-in discovery reports source as `builtin` (matching the existing
+  `PluginInfo.origin` value) for snapshot provenance.
 - Avoid special-casing bundle behavior elsewhere in core.
 
 Definition of Done:

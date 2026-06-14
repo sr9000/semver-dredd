@@ -22,7 +22,12 @@ able to ask plugins about optional capabilities without expanding the minimal
 ### 1. Add optional feature discovery
 
 - Add a backward-compatible optional hook, for example `have(feature: str) ->
-  bool` or a metadata property with feature flags.
+  bool` or a metadata property with feature flags. `LanguagePlugin`
+  (`semverdredd/plugin_base.py`) is an ABC whose only abstract members are the
+  `name` property and `generate_snapshot()`; everything else (`display_name`,
+  `version`, `description`, `validate_path`) already has concrete defaults, and
+  there is no feature-discovery hook today, so add the new hook with a default
+  implementation on the base class to stay backward compatible.
 - Ensure existing third-party plugins without the hook still work.
 - Document that feature discovery is optional and not part of the minimal
   versioning contract.
@@ -37,12 +42,15 @@ Definition of Done:
 Metadata should be able to describe:
 
 - plugin name;
-- snapshot type ID/class if available;
+- snapshot type ID/class if available (plugins may expose
+  `snapshot_format_class`, already consulted by the plugin manager);
 - scope syntax;
 - supported `plugin_options`;
 - external tools/runtime requirements;
 - feature flags;
-- package/version/source if discoverable.
+- package/version/source if discoverable. Reuse the existing `PluginInfo.origin`
+  (`entry_point|user_dir|builtin|manual`) and `PluginInfo.entry_point` fields and
+  the plugin `version` property rather than re-deriving provenance.
 
 Definition of Done:
 

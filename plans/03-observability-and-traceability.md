@@ -8,12 +8,18 @@ should land before deep fallback/scope behavior becomes complex.
 
 ## Touched Files
 
-- `cli/__main__.py`
+- `cli/__init__.py` — global flags and `main()` live here; `cli/__main__.py` is
+  only an 8-line shim.
 - `cli/utils.py`
 - `cli/commands/*.py`
-- `semverdredd/plugin_manager.py`
+- `semverdredd/plugin_manager.py` — already uses `logging` and already tracks
+  plugin origin via `PluginInfo.origin` (`entry_point|user_dir|builtin|manual`)
+  and `PluginInfo.entry_point`; reuse these for provenance instead of inventing
+  new tracking.
 - `semverdredd/snapshot_io.py`
-- `snapshot/models.py`
+- `snapshot/models.py` — despite the "backward-compatibility shim" docstring this
+  file holds the real `NormalizedSnapshot` implementation (there is no
+  `semverdredd/models.py`); edit it here.
 - `snapshot/predefined/models.py`
 - `docs/schema.md`
 - `tests/test_cli.py`
@@ -24,7 +30,11 @@ should land before deep fallback/scope behavior becomes complex.
 
 ### 1. Add a global counted verbosity flag
 
-- Add global `-v`/`-vv`/`-vvv` support.
+- Add global `-v`/`-vv`/`-vvv` support. Caution: `-v` is currently registered as
+  the short alias of `init`'s `--version` (`init_parser.add_argument("--version",
+  "-v", ...)`). Resolve this collision deliberately — e.g. drop the `-v` alias
+  from `init --version`, or attach counted verbosity only to the top-level parser
+  before the subcommand — and cover the chosen behavior with tests.
 - Define level behavior:
   - default: errors and warnings only;
   - `-v`: info-level, O(1) logs once per tool call;

@@ -17,7 +17,9 @@ semver-dredd bake
 
 ## Touched Files
 
-- `cli/__main__.py`
+- `cli/__init__.py` — hosts `main()`, the argparse setup for every subcommand,
+  and the `load_config()` call. `cli/__main__.py` is only an 8-line
+  `sys.exit(main())` shim, so do not put resolution logic there.
 - `cli/config.py`
 - `cli/commands/init.py`
 - `cli/commands/status.py`
@@ -35,7 +37,11 @@ semver-dredd bake
 ### 1. Add global selected-config loading
 
 - Add a global `--config PATH` argument parsed before normal config loading.
-- Keep the default path as `.semver.yaml` when no flag is supplied.
+  Note: `load_config()` in `cli/config.py` already accepts a `config_file`
+  parameter but `cli/__init__.py:main()` currently calls `load_config()` with no
+  arguments, so the wiring is the missing piece, not the parameter.
+- Keep the default path as `.semver.yaml` when no flag is supplied
+  (`DEFAULT_CONFIG_FILE = ".semver.yaml"`).
 - Make config loading report whether the file was absent, default-selected, or
   explicitly selected.
 - Preserve current single-document behavior in this step.
@@ -67,9 +73,15 @@ Definition of Done:
 
 ### 3. Store source path and version file during `init`
 
-- Keep `--plugin` required for `init`.
-- Write `plugin`, `source.path`, and `files.version` to `.semver.yaml`.
-- Add or standardize `--version-file PATH` for config persistence.
+- Make `--plugin` required for `init`. It is currently optional and silently
+  defaults to `python` (`cli/commands/init.py` falls back to `"python"`); the
+  target behavior requires the user to name a plugin explicitly.
+- Write `plugin`, `source.path`, and `files.version` to `.semver.yaml`. The
+  current init template only writes `schema_version`, `plugin`, `policies`, and
+  `output.severity_by_change` — it does not persist the source path or version
+  file location.
+- Reuse the existing `--version-file PATH` flag (already defined on init, status,
+  and bake) and persist its value into config.
 - Preserve `--version` as the initial semantic version value written to the
   version file.
 
