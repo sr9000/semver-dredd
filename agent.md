@@ -1,7 +1,46 @@
 # Agent Notes — semver-dredd Repository
 
-Purpose: help agents navigate the repo without spending tokens rediscovering
+Purpose: help agents to work with repo and navigate the repo without spending tokens rediscovering
 architecture, workflows, and proposal scope.
+
+## Task life cycle
+
+Every long running task treated as a sequence of single commit size patches.
+Each patch kept code base in a *green state* (tools work, tests pass).
+
+Each task step (git patch) becomes commit when its done.
+Commit message follow pattern `feat/fix(branch-name): brief description`. Branch name could be chosen as short version of task title. After task completed user merges branch manually.
+
+If agent starts task on master branch — it is able to automatically checkout onto new branch. COMMIT to MASTER is **NEVER** allowed.
+
+Each task step cycles through phases until committed:
+1. Make sure current *green status* of repository. Can be inherited from
+  last phase of the previous step.
+2. Implement required functionality
+3. Write tests for a new functionality (use-case driven, no dummy/trivial tests)
+  Often it requires to patch existing use-cases rather than write new ones.
+4. Pre-Commit gates:
+    - Run linting/reformatting
+    - Run full test suite regression
+    - Respect git hooks if any
+
+
+## Task planning
+
+Each plan placed in `plans` subdir. If desired feature cannot be implemented
+as single feature or multiple features required at once, produce enumerated
+list of files `##-feature-title.md`.
+
+Each file described single feature/fix on business process level, and consists
+of several steps — technical features/fixes required to support/implement desired behavior.
+
+Each step is a size of single commit (patch). It's description consists of:
+
+- **Motivation:** why these changes is required and what they essentially represent
+- **Touched files:** suggested scope of work, or where is main attention required
+- **Definition of Done (DoD)**: use-case or sequence of actions to validate portion of work
+
+If plan heavily depends on implementation details, mark this parts as milestones and refer them across plan, so agent able to update plan with details as it go.
 
 ## What this repo is
 
