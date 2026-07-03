@@ -443,6 +443,17 @@ def main(argv: list[str] | None = None) -> int:
         "list",
         help="List discovered plugins",
     )
+    plugin_list_format = plugin_list.add_mutually_exclusive_group()
+    plugin_list_format.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output",
+    )
+    plugin_list_format.add_argument(
+        "--yaml",
+        action="store_true",
+        help="Emit machine-readable YAML output",
+    )
     plugin_list.set_defaults(func=cmd_plugin_list)
     plugin_install = plugin_sub.add_parser(
         "install",
@@ -469,6 +480,17 @@ def main(argv: list[str] | None = None) -> int:
     plugin_info.add_argument(
         "name",
         help="Plugin name to inspect",
+    )
+    plugin_info_format = plugin_info.add_mutually_exclusive_group()
+    plugin_info_format.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output",
+    )
+    plugin_info_format.add_argument(
+        "--yaml",
+        action="store_true",
+        help="Emit machine-readable YAML output",
     )
     plugin_info.set_defaults(func=cmd_plugin_info)
     args = parser.parse_args(argv)

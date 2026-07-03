@@ -2,12 +2,37 @@
 Tests for semver-dredd CLI.
 """
 
+import json
 import logging
 import os
 from datetime import date
 from unittest.mock import patch
 
+import yaml
+
 from cli import main
+from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+
+
+class InventoryPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "inventory-test"
+
+    @property
+    def version(self) -> str:
+        return "9.9.9"
+
+    @property
+    def metadata(self) -> dict:
+        return {
+            "scope": {"syntax": "demo-syntax"},
+            "plugin_options": ["demo_option"],
+            "features": ["metadata", "machine_readable_inventory"],
+        }
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "inventory")
 
 
 class TestCLIBump:
@@ -517,3 +542,47 @@ class TestRun2Verbosity:
         assert any(
             "config.selected" in m and "absent" in m for m in messages
         ), f"Expected absent in config.selected, got: {messages}"
+
+
+class TestPluginInventoryOutput:
+    def test_plugin_list_json_emits_stable_shape(self, capsys):
+        from semverdredd.plugin_manager import get_plugin_manager
+
+        mgr = get_plugin_manager()
+        mgr.register(InventoryPlugin())
+        try:
+            result = main(["plugin", "list", "--json"])
+            assert result == 0
+            output = capsys.readouterr().out
+            payload = json.loads(output)
+            plugin = next(item for item in payload if item["name"] == "inventory-test")
+            assert plugin["version"] == "9.9.9"
+            assert plugin["origin"] == "manual"
+            assert plugin["scope"] == {"syntax": "demo-syntax"}
+            assert plugin["features"] == ["machine_readable_inventory", "metadata"]
+            assert set(plugin["snapshot_format"].keys()) == {
+                "class",
+                "snapshot_type_id",
+            }
+        finally:
+            mgr.unregister("inventory-test")
+
+    def test_plugin_info_yaml_emits_stable_shape(self, capsys):
+        from semverdredd.plugin_manager import get_plugin_manager
+
+        mgr = get_plugin_manager()
+        mgr.register(InventoryPlugin())
+        try:
+            result = main(["plugin", "info", "inventory-test", "--yaml"])
+            assert result == 0
+            output = capsys.readouterr().out
+            payload = yaml.safe_load(output)
+            assert payload["name"] == "inventory-test"
+            assert payload["display_name"] == "Inventory-test"
+            assert payload["plugin_options"] == ["demo_option"]
+            assert payload["snapshot_format"] == {
+                "class": None,
+                "snapshot_type_id": None,
+            }
+        finally:
+            mgr.unregister("inventory-test")
