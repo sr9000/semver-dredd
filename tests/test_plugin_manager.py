@@ -47,6 +47,21 @@ def test_plugin_manager_list_plugins():
     assert "mock" in names
 
 
+def test_plugin_manager_loads_core_builtin_bundle(tmp_path):
+    mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
+
+    mgr.load_plugins(force=True)
+
+    infos = {p.name: p for p in mgr.list_plugins()}
+    assert "bundle" in infos
+    assert infos["bundle"].origin == "builtin"
+
+    metadata = mgr.describe_plugin("bundle")
+    assert metadata is not None
+    assert metadata["scope"]["syntax"] == "paths to VERSION files in include[]"
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+
+
 def test_plugin_manager_unregister():
     """Test that PluginManager can unregister plugins."""
     mgr = PluginManager()
@@ -373,6 +388,7 @@ class TestDiscoveryPrecedence:
         mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
         mgr.load_plugins()
         infos = {i.name: i for i in mgr.list_plugins()}
+        assert infos["bundle"].origin == "builtin"
         # The test environment installs the bundled plugins via pip,
         # so they must be discovered through entry points.
         for name in ("python", "go", "java"):
@@ -387,6 +403,7 @@ class TestDiscoveryPrecedence:
         mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
         mgr.load_plugins()
         infos = {i.name: i for i in mgr.list_plugins()}
+        assert infos["bundle"].origin == "builtin"
         for name in ("python", "go", "java"):
             assert name in infos, f"plugin '{name}' not discovered via fallback"
             assert infos[name].origin == "builtin"

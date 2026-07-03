@@ -39,6 +39,11 @@ _BUILTIN_FALLBACK_SPECS: list[tuple[str, str, str]] = [
     ("semver_dredd_java.plugin", "JavaPlugin", "java"),
 ]
 
+# Always-on builtins that ship inside the core package itself.
+_CORE_BUILTIN_SPECS: list[tuple[str, str, str]] = [
+    ("semverdredd.bundle_plugin", "BundlePlugin", "bundle"),
+]
+
 
 @dataclass(frozen=True)
 class PluginInfo:
@@ -79,6 +84,23 @@ class PluginManager:
         except Exception:
             # Don't break core operation if home dir isn't accessible
             pass
+
+        # ------------------------------------------------------------------
+        # Always-on core builtins
+        # ------------------------------------------------------------------
+        for _mod_name, _cls_name, _plugin_name in _CORE_BUILTIN_SPECS:
+            if _plugin_name in self._registry:
+                continue
+            try:
+                _mod = __import__(_mod_name, fromlist=[_cls_name])
+                cls = getattr(_mod, _cls_name)
+                self.register(cls(), origin="builtin")
+            except Exception as e:
+                logger.warning(
+                    "Failed to init core builtin plugin '%s': %s",
+                    _plugin_name,
+                    e,
+                )
 
         # ------------------------------------------------------------------
         # Discover via entry points (preferred mechanism)
