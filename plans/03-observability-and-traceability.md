@@ -97,11 +97,14 @@ Definition of Done:
 
 Implementation-dependent decisions; tick as resolved and mirror in `00`:
 
-- [ ] Resolve the `-v` collision with `init --version` (drop the alias vs
-  attach counted verbosity to the top-level parser only).
-- [ ] Structured-logging implementation: stdlib `logging` vs dedicated event
-  helpers in `cli/utils.py`, and how levels map to `-v/-vv/-vvv`.
-- [ ] Snapshot `generator` metadata key names and whether `schema_version` is
-  bumped (real model lives in `snapshot/models.py`).
-- [ ] Back-compat path for `compare --verbose` (preserve alias vs migrate).
+- [x] Resolve the `-v` collision with `init --version`: dropped the `-v` alias
+  from `init --version`; counted verbosity attached to the top-level parser only.
+- [x] Structured-logging implementation: stdlib `logging` used via `_log_event`/
+  `_log_config_selected`/`_log_plugin_selected`/`_log_candidate_attempt` helpers
+  in `cli/utils.py`; levels map `-v→INFO`, `-vv→DEBUG`, `-vvv→DEBUG+arg dump`.
+- [x] Snapshot `generator` metadata key names: `plugin_name`, `plugin_version`,
+  `plugin_source`, `config_path`, `candidate_index` in `snapshot/models.py`;
+  `schema_version` not bumped (generator block is optional/back-compat absent).
+- [x] Back-compat path for `compare --verbose`: preserved as-is (prints "Using
+  plugin" message at info level); global `-v` is orthogonal and additive.
 

@@ -26,9 +26,16 @@ semver-dredd snapshot --plugin python --path example.py.pygeometry1 --version 1.
 bash example/demo_python.sh
 ```
 
-## Scope (not yet implemented)
+## Scope (implemented)
 
-Likely first target: match scope against module + fully-qualified object names;
-preserve no-scope behavior; fail clearly when `include` matches nothing. Runtime
-import has side-effect risk — do NOT add broader submodule importing without an
-explicit option/product decision (e.g. `plugin_options.import_submodules`).
+`include`/`exclude` items are module/package dotted names, matched recursively
+against discovered submodule dotted names (`_matches_scope_item`). When the
+root module defines `__all__`, scope recursion is skipped and only
+`__all__`-listed names are used (matches plain Python visibility). Otherwise
+`_discover_submodule_names()` walks public (non `_`-prefixed) submodules via
+`pkgutil.walk_packages`, `_resolve_scan_targets()` applies include (allow-list)
+then exclude, and `_build_snapshot()` merges member dicts across targets,
+logging (and keeping the first occurrence of) any name collisions. No new
+`plugin_options` were added — see README for the exact syntax and tests in
+`tests/test_python_plugin_scope.py` / `tests/fixtures/python_scope/`.
+

@@ -5,18 +5,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from cli.utils import (
-    DEFAULT_BAKED_FILE,
-    DEFAULT_VERSION_FILE,
-    EXIT_ERROR,
-    EXIT_OK,
-    _generate_snapshot_yaml,
-    _get_language_plugin,
-    _print_level,
-    _resolve_snapshot_class,
-    _run_diff,
-    _should_use_color,
-)
+from cli.utils import (DEFAULT_BAKED_FILE, DEFAULT_VERSION_FILE, EXIT_ERROR,
+                       EXIT_OK, _generate_snapshot_yaml, _get_language_plugin,
+                       _print_level, _resolve_snapshot_class, _run_diff,
+                       _should_use_color)
 from semverdredd import Version, generate_patch
 from semverdredd.version import save_version_file
 
@@ -57,6 +49,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
             "0.0.0",
             use_color,
             extra_options=getattr(args, "snapshot_options", None),
+            generator=getattr(args, "generator_info", None),
         )
         if exit_code != EXIT_OK:
             return exit_code
@@ -80,6 +73,7 @@ def cmd_bake(args: argparse.Namespace) -> int:
         version,
         use_color,
         extra_options=getattr(args, "snapshot_options", None),
+        generator=getattr(args, "generator_info", None),
     )
     if exit_code != EXIT_OK:
         return exit_code

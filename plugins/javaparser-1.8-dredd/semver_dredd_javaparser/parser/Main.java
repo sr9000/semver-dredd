@@ -91,6 +91,7 @@ public class Main {
             parseJavaFile(p, functions, types);
         }
 
+
         Map<String, Object> api = new LinkedHashMap<>();
         api.put("functions", functions);
         api.put("types", types);
@@ -121,10 +122,16 @@ public class Main {
             return;
         }
 
+        String pkg = cu.getPackageDeclaration()
+                .map(pd -> pd.getNameAsString())
+                .orElse("");
+
         for (TypeDeclaration<?> typeDecl : cu.getTypes()) {
             if (!isPublicOrDefault(typeDecl)) continue;
 
-            String typeName = typeDecl.getNameAsString();
+            String simpleTypeName = typeDecl.getNameAsString();
+            String typeName = pkg.isEmpty() ? simpleTypeName : pkg + "." + simpleTypeName;
+
             Map<String, Object> typeDef = new LinkedHashMap<>();
             List<Map<String, Object>> fields = new ArrayList<>();
             Map<String, Object> methods = new LinkedHashMap<>();

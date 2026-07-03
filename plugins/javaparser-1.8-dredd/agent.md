@@ -26,11 +26,17 @@ semver-dredd snapshot --plugin javaparser --path example/java/javageometry1 --ve
 
 No dedicated demo/smoke service yet.
 
-## Scope (not yet implemented)
+## Scope (implemented)
 
-Should likely become the preferred Java implementation for package-prefix
-filtering — AST parsing preserves package/class context better than regex. Example
-multi-document config:
+`Main.java` reads `CompilationUnit.getPackageDeclaration()` (proper AST, more
+reliable than the regex plugin's comment-stripping) and prefixes every
+type/function key with the package name. Python-side
+`_filter_snapshot_scope()`/`_matches_package_scope()` in `plugin.py` apply the
+same include (recursive allow-list) / exclude (trailing `*` for non-recursive
+exclusion) semantics as `java-1.8-dredd`. See
+`tests/test_javaparser_plugin_scope.py` (reuses
+`tests/fixtures/java_scope/`). Example multi-document config:
+
 
 ```yaml
 source:

@@ -54,7 +54,12 @@ semver-dredd snapshot --plugin python --path example.py.pygeometry1 --version 1.
 ## Scope
 
 Core forwards these `options` keys: `use_color` (CLI hint), `include`, `exclude`
-(opaque string lists), `plugin_options` (free-form dict). **No official plugin
-honors `include`/`exclude` yet.** When implementing filtering, preserve no-scope
-behavior exactly and add tests for: empty, include-only, exclude-only,
-include+exclude, and include-matches-nothing.
+(opaque `list[Any]`), `plugin_options` (free-form dict). All four official
+plugins (`python`, `go`, `java`, `javaparser`) now honor `include`/`exclude`;
+each plugin's local `agent.md` and README document its exact item syntax
+(module dotted names for Python, package prefixes for Java/JavaParser, import
+paths for Go). Shared conventions: empty `include` means "analyze everything";
+`exclude` applies after `include`; official plugins never use glob syntax; an
+`include` that matches nothing yields an empty API (logged as a warning), not
+a fallback to no-scope behavior.
+

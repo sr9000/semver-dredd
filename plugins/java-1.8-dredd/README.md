@@ -48,3 +48,26 @@ The parser is compiled on-the-fly using `javac` and runs with the bundled SnakeY
 
 **Note**: This is a simple regex-based parser suitable for straightforward Java code.
 For complex codebases, a proper Java AST parser (like JavaParser) would be recommended.
+
+## Scope: `include` / `exclude`
+
+`include` and `exclude` items are Java package prefixes (not glob syntax),
+matched recursively against the fully package-qualified class/function names
+the parser produces:
+
+```yaml
+include: [com.example.api]
+exclude: [com.example.api.internal]
+```
+
+- Empty `include` (or omitted) analyzes the whole parsed public API under
+  `--path`, exactly as without scope.
+- A non-empty `include` switches to allow-list mode: only classes/functions
+  under the listed package prefixes (and nested sub-packages) are kept.
+- `exclude` is applied after `include` and supports a trailing `*` for
+  non-recursive (single package level) exclusion, e.g.
+  `com.example.api.internal*` excludes only that exact package, not deeper
+  nested packages under it.
+- `include` matching nothing produces an empty snapshot API (logged as a
+  warning) rather than falling back to no-scope behavior.
+

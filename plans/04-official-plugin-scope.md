@@ -123,11 +123,19 @@ Definition of Done:
 
 Implementation-dependent decisions; tick as resolved and mirror in `00`:
 
-- [ ] Python recursion + `__all__` collision-merge algorithm, confirmed against
-  `python_api.py` (no new `plugin_options` keys).
-- [ ] Java/JavaParser filtering location: parser-side vs Python post-filter of
-  parser output.
-- [ ] Go import-path resolution relative to `--path` and the test-exclusion
-  mechanism in `main.go`.
-- [ ] Per-plugin scope-syntax documentation finalized in each plugin README.
+- [x] Python recursion + `__all__` collision-merge algorithm, confirmed against
+  `python_api.py` (no new `plugin_options` keys): `pkgutil.walk_packages` for
+  recursive submodule discovery, `__all__` presence disables recursion
+  entirely, first-occurrence-wins with a warning on member-name collisions.
+- [x] Java/JavaParser filtering location: parser-side package prefixing
+  (`extractPackage()` / `CompilationUnit.getPackageDeclaration()`) + a shared
+  Python post-filter (`_filter_snapshot_scope`/`_matches_package_scope`) in
+  each `plugin.py`.
+- [x] Go import-path resolution relative to `--path`: `main.go`'s
+  `parseDirTree()` recursively walks subdirectories as independent packages,
+  prefixing nested-package names with their `/`-relative import path;
+  `_test.go` files and hidden/`vendor`/`testdata` dirs are always excluded.
+- [x] Per-plugin scope-syntax documentation finalized in each plugin README
+  (Python, Go, Java, JavaParser) and mirrored in each plugin's `agent.md`.
+
 

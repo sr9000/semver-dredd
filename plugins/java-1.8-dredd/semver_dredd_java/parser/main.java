@@ -119,10 +119,12 @@ public class main {
 
         for (Path p : files) {
             String src = Files.readString(p, StandardCharsets.UTF_8);
-            parseJavaFile(src, functions, types);
+            String pkg = extractPackage(src);
+            parseJavaFile(src, pkg, functions, types);
         }
 
         api.put("functions", functions);
+
         api.put("types", types);
 
         Map<String, Object> source = new LinkedHashMap<>();
@@ -138,7 +140,17 @@ public class main {
         return snap;
     }
 
-    private static void parseJavaFile(String src, Map<String, Object> functions, Map<String, Object> types) {
+    private static String extractPackage(String src) {
+        // Strip comments first so a commented-out package line isn't matched.
+        String stripped = src.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("//.*", " ");
+        Matcher pm = Pattern.compile("(?m)^\\s*package\\s+([A-Za-z_][A-Za-z0-9_.]*)\\s*;").matcher(stripped);
+        if (pm.find()) {
+            return pm.group(1);
+        }
+        return "";
+    }
+
+    private static void parseJavaFile(String src, String pkg, Map<String, Object> functions, Map<String, Object> types) {
         // Remove comments (best-effort)
         src = src.replaceAll("(?s)/\\*.*?\\*/", " ");
         src = src.replaceAll("//.*", " ");
@@ -149,8 +161,10 @@ public class main {
 
         while (m.find()) {
             String kind = m.group(2);
-            String typeName = m.group(3);
+            String simpleTypeName = m.group(3);
+            String typeName = pkg.isEmpty() ? simpleTypeName : pkg + "." + simpleTypeName;
             String body = m.group(4);
+
 
             TypeDef td = new TypeDef();
 

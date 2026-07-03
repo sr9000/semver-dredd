@@ -67,12 +67,17 @@ use-case). Mark implementation-dependent parts as milestones and update as you g
 
 ## Dev commands
 
+This repo is Poetry-managed: always run Python/tooling through `poetry run ...`
+(or `poetry install`), never bare `python`/`pip`/`pytest`, so the correct
+virtualenv/interpreter is used.
+
 ```bash
 poetry install --with dev
-pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
+poetry run pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
 poetry run pytest -v
 bash example/demo_python.sh                # go/java need toolchains+plugins
 bash scripts/smoke.sh [python unit ...]    # Docker smoke
+
 ```
 
 **git log — always use non-interactive mode** to avoid blocking on a pager:
@@ -93,8 +98,11 @@ git --no-pager log --oneline --decorate -n 8  # uasge example
 
 ## Scope status
 
-`include`/`exclude`/`plugin_options` are parsed and forwarded but **no official
-plugin honors filtering yet**. Multi-document config and the `bundle` plugin are
-still planned. Before changing scope behavior, read the `plans/` roadmap and
-`plugins/agent.md`. Caution: once plugins honor `include`/`exclude`, existing
-configs with those keys will yield narrower snapshots.
+`include`/`exclude`/`plugin_options` are parsed and forwarded, and **all four
+official plugins (python, go, java, javaparser) now honor `include`/`exclude`**
+(module dotted names, import paths, and package prefixes respectively — see
+`plugins/agent.md` and each plugin's README). The `bundle` plugin is still
+planned. Before changing scope behavior, read the `plans/` roadmap and
+`plugins/agent.md`. Caution: configs with `include`/`exclude` keys now yield
+narrower snapshots than before this scope work landed.
+

@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from cli.utils import EXIT_OK, _generate_snapshot_yaml, _print_level, _should_use_color
+from cli.utils import (EXIT_OK, _generate_snapshot_yaml, _print_level,
+                       _should_use_color)
 
 
 def cmd_snapshot(args: argparse.Namespace) -> int:
@@ -44,6 +45,7 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
         version,
         use_color,
         extra_options=getattr(args, "snapshot_options", None),
+        generator=getattr(args, "generator_info", None),
     )
     if exit_code != EXIT_OK:
         return exit_code

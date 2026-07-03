@@ -27,7 +27,17 @@ source:
   path: "/path/to/source"
 api:
   # language-specific content (see below)
+generator:                   # optional — absent in snapshots predating run2
+  plugin_name: python        # plugin.name value, e.g. "python"
+  plugin_version: "1.0.0"   # plugin.version when discoverable; empty string otherwise
+  plugin_source: entry_point # PluginInfo.origin: entry_point | builtin | user_dir | manual
+  config_path: .semver.yaml  # selected config file path; empty string when absent
+  candidate_index: -1        # multi-doc candidate index; -1 for single-document configs
 ```
+
+The `generator` block is **optional**.  Snapshots that pre-date this block load
+and diff correctly because all fields default to empty/absent.  The block is
+always written by `init`, `bake`, and `snapshot` commands in semver-dredd ≥ run2.
 
 ---
 
