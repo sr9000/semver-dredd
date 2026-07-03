@@ -319,6 +319,23 @@ class JavaPlugin(LanguagePlugin):
     def snapshot_format_class(self) -> type:
         return JavaSnapshot
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "scope": {
+                "syntax": "Java package prefixes",
+                "include_mode": "recursive allow-list",
+                "exclude_mode": "exclude after include; trailing '*' excludes one package level",
+                "empty_include": "analyze all parsed public API under the configured path",
+            },
+            "plugin_options": [],
+            "runtime_requirements": {
+                "python": ">=3.10",
+                "external_tools": ["javac>=1.8", "java>=1.8"],
+            },
+            "features": ["metadata", "machine_readable_inventory"],
+        }
+
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)
         if not p.exists():

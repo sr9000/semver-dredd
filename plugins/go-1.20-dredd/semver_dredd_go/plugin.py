@@ -319,6 +319,23 @@ class GoPlugin(LanguagePlugin):
     def snapshot_format_class(self) -> type:
         return GoSnapshot
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "scope": {
+                "syntax": "root-relative Go import paths",
+                "include_mode": "recursive allow-list",
+                "exclude_mode": "exclude after include; trailing '*' excludes one nested package level",
+                "empty_include": "analyze the whole configured package tree",
+            },
+            "plugin_options": [],
+            "runtime_requirements": {
+                "python": ">=3.10",
+                "external_tools": ["go>=1.20"],
+            },
+            "features": ["metadata", "machine_readable_inventory"],
+        }
+
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)
         if not p.exists():

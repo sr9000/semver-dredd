@@ -2,6 +2,10 @@ import pytest
 
 from semverdredd.plugin_manager import PluginManager
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+from semver_dredd_go.plugin import GoPlugin
+from semver_dredd_java.plugin import JavaPlugin
+from semver_dredd_javaparser.plugin import JavaParserPlugin
+from semver_dredd_python.plugin import PythonPlugin
 
 
 class MockPlugin(LanguagePlugin):
@@ -241,6 +245,36 @@ def test_plugin_manager_invalid_metadata_is_ignored(caplog):
     assert metadata is not None
     assert metadata["features"] == []
     assert any("non-dict metadata" in rec.getMessage().lower() for rec in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("plugin", "expected_name", "expected_scope_syntax", "required_tool"),
+    [
+        (PythonPlugin(), "python", "python dotted module/package names", None),
+        (GoPlugin(), "go", "root-relative Go import paths", "go>=1.20"),
+        (JavaPlugin(), "java", "Java package prefixes", "java>=1.8"),
+        (JavaParserPlugin(), "javaparser", "Java package prefixes", "java>=1.8"),
+    ],
+)
+def test_official_plugins_expose_inventory_metadata(
+    plugin, expected_name, expected_scope_syntax, required_tool
+):
+    mgr = PluginManager()
+    mgr.register(plugin)
+
+    metadata = mgr.describe_plugin(expected_name)
+
+    assert metadata is not None
+    assert metadata["name"] == expected_name
+    assert metadata["scope"]["syntax"] == expected_scope_syntax
+    assert metadata["plugin_options"] == []
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+    if required_tool is None:
+        assert metadata["runtime_requirements"]["external_tools"] == []
+    else:
+        assert required_tool in metadata["runtime_requirements"]["external_tools"]
+    assert metadata["snapshot_format"]["class"] is not None
+    assert metadata["snapshot_format"]["snapshot_type_id"] is not None
 
 
 # ---------------------------------------------------------------------------
