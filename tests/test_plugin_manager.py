@@ -81,6 +81,48 @@ class RecordingPlugin(LanguagePlugin):
         return SnapshotResult(True, f"version: '{version}'\napi: {{}}\n")
 
 
+class MetadataPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "metadata"
+
+    @property
+    def metadata(self) -> dict:
+        return {
+            "scope": {"syntax": "dotted-module"},
+            "features": ["metadata", "machine_readable_inventory"],
+            "plugin_options": ["timeout_seconds"],
+        }
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "metadata")
+
+
+class HaveOnlyPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "have-only"
+
+    def have(self, feature: str) -> bool:
+        return feature == "metadata"
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "have-only")
+
+
+class InvalidMetadataPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "invalid-metadata"
+
+    @property
+    def metadata(self):
+        return ["not", "a", "dict"]
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "invalid")
+
+
 def test_options_reach_generate_snapshot_via_cli_helper():
     """include/exclude/plugin_options flow through _generate_snapshot_yaml."""
     from cli.utils import _generate_snapshot_yaml
@@ -145,6 +187,60 @@ def test_plugin_without_options_still_works():
         assert "1.0.0" in yaml_str
     finally:
         mgr.unregister("mock")
+
+
+def test_plugin_manager_describe_plugin_defaults():
+    mgr = PluginManager()
+    mgr.register(MockPlugin())
+
+    metadata = mgr.describe_plugin("mock")
+
+    assert metadata is not None
+    assert metadata["name"] == "mock"
+    assert metadata["display_name"] == "Mock"
+    assert metadata["version"] == "0.1.0"
+    assert metadata["origin"] == "manual"
+    assert metadata["features"] == []
+    assert metadata["snapshot_format"] == {
+        "class": None,
+        "snapshot_type_id": None,
+    }
+
+
+def test_plugin_manager_describe_plugin_uses_structured_metadata():
+    mgr = PluginManager()
+    mgr.register(MetadataPlugin())
+
+    metadata = mgr.describe_plugin("metadata")
+
+    assert metadata is not None
+    assert metadata["scope"] == {"syntax": "dotted-module"}
+    assert metadata["plugin_options"] == ["timeout_seconds"]
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+
+
+def test_plugin_manager_describe_plugin_falls_back_to_have():
+    mgr = PluginManager()
+    mgr.register(HaveOnlyPlugin())
+
+    metadata = mgr.describe_plugin("have-only")
+
+    assert metadata is not None
+    assert metadata["features"] == ["metadata"]
+
+
+def test_plugin_manager_invalid_metadata_is_ignored(caplog):
+    import logging
+
+    mgr = PluginManager()
+    mgr.register(InvalidMetadataPlugin())
+
+    with caplog.at_level(logging.WARNING, logger="semverdredd.plugin_manager"):
+        metadata = mgr.describe_plugin("invalid-metadata")
+
+    assert metadata is not None
+    assert metadata["features"] == []
+    assert any("non-dict metadata" in rec.getMessage().lower() for rec in caplog.records)
 
 
 # ---------------------------------------------------------------------------

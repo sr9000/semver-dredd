@@ -18,7 +18,7 @@ import sys
 from dataclasses import dataclass
 from importlib.metadata import entry_points
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from semverdredd.plugin_base import LanguagePlugin
 
@@ -231,12 +231,80 @@ class PluginManager:
         self.load_plugins()
         return list(self._registry.values())
 
+    def describe_plugin(self, name: str) -> dict[str, Any] | None:
+        self.load_plugins()
+        info = self._registry.get(name.lower())
+        if info is None:
+            return None
+        return self._build_plugin_metadata(info)
+
+    def list_plugin_metadata(self) -> list[dict[str, Any]]:
+        self.load_plugins()
+        return [self._build_plugin_metadata(info) for info in self._registry.values()]
+
     def list_names(self) -> list[str]:
         self.load_plugins()
         return list(self._registry.keys())
 
     def is_loaded(self) -> bool:
         return self._loaded
+
+    def _build_plugin_metadata(self, info: PluginInfo) -> dict[str, Any]:
+        plugin = info.plugin
+        raw_metadata = getattr(plugin, "metadata", {})
+        if callable(raw_metadata):
+            raw_metadata = raw_metadata()
+        if raw_metadata is None:
+            raw_metadata = {}
+        if not isinstance(raw_metadata, dict):
+            logger.warning(
+                "Plugin '%s' returned non-dict metadata of type %s; ignoring it",
+                info.name,
+                type(raw_metadata).__name__,
+            )
+            raw_metadata = {}
+
+        metadata = dict(raw_metadata)
+        features = metadata.get("features", [])
+        normalized_features = self._normalize_features(plugin, features)
+
+        snapshot_cls = plugin.snapshot_format_class
+        snapshot_type_id = getattr(snapshot_cls, "SNAPSHOT_TYPE_ID", None)
+
+        metadata["name"] = info.name
+        metadata["display_name"] = plugin.display_name
+        metadata["version"] = plugin.version
+        metadata["description"] = plugin.description
+        metadata["origin"] = info.origin
+        metadata["entry_point"] = info.entry_point
+        metadata["features"] = normalized_features
+        metadata["snapshot_format"] = {
+            "class": snapshot_cls.__name__ if snapshot_cls is not None else None,
+            "snapshot_type_id": snapshot_type_id,
+        }
+        return metadata
+
+    def _normalize_features(
+        self, plugin: LanguagePlugin, features: Any
+    ) -> list[str]:
+        feature_candidates = [
+            "metadata",
+            "machine_readable_inventory",
+        ]
+        declared = [feature for feature in feature_candidates if plugin.have(feature)]
+
+        if isinstance(features, str):
+            return sorted(set([features, *declared]))
+        if isinstance(features, (list, tuple, set, frozenset)):
+            return sorted({*(str(feature) for feature in features), *declared})
+        if features not in (None, {}):
+            logger.warning(
+                "Plugin '%s' exposed unsupported features metadata of type %s; "
+                "falling back to have()",
+                plugin.name,
+                type(features).__name__,
+            )
+        return declared
 
 
 _manager: PluginManager | None = None
