@@ -67,12 +67,17 @@ use-case). Mark implementation-dependent parts as milestones and update as you g
 
 ## Dev commands
 
+This repo is Poetry-managed: always run Python/tooling through `poetry run ...`
+(or `poetry install`), never bare `python`/`pip`/`pytest`, so the correct
+virtualenv/interpreter is used.
+
 ```bash
 poetry install --with dev
-pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
+poetry run pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as needed
 poetry run pytest -v
 bash example/demo_python.sh                # go/java need toolchains+plugins
 bash scripts/smoke.sh [python unit ...]    # Docker smoke
+
 ```
 
 **git log — always use non-interactive mode** to avoid blocking on a pager:
