@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid as _uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,9 @@ from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from semverdredd.version import Version
 from snapshot.change_kind import ChangeKind
 from snapshot.protocols import DiffResult
+
+
+logger = logging.getLogger(__name__)
 
 
 BUNDLE_SNAPSHOT_TYPE_ID = str(
@@ -98,8 +102,114 @@ class BundleSnapshot:
         )
 
     def diff_against(self, other: "BundleSnapshot") -> DiffResult:
-        """Temporary placeholder until bundle diff semantics land."""
-        return DiffResult(change_kind=ChangeKind.NONE)
+        if not isinstance(other, BundleSnapshot):
+            raise TypeError(
+                f"BundleSnapshot can only diff against BundleSnapshot, got {type(other).__name__}"
+            )
+
+        breaking: list[str] = []
+        added: list[str] = []
+        observed_changes: list[ChangeKind] = []
+
+        old_names = set(self.dependencies)
+        new_names = set(other.dependencies)
+
+        for name in sorted(new_names - old_names):
+            dep = other.dependencies[name]
+            added.append(f"dependency added: {name} ({dep.version})")
+            observed_changes.append(ChangeKind.MINOR)
+
+        for name in sorted(old_names - new_names):
+            dep = self.dependencies[name]
+            breaking.append(f"dependency removed: {name} ({dep.version})")
+            observed_changes.append(ChangeKind.BREAKING)
+
+        for name in sorted(old_names & new_names):
+            change = self._compare_dependency_versions(
+                name,
+                self.dependencies[name].version,
+                other.dependencies[name].version,
+                breaking,
+                added,
+            )
+            if change is not None:
+                observed_changes.append(change)
+
+        if ChangeKind.BREAKING in observed_changes:
+            change_kind = ChangeKind.BREAKING
+        elif ChangeKind.MINOR in observed_changes:
+            change_kind = ChangeKind.MINOR
+        elif ChangeKind.PATCH in observed_changes:
+            change_kind = ChangeKind.PATCH
+        else:
+            change_kind = ChangeKind.NONE
+
+        return DiffResult(
+            change_kind=change_kind,
+            breaking=tuple(breaking),
+            added=tuple(added),
+        )
+
+    @staticmethod
+    def _compare_dependency_versions(
+        name: str,
+        old_version_str: str,
+        new_version_str: str,
+        breaking: list[str],
+        added: list[str],
+    ) -> ChangeKind | None:
+        old_version = Version.parse(old_version_str)
+        new_version = Version.parse(new_version_str)
+
+        if new_version == old_version:
+            return None
+
+        if new_version.major > old_version.major:
+            breaking.append(
+                f"dependency major increased: {name} ({old_version_str} -> {new_version_str})"
+            )
+            return ChangeKind.BREAKING
+        if new_version.major < old_version.major:
+            logger.warning(
+                "Bundle dependency '%s' major version decreased: %s -> %s",
+                name,
+                old_version_str,
+                new_version_str,
+            )
+            breaking.append(
+                f"dependency major decreased: {name} ({old_version_str} -> {new_version_str})"
+            )
+            return ChangeKind.BREAKING
+
+        if new_version.minor > old_version.minor:
+            added.append(
+                f"dependency minor increased: {name} ({old_version_str} -> {new_version_str})"
+            )
+            return ChangeKind.MINOR
+        if new_version.minor < old_version.minor:
+            logger.warning(
+                "Bundle dependency '%s' minor version decreased: %s -> %s",
+                name,
+                old_version_str,
+                new_version_str,
+            )
+            breaking.append(
+                f"dependency minor decreased: {name} ({old_version_str} -> {new_version_str})"
+            )
+            return ChangeKind.BREAKING
+
+        if new_version.patch > old_version.patch:
+            return ChangeKind.PATCH
+        if new_version.patch < old_version.patch:
+            logger.warning(
+                "Bundle dependency '%s' patch version decreased: %s -> %s",
+                name,
+                old_version_str,
+                new_version_str,
+            )
+            return ChangeKind.PATCH
+
+        return None
 
 
 class BundlePlugin(LanguagePlugin):
