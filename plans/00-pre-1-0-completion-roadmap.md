@@ -103,8 +103,9 @@ No plan files are merged.
 | 0 | `00`–`07` | Planning/milestone scaffolding (plan-file edits only) | [x] done |
 | 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [x] done |
 | 2 | `03` | Observability and snapshot provenance | [x] done |
-| 3 | `04` | Official plugin scope behavior | [ ] todo |
+| 3 | `04` | Official plugin scope behavior | [x] done |
 | 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [ ] todo |
+
 | 5 | `07` | Documentation and release hardening | [ ] todo |
 
 Grouping rationale:

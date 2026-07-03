@@ -98,8 +98,11 @@ git --no-pager log --oneline --decorate -n 8  # uasge example
 
 ## Scope status
 
-`include`/`exclude`/`plugin_options` are parsed and forwarded but **no official
-plugin honors filtering yet**. Multi-document config and the `bundle` plugin are
-still planned. Before changing scope behavior, read the `plans/` roadmap and
-`plugins/agent.md`. Caution: once plugins honor `include`/`exclude`, existing
-configs with those keys will yield narrower snapshots.
+`include`/`exclude`/`plugin_options` are parsed and forwarded, and **all four
+official plugins (python, go, java, javaparser) now honor `include`/`exclude`**
+(module dotted names, import paths, and package prefixes respectively — see
+`plugins/agent.md` and each plugin's README). The `bundle` plugin is still
+planned. Before changing scope behavior, read the `plans/` roadmap and
+`plugins/agent.md`. Caution: configs with `include`/`exclude` keys now yield
+narrower snapshots than before this scope work landed.
+

@@ -70,7 +70,24 @@ executed via `java` to analyze the target directory.
 Both plugins can coexist — they register under different names (`java` vs
 `javaparser`).
 
+## Scope: `include` / `exclude`
+
+Same package-prefix semantics as `java-1.8-dredd`: `include`/`exclude` items
+are Java package prefixes matched recursively against fully package-qualified
+class/function names; empty `include` analyzes everything under `--path`;
+`exclude` applies after `include` and supports a trailing `*` for
+non-recursive (single package level) exclusion:
+
+```yaml
+include: [com.example.api]
+exclude: [com.example.api.internal*]
+```
+
+`include` matching nothing produces an empty snapshot API (logged as a
+warning) rather than falling back to no-scope behavior.
+
 ## Bundled Dependencies
+
 
 | Library | Version | License |
 |---------|---------|---------|

@@ -22,10 +22,17 @@ semver-dredd snapshot --plugin go --path example/go/gogeometry1 --version 1.0.0
 bash example/demo_go.sh
 ```
 
-## Scope (not yet implemented)
+## Scope (implemented)
 
-Go API scope is package-oriented; prefer package-dir / import-path matching before
-symbol-level filtering. Filtering needs changes + tests at both Python wrapper and
-Go parser levels. Open decisions: match dirs vs import paths vs files vs exported
-symbols? exclude `*_test.go` by default? support module-root + package include
-list vs single package dir?
+`main.go` now recursively walks the analyzed directory tree
+(`parseDirTree` + `parseSinglePackageDir`); each subdirectory with `.go` files
+is its own package. Root-package functions/types stay unprefixed (backward
+compatible with the pre-scope single-package output); nested packages are
+prefixed with their `/`-separated import path relative to the root (e.g.
+`sub/Area`, `sub/internal/Helper`). `_test.go` files and hidden/`vendor`/
+`testdata` dirs are always excluded from the walk. Python-side
+`_filter_snapshot_scope()`/`_matches_import_path()` in `plugin.py` apply
+include (allow-list, recursive) then exclude (supports trailing `*` for
+non-recursive exclusion) against the prefixed names. See README and
+`tests/test_go_plugin_scope.py` / `tests/fixtures/go_scope/`.
+

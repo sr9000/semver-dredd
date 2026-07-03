@@ -22,9 +22,15 @@ semver-dredd snapshot --plugin java --path example/java/javageometry1 --version 
 bash example/demo_java.sh
 ```
 
-## Scope (not yet implemented)
+## Scope (implemented)
 
-Package-prefix matching is the friendliest default:
+`main.java`'s `extractPackage()` reads the `package` declaration (comment-
+stripped) and `parseJavaFile()` prefixes every type/function key with it (e.g.
+`com.example.api.Included.includedMethod`). Python-side
+`_filter_snapshot_scope()`/`_matches_package_scope()` in `plugin.py` apply
+`include` (allow-list, recursive package-prefix match) then `exclude`
+(supports trailing `*` for non-recursive single-package exclusion) against
+those keys:
 
 ```yaml
 include: [com.example.api]
@@ -32,4 +38,7 @@ exclude: [com.example.api.internal]
 ```
 
 Being regex-based, verify the parser output preserves enough package-qualified
-info before filtering. For complex Java parsing, prefer the `javaparser` plugin.
+info before extending filtering further. For complex Java parsing, prefer the
+`javaparser` plugin (shares the same scope semantics). See
+`tests/test_java_plugin_scope.py` / `tests/fixtures/java_scope/`.
+
