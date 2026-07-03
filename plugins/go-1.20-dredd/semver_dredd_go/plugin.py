@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import uuid as _uuid
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+
+logger = logging.getLogger(__name__)
+
 
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from snapshot.predefined import (
@@ -373,13 +377,70 @@ class GoPlugin(LanguagePlugin):
                 _upgrade_legacy_yaml(result.stdout)
             )
             raw_snap._version = version
+            _filter_snapshot_scope(raw_snap, options)
             return SnapshotResult(True, raw_snap.to_yaml())
         except subprocess.CalledProcessError as e:
             msg = (e.stderr or "").strip() or str(e)
             return SnapshotResult(False, "", f"Go parser failed: {msg}")
 
 
+def _matches_import_path(name: str, item: Any) -> bool:
+    """Match a function/type name against a Go import-path scope item.
+
+    Names produced by the parser are prefixed with their slash-separated
+    import path relative to the analyzed root (e.g. "sub/pkg.Area"); the root
+    package's own names are unprefixed. ``item`` may end with a trailing
+    ``*`` to mean "this import path only, not nested sub-packages".
+    Otherwise matching is recursive: ``item`` matches ``name`` itself and any
+    slash-prefixed descendant of it.
+    """
+    item_str = str(item)
+    if item_str.endswith("*"):
+        prefix = item_str[:-1].rstrip("/")
+        if not name.startswith(prefix + "/"):
+            return False
+        rest = name[len(prefix) + 1 :]
+        return "/" not in rest.rsplit("/", 1)[0] if "/" in rest else True
+    return name == item_str or name.startswith(item_str + "/")
+
+
+def _filter_snapshot_scope(
+    snap: "GoSnapshot", options: Optional[dict[str, Any]]
+) -> None:
+    """Apply include/exclude import-path scope filtering in place.
+
+    ``include`` is a recursive import-path allow-list (empty means keep
+    everything); ``exclude`` is applied after include and supports a
+    trailing ``*`` for non-recursive (single package level) exclusion.
+    """
+    if not options:
+        return
+    include = list(options.get("include") or [])
+    exclude = list(options.get("exclude") or [])
+    if not include and not exclude:
+        return
+
+    def keep(name: str) -> bool:
+        if include and not any(_matches_import_path(name, item) for item in include):
+            return False
+        if exclude and any(_matches_import_path(name, item) for item in exclude):
+            return False
+        return True
+
+    snap.functions = {name: f for name, f in snap.functions.items() if keep(name)}
+    snap.types = {name: t for name, t in snap.types.items() if keep(name)}
+
+    if include and not snap.functions and not snap.types:
+        logger.warning(
+            "Go scope include/exclude matched no functions or types "
+            "(include=%r, exclude=%r)",
+            include,
+            exclude,
+        )
+
+
 def _upgrade_legacy_yaml(yaml_str: str) -> dict[str, Any]:
+
     """Parse Go parser output (schema v2) and normalise to GoSnapshot dict format."""
     import yaml as _yaml
     data = _yaml.safe_load(yaml_str)

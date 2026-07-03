@@ -68,7 +68,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	snap, err := parseDir(dir, version)
+	snap, err := parseDirTree(dir, version)
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -91,47 +92,37 @@ func main() {
 	}
 }
 
-func parseDir(dir string, version string) (*Snapshot, error) {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, err
-	}
-
+// parseSinglePackageDir parses one directory (non-recursive) as a single Go
+// package and returns its exported functions/types unprefixed. Returns
+// (nil, nil, nil) when the directory contains no parseable Go package
+// (e.g. no .go files) so callers can skip it during a tree walk.
+func parseSinglePackageDir(dir string) (map[string]FuncSig, map[string]TypeDef, error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, abs, func(fi os.FileInfo) bool {
+	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
 		// skip tests
 		return !strings.HasSuffix(fi.Name(), "_test.go")
 	}, parser.ParseComments)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Choose a package deterministically
 	pkgNames := make([]string, 0, len(pkgs))
 	for name := range pkgs {
 		pkgNames = append(pkgNames, name)
 	}
 	sort.Strings(pkgNames)
 	if len(pkgNames) == 0 {
-		return nil, fmt.Errorf("no Go packages found in %s", abs)
+		return nil, nil, nil
 	}
 
 	pkg := pkgs[pkgNames[0]]
 
-	snap := &Snapshot{
-		SchemaVersion: 2,
-		Version:       version,
-		Language:      "go",
-		Source: Source{
-			Kind: "package",
-			Path: dir,
-		},
-	}
-	snap.API.Functions = map[string]FuncSig{}
-	snap.API.Types = map[string]TypeDef{}
+	functions := map[string]FuncSig{}
+	types := map[string]TypeDef{}
 
 	// First pass: types and functions
 	for _, f := range pkg.Files {
+
 		for _, decl := range f.Decls {
 			switch d := decl.(type) {
 			case *ast.GenDecl:
@@ -168,7 +159,7 @@ func parseDir(dir string, version string) (*Snapshot, error) {
 						}
 					}
 
-					snap.API.Types[ts.Name.Name] = TypeDef{Fields: fields, Methods: map[string]FuncSig{}}
+					types[ts.Name.Name] = TypeDef{Fields: fields, Methods: map[string]FuncSig{}}
 				}
 			case *ast.FuncDecl:
 				if d.Recv != nil {
@@ -179,7 +170,7 @@ func parseDir(dir string, version string) (*Snapshot, error) {
 				if !ast.IsExported(d.Name.Name) {
 					continue
 				}
-				snap.API.Functions[d.Name.Name] = funcTypeToSig(d.Type)
+				functions[d.Name.Name] = funcTypeToSig(d.Type)
 			}
 		}
 	}
@@ -201,7 +192,7 @@ func parseDir(dir string, version string) (*Snapshot, error) {
 				continue
 			}
 
-			td, ok := snap.API.Types[recvType]
+			td, ok := types[recvType]
 			if !ok {
 				// Not a struct we captured, but keep simple: ignore
 				continue
@@ -210,12 +201,87 @@ func parseDir(dir string, version string) (*Snapshot, error) {
 				td.Methods = map[string]FuncSig{}
 			}
 			td.Methods[d.Name.Name] = funcTypeToSig(d.Type)
-			snap.API.Types[recvType] = td
+			types[recvType] = td
 		}
+	}
+
+	return functions, types, nil
+}
+
+// parseDirTree walks dir recursively, treating each subdirectory containing
+// Go files as its own package. The root package's functions/types are kept
+// unprefixed (preserving pre-scope behavior for the common single-package
+// case); nested packages are prefixed with their slash-separated import
+// path relative to the root (Go import-path convention), e.g. "sub/pkg.Area".
+// Hidden directories, "vendor", and "testdata" are skipped.
+func parseDirTree(rootDir string, version string) (*Snapshot, error) {
+	abs, err := filepath.Abs(rootDir)
+	if err != nil {
+		return nil, err
+	}
+
+	snap := &Snapshot{
+		SchemaVersion: 2,
+		Version:       version,
+		Language:      "go",
+		Source: Source{
+			Kind: "package",
+			Path: rootDir,
+		},
+	}
+	snap.API.Functions = map[string]FuncSig{}
+	snap.API.Types = map[string]TypeDef{}
+
+	foundAny := false
+
+	walkErr := filepath.Walk(abs, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return nil
+		}
+		base := filepath.Base(path)
+		if path != abs && (strings.HasPrefix(base, ".") || base == "vendor" || base == "testdata") {
+			return filepath.SkipDir
+		}
+
+		functions, types, perr := parseSinglePackageDir(path)
+		if perr != nil {
+			return perr
+		}
+		if functions == nil && types == nil {
+			return nil // no Go package in this directory
+		}
+		foundAny = true
+
+		relPath, rerr := filepath.Rel(abs, path)
+		if rerr != nil {
+			return rerr
+		}
+		prefix := ""
+		if relPath != "." {
+			prefix = filepath.ToSlash(relPath) + "/"
+		}
+
+		for name, sig := range functions {
+			snap.API.Functions[prefix+name] = sig
+		}
+		for name, td := range types {
+			snap.API.Types[prefix+name] = td
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return nil, walkErr
+	}
+	if !foundAny {
+		return nil, fmt.Errorf("no Go packages found in %s", abs)
 	}
 
 	return snap, nil
 }
+
 
 func receiverBaseType(fl *ast.FieldList) string {
 	if fl == nil || len(fl.List) == 0 {
