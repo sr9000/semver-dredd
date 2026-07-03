@@ -84,11 +84,16 @@ Definition of Done:
 
 Implementation-dependent decisions; tick as resolved and mirror in `00`:
 
-- [ ] Feature-discovery hook shape (`have(feature) -> bool` vs metadata property),
-  added with a default impl on the `LanguagePlugin` ABC for back-compat.
-- [ ] Structured plugin-metadata schema and stable key names for
-  `--json`/`--yaml`.
-- [ ] How metadata degrades gracefully for third-party plugins lacking it.
+- [x] Feature-discovery hook shape (`have(feature) -> bool` vs metadata property),
+  added with a default impl on the `LanguagePlugin` ABC for back-compat:
+  shipped as both `metadata` and `have(feature)` with core normalization.
+- [x] Structured plugin-metadata schema and stable key names for
+  `--json`/`--yaml`: normalized payload includes `name`, `display_name`,
+  `version`, `description`, `origin`, `entry_point`, `features`, and
+  `snapshot_format`, merged with plugin-supplied metadata.
+- [x] How metadata degrades gracefully for third-party plugins lacking it:
+  missing metadata defaults to `{}`, features normalize to `[]`, and non-dict
+  metadata is ignored with a warning.
 - [ ] Whether to add the top-level `semver-dredd list` alias (defer ok;
   finalized in `07`).
 

@@ -104,7 +104,7 @@ No plan files are merged.
 | 1 | `01` + `02` | Config foundation (command context + candidates/scope) | [x] done |
 | 2 | `03` | Observability and snapshot provenance | [x] done |
 | 3 | `04` | Official plugin scope behavior | [x] done |
-| 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [ ] todo |
+| 4 | `05` + `06` | Plugin metadata/inventory + bundle plugin | [x] done |
 
 | 5 | `07` | Documentation and release hardening | [ ] todo |
 
@@ -133,7 +133,12 @@ local `## Milestones` section and ticked there as it is resolved:
   `plugin_source`, `config_path`, `candidate_index` in `GeneratorInfo`.
 - [x] Structured logging implementation + `-v` collision resolution (`03`): stdlib
   `logging` with topic-labelled helpers; `-v` alias dropped from `init --version`.
-- [ ] Plugin metadata schema for JSON/YAML output (`05`).
-- [ ] FQN derivation algorithm for bundle dependencies (`06`).
+- [x] Plugin metadata schema for JSON/YAML output (`05`): normalized plugin inventory payload includes
+  `name`, `display_name`, `version`, `description`, `origin`, `entry_point`,
+  `features`, `snapshot_format`, plus plugin-supplied metadata such as
+  `scope`, `plugin_options`, and `runtime_requirements`.
+- [x] FQN derivation algorithm for bundle dependencies (`06`): derive names from
+  include-path parents; `backend/VERSION -> backend`, `sdk-python/VERSION -> sdk-python`,
+  root-level `VERSION -> VERSION`, otherwise non-`VERSION` filenames use the relative path stem.
 - [ ] Whether to add the top-level `semver-dredd list` alias (`05`, finalized in `07`).
 
