@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import logging
+import pkgutil
 import sys
 import uuid as _uuid
 from dataclasses import dataclass
@@ -11,6 +13,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+
+logger = logging.getLogger(__name__)
+
 
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from snapshot.models import (
@@ -478,10 +483,11 @@ class PythonPlugin(LanguagePlugin):
         except Exception as e:
             return SnapshotResult(False, "", f"Failed to import module: {e}")
         try:
-            snap = self._build_snapshot(module, version, path)
+            snap = self._build_snapshot(module, version, path, options)
             return SnapshotResult(True, snap.to_yaml())
         except Exception as e:
             return SnapshotResult(False, "", f"Failed to generate snapshot: {e}")
+
 
     def _import_module(self, module_path: str) -> Any:
         module_fs_path = Path(module_path)
@@ -500,21 +506,116 @@ class PythonPlugin(LanguagePlugin):
                     sys.path.pop(0)
         return importlib.import_module(module_path)
 
-    def _build_snapshot(self, module: Any, version: str, path: str) -> PythonSnapshot:
+    @staticmethod
+    def _has_private_component(dotted_name: str) -> bool:
+        """True if any dot-separated component of dotted_name starts with '_'."""
+        return any(part.startswith("_") for part in dotted_name.split("."))
+
+    @staticmethod
+    def _matches_scope_item(module_name: str, item: Any) -> bool:
+        """True if module_name equals item or is nested under it (dotted prefix)."""
+        item_str = str(item)
+        return module_name == item_str or module_name.startswith(item_str + ".")
+
+    def _discover_submodule_names(self, module: Any) -> list[str]:
+        """Recursively discover public submodule dotted names under *module*.
+
+        Skips any submodule with a '_'-prefixed path component. Import
+        failures are logged at debug level and the submodule is skipped --
+        this keeps discovery best-effort rather than fatal.
+        """
+        module_path = getattr(module, "__path__", None)
+        if module_path is None:
+            return []
+        names: list[str] = []
+        for finder, name, _is_pkg in pkgutil.walk_packages(
+            module_path, prefix=module.__name__ + "."
+        ):
+            if self._has_private_component(name):
+                continue
+            names.append(name)
+        return names
+
+    def _resolve_scan_targets(
+        self, module: Any, options: Optional[dict[str, Any]]
+    ) -> list[Any]:
+        """Resolve which module objects contribute to the snapshot.
+
+        Behavior:
+        - If the root module defines ``__all__``, scope recursion is skipped
+          entirely; only the root module's ``__all__``-listed names are used
+          (include/exclude do not apply in this mode).
+        - Otherwise, the root module plus all recursively discovered public
+          submodules are candidates. ``include`` (allow-list, recursive
+          dotted-name prefix match) and ``exclude`` (applied after include,
+          same prefix-match semantics) from options narrow the candidate set.
+        """
+        if hasattr(module, "__all__"):
+            return [module]
+
+        candidate_names = [module.__name__] + self._discover_submodule_names(module)
+
+        include = list((options or {}).get("include") or [])
+        exclude = list((options or {}).get("exclude") or [])
+
+        if include:
+            candidate_names = [
+                name
+                for name in candidate_names
+                if any(self._matches_scope_item(name, item) for item in include)
+            ]
+        if exclude:
+            candidate_names = [
+                name
+                for name in candidate_names
+                if not any(self._matches_scope_item(name, item) for item in exclude)
+            ]
+
+        targets: list[Any] = []
+        for name in candidate_names:
+            if name == module.__name__:
+                targets.append(module)
+                continue
+            try:
+                targets.append(importlib.import_module(name))
+            except Exception as e:
+                logger.debug("Skipping submodule %r: failed to import (%s)", name, e)
+
+        if not candidate_names:
+            logger.warning(
+                "Python scope include/exclude matched no modules under %r",
+                module.__name__,
+            )
+
+        return targets
+
+    def _scan_module_members(
+        self, mod: Any, *, respect_all: bool
+    ) -> tuple[
+        dict[str, Variable],
+        dict[str, Function],
+        dict[str, tuple[list[ClassField], dict[str, ClassMethod]]],
+    ]:
+        """Extract public variables/functions/types directly defined on *mod*."""
         variables: dict[str, Variable] = {}
         functions: dict[str, Function] = {}
         types: dict[str, tuple[list[ClassField], dict[str, ClassMethod]]] = {}
-        source_path = str(Path(path).resolve()) if Path(path).exists() else path
 
-        for attr_name in dir(module):
+        allowed_names: set[str] | None = None
+        if respect_all and hasattr(mod, "__all__"):
+            allowed_names = set(mod.__all__)
+
+        for attr_name in dir(mod):
             if attr_name.startswith("_"):
                 continue
+            if allowed_names is not None and attr_name not in allowed_names:
+                continue
             try:
-                obj = getattr(module, attr_name)
+                obj = getattr(mod, attr_name)
             except Exception:
                 continue
             obj_module = getattr(obj, "__module__", None)
-            if obj_module and obj_module != module.__name__:
+            if allowed_names is None and obj_module and obj_module != mod.__name__:
                 continue
             if inspect.isclass(obj):
                 fields, meths = _inspect_class(obj)
@@ -529,6 +630,41 @@ class PythonPlugin(LanguagePlugin):
                     default = "..."
                 variables[attr_name] = Variable(name=attr_name, type=type_str, default=default)
 
+        return variables, functions, types
+
+    def _build_snapshot(
+        self,
+        module: Any,
+        version: str,
+        path: str,
+        options: Optional[dict[str, Any]] = None,
+    ) -> PythonSnapshot:
+        source_path = str(Path(path).resolve()) if Path(path).exists() else path
+        respect_all = hasattr(module, "__all__")
+
+        variables: dict[str, Variable] = {}
+        functions: dict[str, Function] = {}
+        types: dict[str, tuple[list[ClassField], dict[str, ClassMethod]]] = {}
+
+        for target in self._resolve_scan_targets(module, options):
+            t_vars, t_funcs, t_types = self._scan_module_members(
+                target, respect_all=respect_all
+            )
+            for bucket, incoming in (
+                (variables, t_vars),
+                (functions, t_funcs),
+                (types, t_types),
+            ):
+                for name, value in incoming.items():
+                    if name in bucket:
+                        logger.warning(
+                            "Python scope collision: %r discovered in multiple "
+                            "modules; keeping first occurrence",
+                            name,
+                        )
+                        continue
+                    bucket[name] = value
+
         return PythonSnapshot(
             version=version,
             source_kind="module",
@@ -537,3 +673,4 @@ class PythonPlugin(LanguagePlugin):
             functions=functions,
             types=types,
         )
+
