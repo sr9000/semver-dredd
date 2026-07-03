@@ -46,6 +46,34 @@ class LanguagePlugin(ABC):
     def description(self) -> str:
         return f"{self.display_name} language support for semver-dredd"
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Optional structured metadata for inventory/automation.
+
+        Third-party plugins may override this to describe scope syntax,
+        plugin-specific options, external runtime requirements, feature flags,
+        or other inventory details. The core treats the contents as optional
+        and best-effort.
+        """
+        return {}
+
+    def have(self, feature: str) -> bool:
+        """Best-effort optional feature discovery.
+
+        The default implementation is backward-compatible: plugins that do not
+        override it simply report ``False`` for every feature. Plugins may
+        instead advertise features through ``metadata["features"]``.
+        """
+        metadata = self.metadata
+        if not isinstance(metadata, dict):
+            return False
+        features = metadata.get("features", [])
+        if isinstance(features, str):
+            return features == feature
+        if isinstance(features, (list, tuple, set, frozenset)):
+            return feature in features
+        return False
+
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)
         if not p.exists():

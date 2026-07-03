@@ -461,6 +461,23 @@ class PythonPlugin(LanguagePlugin):
     def snapshot_format_class(self) -> type:
         return PythonSnapshot
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "scope": {
+                "syntax": "python dotted module/package names",
+                "include_mode": "recursive allow-list",
+                "exclude_mode": "recursive dotted-prefix exclusion after include",
+                "empty_include": "analyze the whole configured package/module surface",
+            },
+            "plugin_options": [],
+            "runtime_requirements": {
+                "python": ">=3.10",
+                "external_tools": [],
+            },
+            "features": ["metadata", "machine_readable_inventory"],
+        }
+
 
     def validate_path(self, path: str) -> tuple[bool, str]:
         p = Path(path)

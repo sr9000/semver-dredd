@@ -93,6 +93,70 @@ class TestCLIBake:
         assert version.startswith("1.1.")
 
 
+class TestBundleCLIWorkflow:
+    def _write_version(self, path: Path, version: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(version + "\n")
+
+    def _write_bundle_config(self, tmp_path: Path) -> None:
+        (tmp_path / ".semver.yaml").write_text(
+            """schema_version: 1
+plugin: bundle
+
+source:
+  path: .
+
+files:
+  version: VERSION
+
+include:
+  - backend/VERSION
+  - sdk-python/VERSION
+"""
+        )
+
+    def test_snapshot_uses_bundle_config(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        self._write_version(tmp_path / "backend" / "VERSION", "1.2.3")
+        self._write_version(tmp_path / "sdk-python" / "VERSION", "2.0.0")
+        (tmp_path / "VERSION").write_text("5.0.0\n")
+        self._write_bundle_config(tmp_path)
+
+        out = tmp_path / "bundle-snapshot.yaml"
+        result = main(["snapshot", "--out", str(out)])
+
+        assert result == 0
+        data = yaml.safe_load(out.read_text())
+        assert data["language"] == "bundle"
+        assert data["version"] == "5.0.0"
+        assert sorted(data["api"]["dependencies"].keys()) == ["backend", "sdk-python"]
+
+    def test_status_and_bake_work_for_bundle(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.chdir(tmp_path)
+        self._write_version(tmp_path / "backend" / "VERSION", "1.2.3")
+        self._write_version(tmp_path / "sdk-python" / "VERSION", "2.0.0")
+        (tmp_path / "VERSION").write_text("5.0.0\n")
+        self._write_bundle_config(tmp_path)
+
+        snapshot_result = main(["snapshot", "--out", "baked.yaml"])
+        assert snapshot_result == 0
+
+        self._write_version(tmp_path / "backend" / "VERSION", "1.3.0")
+
+        status_result = main(["status", "--details"])
+        assert status_result == 0
+        captured = capsys.readouterr()
+        assert "MINOR" in captured.err
+        assert "Suggested version: 5.1." in captured.out
+        assert (tmp_path / "current.yaml").exists()
+
+        bake_result = main(["bake"])
+        assert bake_result == 0
+        assert (tmp_path / "VERSION").read_text().strip().startswith("5.1.")
+        baked = yaml.safe_load((tmp_path / "baked.yaml").read_text())
+        assert baked["version"].startswith("5.1.")
+
+
 class TestRun2GeneratorMetadata:
     """Tests for stable snapshot generator provenance (plan 03, step 3)."""
 

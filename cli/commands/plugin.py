@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 from cli.utils import EXIT_ERROR, EXIT_OK, _print_level, _should_use_color
 
 # Manifest of plugins installed via `semver-dredd plugin install`.
@@ -53,15 +55,30 @@ def _record_installation(
     _save_manifest(plugin_dir, manifest)
 
 
+def _emit_plugin_inventory(payload: object, args: argparse.Namespace) -> None:
+    if getattr(args, "json", False):
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    if getattr(args, "yaml", False):
+        print(yaml.safe_dump(payload, sort_keys=True), end="")
+        return
+
+
 def cmd_plugin_list(args: argparse.Namespace) -> int:
     """List discovered plugins."""
     use_color = _should_use_color(getattr(args, "color", None))
 
-    from semverdredd.plugin_manager import list_plugins
+    from semverdredd.plugin_manager import get_plugin_manager, list_plugins
 
     plugins = list_plugins()
     if not plugins:
         _print_level("info", "No plugins found", use_color=use_color)
+        return EXIT_OK
+
+    if getattr(args, "json", False) or getattr(args, "yaml", False):
+        payload = get_plugin_manager().list_plugin_metadata()
+        payload.sort(key=lambda item: item["name"])
+        _emit_plugin_inventory(payload, args)
         return EXIT_OK
 
     for info in sorted(plugins, key=lambda i: i.name):
@@ -259,18 +276,27 @@ def cmd_plugin_info(args: argparse.Namespace) -> int:
     mgr.load_plugins()
 
     name = args.name.lower()
-    info = next((i for i in mgr.list_plugins() if i.name == name), None)
+    info = mgr.describe_plugin(name)
     if info is None:
         _print_level("error", f"Plugin '{args.name}' not found", use_color=use_color)
         return EXIT_ERROR
 
-    p = info.plugin
-    print(f"Name: {info.name}")
+    if getattr(args, "json", False) or getattr(args, "yaml", False):
+        _emit_plugin_inventory(info, args)
+        return EXIT_OK
+
+    plugin_info = next((i for i in mgr.list_plugins() if i.name == name), None)
+    if plugin_info is None:
+        _print_level("error", f"Plugin '{args.name}' not found", use_color=use_color)
+        return EXIT_ERROR
+
+    p = plugin_info.plugin
+    print(f"Name: {plugin_info.name}")
     print(f"Display: {p.display_name}")
     print(f"Version: {p.version}")
-    print(f"Origin: {info.origin}")
-    if info.entry_point:
-        print(f"Entry point: {info.entry_point}")
+    print(f"Origin: {plugin_info.origin}")
+    if plugin_info.entry_point:
+        print(f"Entry point: {plugin_info.entry_point}")
     print(f"Description: {p.description}")
 
     # Optional: parser assets location

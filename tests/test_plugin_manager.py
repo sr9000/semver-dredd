@@ -2,6 +2,10 @@ import pytest
 
 from semverdredd.plugin_manager import PluginManager
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
+from semver_dredd_go.plugin import GoPlugin
+from semver_dredd_java.plugin import JavaPlugin
+from semver_dredd_javaparser.plugin import JavaParserPlugin
+from semver_dredd_python.plugin import PythonPlugin
 
 
 class MockPlugin(LanguagePlugin):
@@ -43,6 +47,21 @@ def test_plugin_manager_list_plugins():
     assert "mock" in names
 
 
+def test_plugin_manager_loads_core_builtin_bundle(tmp_path):
+    mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
+
+    mgr.load_plugins(force=True)
+
+    infos = {p.name: p for p in mgr.list_plugins()}
+    assert "bundle" in infos
+    assert infos["bundle"].origin == "builtin"
+
+    metadata = mgr.describe_plugin("bundle")
+    assert metadata is not None
+    assert metadata["scope"]["syntax"] == "paths to VERSION files in include[]"
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+
+
 def test_plugin_manager_unregister():
     """Test that PluginManager can unregister plugins."""
     mgr = PluginManager()
@@ -79,6 +98,48 @@ class RecordingPlugin(LanguagePlugin):
     def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
         self.seen_options.append(options)
         return SnapshotResult(True, f"version: '{version}'\napi: {{}}\n")
+
+
+class MetadataPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "metadata"
+
+    @property
+    def metadata(self) -> dict:
+        return {
+            "scope": {"syntax": "dotted-module"},
+            "features": ["metadata", "machine_readable_inventory"],
+            "plugin_options": ["timeout_seconds"],
+        }
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "metadata")
+
+
+class HaveOnlyPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "have-only"
+
+    def have(self, feature: str) -> bool:
+        return feature == "metadata"
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "have-only")
+
+
+class InvalidMetadataPlugin(LanguagePlugin):
+    @property
+    def name(self) -> str:
+        return "invalid-metadata"
+
+    @property
+    def metadata(self):
+        return ["not", "a", "dict"]
+
+    def generate_snapshot(self, path: str, version: str, options=None) -> SnapshotResult:
+        return SnapshotResult(True, "invalid")
 
 
 def test_options_reach_generate_snapshot_via_cli_helper():
@@ -145,6 +206,90 @@ def test_plugin_without_options_still_works():
         assert "1.0.0" in yaml_str
     finally:
         mgr.unregister("mock")
+
+
+def test_plugin_manager_describe_plugin_defaults():
+    mgr = PluginManager()
+    mgr.register(MockPlugin())
+
+    metadata = mgr.describe_plugin("mock")
+
+    assert metadata is not None
+    assert metadata["name"] == "mock"
+    assert metadata["display_name"] == "Mock"
+    assert metadata["version"] == "0.1.0"
+    assert metadata["origin"] == "manual"
+    assert metadata["features"] == []
+    assert metadata["snapshot_format"] == {
+        "class": None,
+        "snapshot_type_id": None,
+    }
+
+
+def test_plugin_manager_describe_plugin_uses_structured_metadata():
+    mgr = PluginManager()
+    mgr.register(MetadataPlugin())
+
+    metadata = mgr.describe_plugin("metadata")
+
+    assert metadata is not None
+    assert metadata["scope"] == {"syntax": "dotted-module"}
+    assert metadata["plugin_options"] == ["timeout_seconds"]
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+
+
+def test_plugin_manager_describe_plugin_falls_back_to_have():
+    mgr = PluginManager()
+    mgr.register(HaveOnlyPlugin())
+
+    metadata = mgr.describe_plugin("have-only")
+
+    assert metadata is not None
+    assert metadata["features"] == ["metadata"]
+
+
+def test_plugin_manager_invalid_metadata_is_ignored(caplog):
+    import logging
+
+    mgr = PluginManager()
+    mgr.register(InvalidMetadataPlugin())
+
+    with caplog.at_level(logging.WARNING, logger="semverdredd.plugin_manager"):
+        metadata = mgr.describe_plugin("invalid-metadata")
+
+    assert metadata is not None
+    assert metadata["features"] == []
+    assert any("non-dict metadata" in rec.getMessage().lower() for rec in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("plugin", "expected_name", "expected_scope_syntax", "required_tool"),
+    [
+        (PythonPlugin(), "python", "python dotted module/package names", None),
+        (GoPlugin(), "go", "root-relative Go import paths", "go>=1.20"),
+        (JavaPlugin(), "java", "Java package prefixes", "java>=1.8"),
+        (JavaParserPlugin(), "javaparser", "Java package prefixes", "java>=1.8"),
+    ],
+)
+def test_official_plugins_expose_inventory_metadata(
+    plugin, expected_name, expected_scope_syntax, required_tool
+):
+    mgr = PluginManager()
+    mgr.register(plugin)
+
+    metadata = mgr.describe_plugin(expected_name)
+
+    assert metadata is not None
+    assert metadata["name"] == expected_name
+    assert metadata["scope"]["syntax"] == expected_scope_syntax
+    assert metadata["plugin_options"] == []
+    assert metadata["features"] == ["machine_readable_inventory", "metadata"]
+    if required_tool is None:
+        assert metadata["runtime_requirements"]["external_tools"] == []
+    else:
+        assert required_tool in metadata["runtime_requirements"]["external_tools"]
+    assert metadata["snapshot_format"]["class"] is not None
+    assert metadata["snapshot_format"]["snapshot_type_id"] is not None
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +388,7 @@ class TestDiscoveryPrecedence:
         mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
         mgr.load_plugins()
         infos = {i.name: i for i in mgr.list_plugins()}
+        assert infos["bundle"].origin == "builtin"
         # The test environment installs the bundled plugins via pip,
         # so they must be discovered through entry points.
         for name in ("python", "go", "java"):
@@ -257,6 +403,7 @@ class TestDiscoveryPrecedence:
         mgr = PluginManager(user_plugin_dir=tmp_path / "no-plugins")
         mgr.load_plugins()
         infos = {i.name: i for i in mgr.list_plugins()}
+        assert infos["bundle"].origin == "builtin"
         for name in ("python", "go", "java"):
             assert name in infos, f"plugin '{name}' not discovered via fallback"
             assert infos[name].origin == "builtin"
