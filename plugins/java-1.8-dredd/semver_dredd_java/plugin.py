@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import uuid as _uuid
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+
+logger = logging.getLogger(__name__)
+
 
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from snapshot.predefined import (
@@ -388,6 +392,7 @@ class JavaPlugin(LanguagePlugin):
                 _upgrade_legacy_yaml(result.stdout)
             )
             raw_snap._version = version
+            _filter_snapshot_scope(raw_snap, options)
             return SnapshotResult(True, raw_snap.to_yaml())
         except FileNotFoundError:
             return SnapshotResult(
@@ -399,7 +404,64 @@ class JavaPlugin(LanguagePlugin):
             return SnapshotResult(False, "", f"Java parser failed: {msg}")
 
 
+
+def _matches_package_scope(name: str, item: Any) -> bool:
+    """Match a function/type name against a package-prefix scope item.
+
+    ``item`` may end with a trailing ``*`` to mean "this package only, not
+    nested sub-packages" (the documented ``exclude`` nested-exclusion rule).
+    Otherwise matching is recursive: ``item`` matches ``name`` itself and any
+    dotted-prefix descendant of it.
+    """
+    item_str = str(item)
+    if item_str.endswith("*"):
+        prefix = item_str[:-1].rstrip(".")
+        # Only the exact package level, not deeper nested packages.
+        if not name.startswith(prefix + "."):
+            return False
+        rest = name[len(prefix) + 1 :]
+        return "." not in rest.rsplit(".", 1)[0] if "." in rest else True
+    return name == item_str or name.startswith(item_str + ".")
+
+
+def _filter_snapshot_scope(
+    snap: "JavaSnapshot", options: Optional[dict[str, Any]]
+) -> None:
+    """Apply include/exclude package-prefix scope filtering in place.
+
+    ``include`` is an allow-list of package prefixes (recursive); an empty
+    include list means "keep everything". ``exclude`` is applied after
+    include and supports a trailing ``*`` for non-recursive (single package
+    level) exclusion. Matching is performed against the fully-qualified
+    (package-prefixed) function/type name produced by the parser.
+    """
+    if not options:
+        return
+    include = list(options.get("include") or [])
+    exclude = list(options.get("exclude") or [])
+    if not include and not exclude:
+        return
+
+    def keep(name: str) -> bool:
+        if include and not any(_matches_package_scope(name, item) for item in include):
+            return False
+        if exclude and any(_matches_package_scope(name, item) for item in exclude):
+            return False
+        return True
+
+    snap.functions = {name: f for name, f in snap.functions.items() if keep(name)}
+    snap.types = {name: t for name, t in snap.types.items() if keep(name)}
+
+    if include and not snap.functions and not snap.types:
+        logger.warning(
+            "Java scope include/exclude matched no functions or types (include=%r, exclude=%r)",
+            include,
+            exclude,
+        )
+
+
 def _upgrade_legacy_yaml(yaml_str: str) -> dict[str, Any]:
+
     """Parse Java parser output (schema v2) and normalise to JavaSnapshot dict format."""
     import yaml as _yaml
     data = _yaml.safe_load(yaml_str)
