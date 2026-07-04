@@ -126,7 +126,7 @@ Required pieces:
 
 | Member | Required | Notes |
 |--------|----------|-------|
-| `name` | yes | CLI plugin key |
+| `name` | yes | CLI selector key (the value users pass to `--plugin` and `plugin info`) |
 | `generate_snapshot()` | yes | must return `SnapshotResult` |
 | `version` | no | defaults to `0.0.0` |
 | `description` | no | human-facing summary |
@@ -135,6 +135,50 @@ Required pieces:
 | `snapshot_format_class` | no | `None` means `NormalizedSnapshot` |
 | `metadata` | no | plugin inventory details |
 | `have(feature)` | no | optional feature discovery helper |
+
+### What `name` means in practice
+
+Plugin authors sometimes read “CLI key” and assume a plugin can define its own
+CLI arguments, flags, or subcommands. That is **not** what `name` means here.
+
+`name` is only the **selector string** semver-dredd uses to choose which plugin
+implementation should handle a command.
+
+For example, if your plugin returns:
+
+```python
+@property
+def name(self) -> str:
+    return "mylang"
+```
+
+then users can select it like this:
+
+```bash
+semver-dredd init <source> --plugin mylang
+semver-dredd snapshot --plugin mylang --path <source> --version 1.0.0
+semver-dredd plugin info mylang
+```
+
+That does **not** mean:
+
+- your plugin adds a new top-level command such as `semver-dredd mylang`
+- your plugin adds custom argparse flags such as `--mylang-mode`
+- your plugin gets its own separate CLI parser/help page
+
+The core semver-dredd CLI owns the command-line surface. Plugins are selected by
+name, then receive the resolved source/version/options from the framework.
+
+If a plugin needs extra tuning, that configuration should go through
+`plugin_options` in `.semver.yaml`, not through plugin-specific ad-hoc CLI flags.
+
+In other words:
+
+- **package name**: how the plugin is installed, e.g. `python-3.10-dredd`
+- **import module name**: Python import target, e.g. `semver_dredd_python`
+- **plugin `name`**: CLI selector, e.g. `python`
+
+Those names are related, but they are not the same thing.
 
 ## 4. Snapshot contracts and concepts
 
