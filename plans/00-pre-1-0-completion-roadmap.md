@@ -10,13 +10,13 @@ already-implemented features as future work.
 
 ## Remaining items
 
-- [ ] Keep top-level docs (`README.md`, `HOWTO.md`, `USAGE.md`, `SCHEMA.md`) in
+- [x] Keep top-level docs (`README.md`, `HOWTO.md`, `USAGE.md`, `SCHEMA.md`) in
   sync with actual CLI/config/plugin behavior.
-- [ ] Keep plugin READMEs accurate about install steps, scope semantics, and CLI
+- [x] Keep plugin READMEs accurate about install steps, scope semantics, and CLI
   examples.
-- [ ] Decide explicitly whether to add a top-level `semver-dredd list` alias or
+- [x] Decide explicitly whether to add a top-level `semver-dredd list` alias or
   leave plugin inspection under `semver-dredd plugin ...` only.
-- [ ] Keep smoke/tests/docs aligned whenever user-facing workflow examples change.
+- [x] Keep smoke/tests/docs aligned whenever user-facing workflow examples change.
 
 ## Current status
 
@@ -29,5 +29,8 @@ Implemented already:
 - plugin metadata and machine-readable inventory
 - built-in `bundle` plugin
 
-The only active plan file that should still describe work is
-[`07-documentation-and-release-hardening.md`](07-documentation-and-release-hardening.md).
+The remaining documentation hardening work tracked in
+[`07-documentation-and-release-hardening.md`](07-documentation-and-release-hardening.md)
+has now been reconciled with the shipped CLI/docs/examples. Keep future doc
+changes tied to their corresponding feature/fix work so this roadmap does not
+drift back out of sync.

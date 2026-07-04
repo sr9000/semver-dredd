@@ -13,20 +13,31 @@ phases shipped.
 
 ### 1. Final CLI surface review
 
-- [ ] Decide whether a top-level `semver-dredd list` alias should exist.
-- [ ] Keep `--help` output, README examples, and `USAGE.md` examples aligned.
+- [x] Keep plugin inspection under `semver-dredd plugin ...`; do **not** add a
+  top-level `semver-dredd list` alias.
+- [x] Keep `--help` output, README examples, and `USAGE.md` examples aligned.
 
 ### 2. Schema and example drift prevention
 
-- [ ] Re-verify `SCHEMA.md` against serialized fixtures whenever snapshot models change.
-- [ ] Re-verify `example/semver_showcase.yaml` when config keys or precedence rules change.
+- [x] Re-verify `SCHEMA.md` against serialized fixtures whenever snapshot models change.
+- [x] Re-verify `example/semver_showcase.yaml` when config keys or precedence rules change.
 
 ### 3. Plugin documentation drift prevention
 
-- [ ] Re-check official plugin READMEs whenever scope semantics or runtime requirements change.
-- [ ] Keep the meta-package README explicit about which plugins it actually installs.
+- [x] Re-check official plugin READMEs whenever scope semantics or runtime requirements change.
+- [x] Keep the meta-package README explicit about which plugins it actually installs.
 
 ### 4. Release gates
 
-- [ ] Ensure user-facing examples are backed by tests, demos, or smoke coverage.
-- [ ] Keep the repo handoff-ready: docs should describe only working behavior.
+- [x] Ensure user-facing examples are backed by tests, demos, or smoke coverage.
+- [x] Keep the repo handoff-ready: docs should describe only working behavior.
+
+## Status after this pass
+
+- CLI/help/docs now consistently document `semver-dredd plugin list` as the
+  supported plugin inventory command.
+- `SCHEMA.md` and `example/semver_showcase.yaml` explicitly call out CLI-only
+  precedence, scope append/override behavior, and the documentary status of
+  `output.severity_by_change`.
+- Official plugin READMEs and the meta-package README were rechecked against the
+  shipped workflow and runtime expectations.

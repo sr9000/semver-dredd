@@ -25,12 +25,16 @@ After installation, all included plugins are automatically available:
 ```bash
 # List available plugins
 semver-dredd plugin list
+semver-dredd plugin info python
 
 # Use with any supported language
-semver-dredd snapshot --plugin python --path ./mypackage --version 1.0.0
+semver-dredd snapshot --plugin python --path mypackage --version 1.0.0
 semver-dredd snapshot --plugin go --path ./mygomodule --version 1.0.0
 semver-dredd snapshot --plugin java --path ./src/main/java --version 1.0.0
 ```
+
+Plugin inspection remains under the `plugin` command group; use
+`semver-dredd plugin list` rather than a top-level `semver-dredd list` alias.
 
 ## Requirements
 

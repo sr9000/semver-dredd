@@ -24,15 +24,20 @@ Once installed, the plugin is automatically discovered by semver-dredd:
 ```bash
 # List plugins to verify installation
 semver-dredd plugin list
+semver-dredd plugin info python
 
-# Generate snapshot for a Python package
-semver-dredd snapshot --plugin python --path ./mypackage --version 1.0.0
+# Generate a snapshot for an importable module/package
+semver-dredd snapshot --plugin python --path mypackage --version 1.0.0
 
 # Use with init/status/bake commands
-semver-dredd init ./mypackage --plugin python --version 1.0.0
-semver-dredd status ./mypackage --plugin python
-semver-dredd bake ./mypackage --plugin python
+semver-dredd init mypackage --plugin python --version 1.0.0
+semver-dredd status mypackage --plugin python
+semver-dredd bake mypackage --plugin python
 ```
+
+For the Python plugin, `--path`/positional source values are importable module
+or package names (for example `mypackage` or `mypackage.api`), not filesystem
+globs.
 
 If `.semver.yaml` already records `plugin: python` and `source.path`, follow-up
 commands can often omit the explicit path/plugin:

@@ -32,9 +32,15 @@ entry points (no configuration needed):
 ```bash
 # List plugins to verify installation
 semver-dredd plugin list
+semver-dredd plugin info javaparser
 
 # Generate snapshot for a Java source directory
 semver-dredd snapshot --plugin javaparser --path ./src/main/java --version 1.0.0
+
+# Or use the managed init/status/bake workflow
+semver-dredd init ./src/main/java --plugin javaparser --version 1.0.0
+semver-dredd status ./src/main/java --plugin javaparser --details
+semver-dredd bake ./src/main/java --plugin javaparser
 ```
 
 ## How it works
