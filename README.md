@@ -56,7 +56,7 @@ pip install semver-dredd-all
 Development install:
 
 ```bash
-poetry install
+poetry install --with dev
 poetry run pip install -e plugins/python-3.10-dredd
 poetry run pip install -e plugins/go-1.20-dredd
 poetry run pip install -e plugins/java-1.8-dredd
@@ -73,6 +73,10 @@ semver-dredd init . --plugin python --version 1.0.0
 semver-dredd status --details
 semver-dredd bake
 ```
+
+Plugin inspection lives under the `plugin` command group. The supported
+inventory command is `semver-dredd plugin list` (there is no top-level
+`semver-dredd list` alias).
 
 The important workflow rule is:
 

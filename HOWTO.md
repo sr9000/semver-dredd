@@ -68,6 +68,10 @@ semver-dredd plugin list
 semver-dredd plugin info mylang
 ```
 
+Plugin discovery and inspection are intentionally exposed through the `plugin`
+command group; semver-dredd does not currently provide a separate top-level
+`semver-dredd list` alias.
+
 ## 3. Required interface
 
 Subclass `LanguagePlugin` from `semverdredd.plugin_base`.
