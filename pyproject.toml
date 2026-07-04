@@ -38,11 +38,17 @@ Repository = "https://github.com/sr9000/semver-dredd"
 [project.scripts]
 semver-dredd = "cli:main"
 
-# Plugins are separate packages. Install them separately:
-# - python-3.10-dredd
-# - go-1.20-dredd
-# - java-1.8-dredd
-# Or install all at once with: pip install semver-dredd-all
+[project.optional-dependencies]
+python = ["python-3.10-dredd>=1.1.0"]
+go = ["go-1.20-dredd>=1.1.0"]
+java = ["java-1.8-dredd>=1.1.0"]
+javaparser = ["javaparser-1.8-dredd>=1.0.0"]
+all = [
+    "python-3.10-dredd>=1.1.0",
+    "go-1.20-dredd>=1.1.0",
+    "java-1.8-dredd>=1.1.0",
+    "javaparser-1.8-dredd>=1.0.0",
+]
 
 
 [tool.poetry.group.dev.dependencies]
