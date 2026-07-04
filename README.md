@@ -112,6 +112,9 @@ The main project config is `.semver.yaml`.
 - See a full, worked example in
   [`example/semver_showcase.yaml`](example/semver_showcase.yaml)
 - See the config/schema reference in [`SCHEMA.md`](SCHEMA.md)
+- Environment variables (`SEMVER_DREDD_*`) and the full precedence order
+  (config < `.env` < environment < CLI) are documented in
+  [`USAGE.md`](USAGE.md)
 
 Managed files typically include:
 

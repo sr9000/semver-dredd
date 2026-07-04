@@ -26,17 +26,43 @@ Plugin inspection is intentionally namespaced under `plugin`; use
 `semver-dredd plugin list` and `semver-dredd plugin info ...` rather than a
 top-level `semver-dredd list` alias.
 
-## Config precedence
+## Config precedence and environment variables
 
-For CLI usage, the effective precedence is:
+For CLI usage, the effective precedence is (lowest to highest):
 
-1. config file
-2. `.env`
+1. config file (`.semver.yaml`)
+2. `.env` file
 3. environment variables
 4. CLI arguments
 
 This affects plugin selection, source path, managed file paths, color policy,
 breaking-change policy, and patch numbering scheme.
+
+### Environment variables
+
+| Variable | Overrides config key | Values |
+|----------|----------------------|--------|
+| `SEMVER_DREDD_PLUGIN` | `plugin` | plugin key (`python`, `go`, `java`, `javaparser`, `bundle`, …) |
+| `SEMVER_DREDD_PATH` | `source.path` | source path or module name |
+| `SEMVER_DREDD_ALLOW_BREAKING` | `policies.allow_breaking_changes` | `true` / `false` |
+| `SEMVER_DREDD_COLOR` | `output.color` | `true` / `false` |
+| `SEMVER_DREDD_BAKED_FILE` | `files.baked` | path to baked snapshot |
+| `SEMVER_DREDD_CURRENT_FILE` | `files.current` | path to current snapshot |
+| `SEMVER_DREDD_VERSION_FILE` | `files.version` | path to VERSION file |
+
+### `.env` file
+
+A `.env` file in the working directory is read automatically and uses the same
+variable names. Real environment variables override `.env` values; CLI
+arguments override both.
+
+```bash
+# .env example
+SEMVER_DREDD_PLUGIN=python
+SEMVER_DREDD_PATH=mypackage.api
+SEMVER_DREDD_ALLOW_BREAKING=false
+SEMVER_DREDD_BAKED_FILE=api/baked.yaml
+```
 
 ## Typical workflow
 

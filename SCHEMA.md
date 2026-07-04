@@ -63,12 +63,31 @@ Notes:
 
 ### Config precedence
 
-For CLI use, values resolve in this order:
+For CLI use, values resolve in this order (lowest to highest):
 
 `config < .env < environment < CLI`
 
 That precedence applies to the CLI workflow only; direct programmatic API calls
 do not read `.semver.yaml` or `.env` implicitly.
+
+### Environment variable mapping
+
+Each supported environment variable maps to exactly one config key. A `.env`
+file in the working directory uses the same variable names; real environment
+variables override `.env` values.
+
+| Environment variable | Config key |
+|----------------------|------------|
+| `SEMVER_DREDD_PLUGIN` | `plugin` |
+| `SEMVER_DREDD_PATH` | `source.path` |
+| `SEMVER_DREDD_ALLOW_BREAKING` | `policies.allow_breaking_changes` |
+| `SEMVER_DREDD_COLOR` | `output.color` |
+| `SEMVER_DREDD_BAKED_FILE` | `files.baked` |
+| `SEMVER_DREDD_CURRENT_FILE` | `files.current` |
+| `SEMVER_DREDD_VERSION_FILE` | `files.version` |
+
+Boolean variables (`SEMVER_DREDD_ALLOW_BREAKING`, `SEMVER_DREDD_COLOR`) accept
+`true` / `false`. See [`USAGE.md`](USAGE.md) for descriptions and examples.
 
 ### Multi-document candidate configs
 
