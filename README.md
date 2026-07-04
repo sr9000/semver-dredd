@@ -76,6 +76,38 @@ poetry run pip install -e plugins/java-1.8-dredd
 poetry run pip install -e plugins/javaparser-1.8-dredd
 ```
 
+## Publish to PyPI
+
+Use the local Twine-based publish helper to build, validate, and upload the
+core package plus the separately installable official plugins that power extras.
+
+```bash
+# Build + twine-check everything without uploading
+bash scripts/publish_pypi.sh --check-only
+
+# Upload plugins first, then core, then the meta-package
+TWINE_USERNAME=__token__ \
+TWINE_PASSWORD=pypi-... \
+bash scripts/publish_pypi.sh
+```
+
+Useful flags:
+
+```bash
+# Skip parts that are already published
+bash scripts/publish_pypi.sh --skip-plugins
+bash scripts/publish_pypi.sh --skip-core
+bash scripts/publish_pypi.sh --skip-meta
+
+# Target a custom repository / TestPyPI
+bash scripts/publish_pypi.sh --repository testpypi
+bash scripts/publish_pypi.sh --repository-url https://test.pypi.org/legacy/
+```
+
+The helper publishes official plugin packages before the core package so that
+extras such as `semver-dredd[python]` can resolve from PyPI as soon as the core
+release becomes available.
+
 ## Run it
 
 Typical first-run workflow:
