@@ -215,11 +215,49 @@ Useful fields include:
 - runtime requirements
 - feature flags
 
+Today, the core workflow uses only a small portion of this directly. The bigger
+reason to provide good metadata is **future toolability**.
+
+In other words, metadata is an extension point for later commands, automation,
+or integrations that may need to answer questions such as:
+
+- what kind of scope syntax this plugin expects
+- whether the plugin needs extra runtime/toolchain setup
+- which optional behaviors or tuning knobs the plugin supports
+- whether extra operator steps are required before a workflow can proceed
+
+A future tool or command may read plugin metadata first and decide whether it
+can safely guide the user through a workflow, or whether it should ask for more
+setup before continuing.
+
 ### `have(feature)`
 
 Optional helper for feature discovery. This is already shipped, not planned.
 It is useful when a plugin wants to expose lightweight capability checks without
 forcing callers to parse free-form metadata.
+
+This is also mainly a **forward-looking extension hook**. Even if today’s core
+commands do not depend heavily on it, future tooling may want a simple way to
+ask a plugin questions like:
+
+- “do you support this behavior?”
+- “can you participate in this workflow step?”
+- “is this capability available in the current plugin/runtime?”
+
+That is especially useful when a future command or external tool needs to do
+extra steps conditionally. Instead of guessing from docs alone, it can:
+
+1. inspect `metadata` for descriptive/static information
+2. call `have(feature)` for a lightweight yes/no capability check
+
+So the intended model is:
+
+- `metadata` = descriptive information a tool can read
+- `have(feature)` = quick capability probe a tool can ask
+
+Together, these make it easier to build future commands and integrations that
+adapt to what a plugin actually supports, instead of assuming every plugin has
+identical behavior.
 
 ## 5. Scope, include/exclude, and plugin options
 
@@ -306,7 +344,7 @@ possible, expose them in `metadata["runtime_requirements"]`.
 Each plugin README should be verbose enough to answer:
 
 - how to install it
-- which CLI key it registers
+- which CLI key it registers (*plugin name*)
 - what `--path` means for that language
 - what `include` / `exclude` items look like
 - whether extra toolchains are required
