@@ -69,7 +69,7 @@ semver-dredd plugin info mylang
 ```
 
 Plugin discovery and inspection are intentionally exposed through the `plugin`
-command group; semver-dredd does not currently provide a separate top-level
+command group; semver-dredd does not provide a separate top-level
 `semver-dredd list` alias.
 
 ## 3. Required interface
@@ -215,10 +215,10 @@ Useful fields include:
 - runtime requirements
 - feature flags
 
-Today, the core workflow uses only a small portion of this directly. The bigger
-reason to provide good metadata is **future toolability**.
+The core workflow uses only a small portion of this directly. The bigger
+reason to provide good metadata is **toolability**.
 
-In other words, metadata is an extension point for later commands, automation,
+In other words, metadata is an extension point for commands, automation,
 or integrations that may need to answer questions such as:
 
 - what kind of scope syntax this plugin expects
@@ -226,25 +226,24 @@ or integrations that may need to answer questions such as:
 - which optional behaviors or tuning knobs the plugin supports
 - whether extra operator steps are required before a workflow can proceed
 
-A future tool or command may read plugin metadata first and decide whether it
+A tool or command can read plugin metadata first and decide whether it
 can safely guide the user through a workflow, or whether it should ask for more
 setup before continuing.
 
 ### `have(feature)`
 
-Optional helper for feature discovery. This is already shipped, not planned.
-It is useful when a plugin wants to expose lightweight capability checks without
-forcing callers to parse free-form metadata.
+Optional helper for feature discovery. It is useful when a plugin wants to
+expose lightweight capability checks without forcing callers to parse
+free-form metadata.
 
-This is also mainly a **forward-looking extension hook**. Even if today’s core
-commands do not depend heavily on it, future tooling may want a simple way to
-ask a plugin questions like:
+This is mainly an **extension hook**. Core commands do not depend heavily on
+it, but external tooling may want a simple way to ask a plugin questions like:
 
 - “do you support this behavior?”
 - “can you participate in this workflow step?”
 - “is this capability available in the current plugin/runtime?”
 
-That is especially useful when a future command or external tool needs to do
+That is especially useful when a command or external tool needs to do
 extra steps conditionally. Instead of guessing from docs alone, it can:
 
 1. inspect `metadata` for descriptive/static information
@@ -255,7 +254,7 @@ So the intended model is:
 - `metadata` = descriptive information a tool can read
 - `have(feature)` = quick capability probe a tool can ask
 
-Together, these make it easier to build future commands and integrations that
+Together, these make it easier to build commands and integrations that
 adapt to what a plugin actually supports, instead of assuming every plugin has
 identical behavior.
 
@@ -284,7 +283,7 @@ Recommended scope behavior, when it fits your domain:
 - `exclude` applies after `include`
 - log invalid or match-nothing patterns clearly
 
-Official plugin scope semantics today:
+Official plugin scope semantics:
 
 | Plugin | Scope item meaning |
 |--------|--------------------|
@@ -300,7 +299,7 @@ Use [`SCHEMA.md`](SCHEMA.md) for the authoritative snapshot and config reference
 
 Important nuance:
 
-- plugin-specific snapshots currently serialize a v3-style envelope with
+- plugin-specific snapshots serialize a v3-style envelope with
   `snapshot_type_id`
 - the built-in `NormalizedSnapshot` remains a separate schema-version-2 default
   model

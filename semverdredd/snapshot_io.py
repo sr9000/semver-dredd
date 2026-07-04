@@ -1,6 +1,6 @@
 """Cross-language snapshot I/O for semver-dredd — backward-compatibility shim.
 
-All concrete implementations now live in the ``semverdredd`` package.
+All concrete implementations live in the ``semverdredd`` package.
 This module re-exports them so existing ``from semverdredd.snapshot_io import …``
 statements keep working.
 """

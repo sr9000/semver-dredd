@@ -26,7 +26,7 @@ def _snapshot_names(plugin: PythonPlugin, path: str, options: dict | None = None
 
 
 class TestNoScope:
-    """No include/exclude configured: behavior must match legacy no-scope output."""
+    """No include/exclude configured: behavior must match no-scope output."""
 
     def test_all_module_recursion_default(self):
         plugin = PythonPlugin()

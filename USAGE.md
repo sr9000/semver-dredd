@@ -184,7 +184,7 @@ Notes:
 - there is no top-level `semver-dredd list`; plugin inventory stays under
   `semver-dredd plugin list`
 - installs are tracked so removal can target the installed package accurately
-- machine-readable plugin inventory is already shipped
+- `plugin list --json|--yaml` provides a machine-readable plugin inventory
 
 ## Typical language-specific examples
 

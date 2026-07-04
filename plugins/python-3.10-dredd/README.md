@@ -2,9 +2,6 @@
 
 Python 3.10+ language plugin for semver-dredd.
 
-> **Package renamed:** This package was formerly published as `semver-dredd-python`.
-> The importable module name (`semver_dredd_python`) and the CLI plugin key (`python`) are unchanged.
-
 ## Installation
 
 ```bash

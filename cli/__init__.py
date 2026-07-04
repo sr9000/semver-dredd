@@ -466,7 +466,7 @@ def main(argv: list[str] | None = None) -> int:
         formatter_class=RichHelpFormatter,
         description=(
             "Generate a commented configuration template that documents the\n"
-            "currently shipped config surface."
+            "supported config surface."
         ),
         epilog=(
             "Examples:\n"

@@ -45,8 +45,8 @@ output:
   # Alternatives: true / false.
   color: null
 
-  # This block is still useful documentation for project intent, but the current
-  # CLI uses built-in severities rather than loading custom mappings from config.
+  # This block documents project intent; the CLI uses built-in severities
+  # rather than loading custom mappings from config.
   severity_by_change:
     none: info
     patch: info
@@ -130,5 +130,5 @@ plugin_options:
 # - `status`, `bake`, and `snapshot` CLI `--include` / `--exclude` append to the
 #   arrays above unless `--override` is passed.
 # - `init` still requires `--plugin`; it does not infer a plugin from config.
-# - `output.severity_by_change` is documentary for now; the current CLI still
-#   uses built-in severities for NONE/PATCH/MINOR/BREAKING.
+# - `output.severity_by_change` is documentary; the CLI uses built-in
+#   severities for NONE/PATCH/MINOR/BREAKING.

@@ -9,13 +9,13 @@ packages bundled by this repo.
 pip install semver-dredd-all
 ```
 
-This currently installs:
+This installs:
 - `semver-dredd` - Core library
 - `python-3.10-dredd` - Python language plugin
 - `go-1.20-dredd` - Go language plugin
 - `java-1.8-dredd` - Java language plugin
 
-It does **not** currently include `javaparser-1.8-dredd`; install that package
+It does **not** include `javaparser-1.8-dredd`; install that package
 separately when you want the AST-based Java parser.
 
 ## Usage

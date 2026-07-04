@@ -47,7 +47,7 @@ plugin_options: {}
 | `files.*` | managed baked/current/version file locations |
 | `policies.allow_breaking_changes` | whether BREAKING exits are allowed |
 | `output.color` | `true`, `false`, or `null` for auto |
-| `output.severity_by_change` | documented mapping; current CLI still uses built-in severities |
+| `output.severity_by_change` | documented mapping; the CLI uses built-in severities |
 | `versioning.patch_scheme` | `date` or `integer` |
 | `include` | plugin-specific scope items |
 | `exclude` | plugin-specific scope items removed after include |
@@ -56,7 +56,7 @@ plugin_options: {}
 Notes:
 
 - `include` / `exclude` must be YAML arrays when present.
-- CLI `--include` / `--exclude` currently affect `status`, `bake`, and
+- CLI `--include` / `--exclude` affect `status`, `bake`, and
   `snapshot`; they append to config values unless `--override` is used.
 - For the built-in `bundle` plugin, `include[]` is the explicit dependency list
   of VERSION-file paths rather than an optional scope narrowing hint.
@@ -93,7 +93,7 @@ source:
 
 ## 2. Snapshot schema versions
 
-Two schema families are relevant today:
+Two schema families are relevant:
 
 | Version/family | Status | Notes |
 |----------------|--------|-------|
@@ -242,7 +242,7 @@ Important fields:
 
 | Field | Meaning |
 |-------|---------|
-| `schema_version` | currently `2` |
+| `schema_version` | `2` |
 | `version` | analyzed version |
 | `language` | language identifier |
 | `source_kind` | module/package/directory/etc. |

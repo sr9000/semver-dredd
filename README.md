@@ -16,7 +16,7 @@ write or suggest the next version.
 - **Programmatic Python API** for direct use in tests, release automation, or
   custom tooling.
 
-Officially documented plugin keys today:
+Officially documented plugin keys:
 
 - `python`
 - `go`
@@ -26,7 +26,7 @@ Officially documented plugin keys today:
 
 ## What it does
 
-semver-dredd currently ships support for:
+semver-dredd supports:
 
 - config-driven workflows via `.semver.yaml`
 - `.env` / environment / CLI override precedence
@@ -49,7 +49,7 @@ pip install java-1.8-dredd
 pip install javaparser-1.8-dredd
 
 # Or install the official meta-package
-# (currently includes python/go/java; install javaparser separately)
+# (includes python/go/java; install javaparser separately)
 pip install semver-dredd-all
 ```
 
@@ -128,7 +128,6 @@ Managed files typically include:
 - Snapshot/config schema reference: [`SCHEMA.md`](SCHEMA.md)
 - Example plugins: [`plugins/`](plugins/)
 - Demos and example configs: [`example/`](example/)
-- Remaining roadmap only: [`plans/`](plans/)
 
 Useful development commands:
 

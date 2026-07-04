@@ -330,7 +330,7 @@ class GeneratorInfo:
 class NormalizedSnapshot:
     """Language-agnostic normalized API snapshot.
 
-    This is the **default** snapshot format shipped with semver-dredd.
+    This is the **default** snapshot format bundled with semver-dredd.
     Plugins may provide their own format by implementing the
     :class:`~semverdredd.protocols.SnapshotFormat` protocol and registering
     it with a unique UUID.

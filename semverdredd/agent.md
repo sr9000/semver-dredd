@@ -43,5 +43,5 @@ Importable core. Keep it **language-agnostic**.
 - Multi-document `.semver.yaml` selection spans `cli/config.py`, `cli/__init__.py`,
   and plugin validation — don't bake CLI resolution into core unless exposed as a
   clean helper.
-- The shipped `bundle` plugin lives here and follows the normal
+- The built-in `bundle` plugin lives here and follows the normal
   `LanguagePlugin` + `SnapshotFormat`/`Comparable` contracts.

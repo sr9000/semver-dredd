@@ -30,7 +30,7 @@ docker compose -f docker-compose.smoke.yml up \
 
 ## Scope
 
-Smoke currently covers init/status/bake/compare classification for Python, Go, and
-regex Java demos. It does NOT yet assert `include`/`exclude`, multi-document
+Smoke covers init/status/bake/compare classification for Python, Go, and
+regex Java demos. It does not assert `include`/`exclude`, multi-document
 config, `javaparser`, or `bundle`. Add smoke coverage only after unit tests prove
 deterministic behavior — parser/toolchain smoke failures are costly to debug.

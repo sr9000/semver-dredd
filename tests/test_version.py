@@ -151,7 +151,7 @@ class TestVersionIncrement:
         """Test that NONE change type still bumps patch (any code change = new release)."""
         v = Version(1, 2, 20260214001)
         new_v = v.increment(ChangeKind.NONE, today=date(2026, 2, 14))
-        # NONE now triggers a patch bump since any code change warrants a new release
+        # NONE triggers a patch bump since any code change warrants a new release
         assert new_v.major == 1
         assert new_v.minor == 2
         assert new_v.patch == 20260214002

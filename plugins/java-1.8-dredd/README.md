@@ -2,9 +2,6 @@
 
 Java 1.8+ language plugin for semver-dredd.
 
-> **Package renamed:** This package was formerly published as `semver-dredd-java`.
-> The importable module name (`semver_dredd_java`) and the CLI plugin key (`java`) are unchanged.
-
 ## Installation
 
 ```bash

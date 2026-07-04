@@ -11,7 +11,6 @@ Official language plugins as separately installable packages, each exposed via t
 - `javaparser-1.8-dredd/` — key `javaparser`; bundled JavaParser AST parser;
   entry-point only, NOT in core fallback list.
 - `semver-dredd-all/` — meta-package: core + official plugins.
-- `semver-dredd-java/` — legacy remnant; verify before relying on it.
 
 ## Package pattern
 
@@ -55,7 +54,7 @@ semver-dredd snapshot --plugin python --path example.py.pygeometry1 --version 1.
 
 Core forwards these `options` keys: `use_color` (CLI hint), `include`, `exclude`
 (opaque `list[Any]`), `plugin_options` (free-form dict). All four official
-plugins (`python`, `go`, `java`, `javaparser`) now honor `include`/`exclude`;
+plugins (`python`, `go`, `java`, `javaparser`) honor `include`/`exclude`;
 each plugin's local `agent.md` and README document its exact item syntax
 (module dotted names for Python, package prefixes for Java/JavaParser, import
 paths for Go). Shared conventions: empty `include` means "analyze everything";

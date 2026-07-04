@@ -22,9 +22,9 @@ semver-dredd snapshot --plugin go --path example/go/gogeometry1 --version 1.0.0
 bash example/demo_go.sh
 ```
 
-## Scope (implemented)
+## Scope
 
-`main.go` now recursively walks the analyzed directory tree
+`main.go` recursively walks the analyzed directory tree
 (`parseDirTree` + `parseSinglePackageDir`); each subdirectory with `.go` files
 is its own package. Root-package functions/types stay unprefixed (backward
 compatible with the pre-scope single-package output); nested packages are
