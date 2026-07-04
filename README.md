@@ -1,5 +1,7 @@
 # semver-dredd
 
+[![PyPI version](https://img.shields.io/pypi/v/semver-dredd.svg)](https://pypi.org/project/semver-dredd/#description)
+
 Semantic-versioning workflow for public APIs.
 
 `semver-dredd` compares a saved API snapshot with the current source tree,
