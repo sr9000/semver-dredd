@@ -102,11 +102,18 @@ bash scripts/publish_pypi.sh --skip-meta
 # Target a custom repository / TestPyPI
 bash scripts/publish_pypi.sh --repository testpypi
 bash scripts/publish_pypi.sh --repository-url https://test.pypi.org/legacy/
+
+# Resume after a partial upload failure
+bash scripts/publish_pypi.sh --start-from javaparser-1.8-dredd --skip-existing
 ```
 
 The helper publishes official plugin packages before the core package so that
 extras such as `semver-dredd[python]` can resolve from PyPI as soon as the core
 release becomes available.
+
+If PyPI rate-limits an upload with HTTP 429, wait a bit and rerun the helper
+from the failed package with `--start-from ... --skip-existing`. Add
+`--verbose` when you need Twine to show the underlying retry details.
 
 ## Run it
 

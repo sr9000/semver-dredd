@@ -11,6 +11,8 @@ CHECK_ONLY=0
 SKIP_CORE=0
 SKIP_PLUGINS=0
 SKIP_META=0
+START_FROM=""
+STARTED=1
 TWINE_ARGS=()
 
 usage() {
@@ -23,6 +25,10 @@ Options:
   --skip-core                  Skip publishing the core semver-dredd package
   --skip-plugins               Skip publishing official plugin packages
   --skip-meta                  Skip publishing semver-dredd-all
+  --start-from NAME            Resume from a specific package label
+  --skip-existing              Pass through to twine upload --skip-existing
+  --verbose                    Pass through to twine upload --verbose
+  --twine-arg ARG              Pass a raw extra argument to twine upload
   --repository NAME            Pass through to twine upload --repository
   --repository-url URL         Pass through to twine upload --repository-url
   -h, --help                   Show this help
@@ -34,6 +40,10 @@ Default publish order:
   1. Official plugin packages used by extras
   2. Core package (semver-dredd)
   3. Meta-package (semver-dredd-all)
+
+Package labels for --start-from:
+  python-3.10-dredd, go-1.20-dredd, java-1.8-dredd,
+  javaparser-1.8-dredd, semver-dredd, semver-dredd-all
 EOF
 }
 
@@ -50,6 +60,28 @@ while [ $# -gt 0 ]; do
             ;;
         --skip-meta)
             SKIP_META=1
+            ;;
+        --start-from)
+            if [ $# -lt 2 ]; then
+                echo "Missing value for $1" >&2
+                usage >&2
+                exit 1
+            fi
+            START_FROM="$2"
+            STARTED=0
+            shift
+            ;;
+        --skip-existing|--verbose)
+            TWINE_ARGS+=("$1")
+            ;;
+        --twine-arg)
+            if [ $# -lt 2 ]; then
+                echo "Missing value for $1" >&2
+                usage >&2
+                exit 1
+            fi
+            TWINE_ARGS+=("$2")
+            shift
             ;;
         --repository|--repository-url)
             if [ $# -lt 2 ]; then
@@ -107,6 +139,34 @@ build_package() {
     poetry run python -m twine check "$outdir"/*
 }
 
+should_process_package() {
+    local label="$1"
+
+    if [ "$STARTED" -eq 1 ]; then
+        return 0
+    fi
+
+    if [ "$label" = "$START_FROM" ]; then
+        STARTED=1
+        return 0
+    fi
+
+    echo "==> Skipping $label until --start-from $START_FROM"
+    return 1
+}
+
+process_package() {
+    local label="$1"
+    local source_dir="$2"
+
+    if ! should_process_package "$label"; then
+        return
+    fi
+
+    build_package "$label" "$source_dir"
+    upload_package "$label"
+}
+
 upload_package() {
     local label="$1"
     local outdir="$DIST_ROOT/$label"
@@ -135,19 +195,21 @@ PLUGIN_DIRS=(
 if [ "$SKIP_PLUGINS" -eq 0 ]; then
     for entry in "${PLUGIN_DIRS[@]}"; do
         IFS=":" read -r label source_dir <<<"$entry"
-        build_package "$label" "$source_dir"
-        upload_package "$label"
+        process_package "$label" "$source_dir"
     done
 fi
 
 if [ "$SKIP_CORE" -eq 0 ]; then
-    build_package "semver-dredd" "."
-    upload_package "semver-dredd"
+    process_package "semver-dredd" "."
 fi
 
 if [ "$SKIP_META" -eq 0 ]; then
-    build_package "semver-dredd-all" "plugins/semver-dredd-all"
-    upload_package "semver-dredd-all"
+    process_package "semver-dredd-all" "plugins/semver-dredd-all"
+fi
+
+if [ "$STARTED" -eq 0 ]; then
+    echo "Unknown package label for --start-from: $START_FROM" >&2
+    exit 1
 fi
 
 echo "==> Publish flow complete"
