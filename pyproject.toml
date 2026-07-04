@@ -7,18 +7,48 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
 dependencies = [
     "PyYAML>=6.0",
 ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Version Control",
+]
+keywords = [
+    "semantic-versioning",
+    "semver",
+    "api",
+    "versioning",
+    "cli",
+]
+
+[project.urls]
+Homepage = "https://github.com/sr9000/semver-dredd"
+Repository = "https://github.com/sr9000/semver-dredd"
 
 [project.scripts]
 semver-dredd = "cli:main"
 
-# Plugins are separate packages. Install them separately:
-# - python-3.10-dredd
-# - go-1.20-dredd
-# - java-1.8-dredd
-# Or install all at once with: pip install semver-dredd-all
+[project.optional-dependencies]
+python = ["python-3.10-dredd>=1.1.0"]
+go = ["go-1.20-dredd>=1.1.0"]
+java = ["java-1.8-dredd>=1.1.0"]
+javaparser = ["javaparser-1.8-dredd>=1.0.0"]
+all = [
+    "python-3.10-dredd>=1.1.0",
+    "go-1.20-dredd>=1.1.0",
+    "java-1.8-dredd>=1.1.0",
+    "javaparser-1.8-dredd>=1.0.0",
+]
 
 
 [tool.poetry.group.dev.dependencies]
