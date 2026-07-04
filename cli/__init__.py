@@ -22,11 +22,35 @@ from snapshot.models import GeneratorInfo
 logger = logging.getLogger(__name__)
 
 
+class RichHelpFormatter(
+    argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
+):
+    """Help formatter that preserves paragraphs/examples and shows defaults."""
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         prog="semver-dredd",
-        description="Automatically increment semver based on API changes",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Automatically increment semantic versions based on public API changes.\n\n"
+            "Typical workflow:\n"
+            "  1. semver-dredd init <source> --plugin <name> --version 1.0.0\n"
+            "  2. semver-dredd status --details\n"
+            "  3. semver-dredd bake\n\n"
+            "Configuration precedence (lowest to highest):\n"
+            "  .semver.yaml / --config file < .env < environment < CLI arguments\n\n"
+            "Use the command-specific --help pages for examples and config-driven behavior."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin list\n"
+            "  semver-dredd init example.py.pygeometry1 --plugin python --version 1.0.0\n"
+            "  semver-dredd status --details\n"
+            "  semver-dredd snapshot --version 1.0.0 --out baked.yaml\n"
+            "  semver-dredd template --out .semver.yaml"
+        ),
     )
     parser.add_argument(
         "--config",
@@ -48,6 +72,22 @@ def main(argv: list[str] | None = None) -> int:
     init_parser = subparsers.add_parser(
         "init",
         help="Initialize semver-dredd for a project",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Initialize semver-dredd for a source tree or module.\n\n"
+            "This command writes an initial config, generates a baked baseline\n"
+            "snapshot, and writes the chosen starting version to the VERSION file."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd init example.py.pygeometry1 --plugin python --version 1.0.0\n"
+            "  semver-dredd init ./pkg/api --plugin go --version 1.0.0\n"
+            "  semver-dredd init ./src/main/java --plugin java --version 1.0.0\n\n"
+            "Notes:\n"
+            "  - --plugin is required.\n"
+            "  - The generated config records plugin, source.path, and VERSION path\n"
+            "    so later status/bake/snapshot commands can often omit them."
+        ),
     )
     init_parser.add_argument(
         "module",
@@ -90,6 +130,22 @@ def main(argv: list[str] | None = None) -> int:
     status_parser = subparsers.add_parser(
         "status",
         help="Show current API status compared to baked baseline",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Compare the current API surface against the baked baseline and write\n"
+            "a current snapshot with the suggested next version."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd status mymodule --plugin python\n"
+            "  semver-dredd status --details\n"
+            "  semver-dredd status --path ./pkg/api --plugin go --details\n"
+            "  semver-dredd status --allow-breaking\n\n"
+            "Config-driven behavior:\n"
+            "  If source.path and plugin are present in config, the positional path\n"
+            "  may be omitted. CLI --path/--plugin still win and produce warnings\n"
+            "  when they override config values."
+        ),
     )
     status_parser.add_argument(
         "module",
@@ -169,6 +225,22 @@ def main(argv: list[str] | None = None) -> int:
     bake_parser = subparsers.add_parser(
         "bake",
         help="Bake current API state as the new baseline",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Promote the current API surface to the new baked baseline and update\n"
+            "the VERSION file."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd bake mymodule --plugin python\n"
+            "  semver-dredd bake --version 2.0.0\n"
+            "  semver-dredd bake --path ./pkg/api --plugin go\n\n"
+            "Config-driven behavior:\n"
+            "  If source.path is configured, bake can usually run without a\n"
+            "  positional path. When an existing baked snapshot is present, the\n"
+            "  new version is auto-computed from the detected change kind unless\n"
+            "  --version is supplied explicitly."
+        ),
     )
     bake_parser.add_argument(
         "module",
@@ -233,6 +305,21 @@ def main(argv: list[str] | None = None) -> int:
     compare_parser = subparsers.add_parser(
         "compare",
         help="Compare two modules and detect change type",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Compare two source trees/modules directly without using baked.yaml.\n"
+            "Useful for CI checks, review flows, and exploratory diffs."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd compare old_module new_module\n"
+            "  semver-dredd compare ./v1/pkg ./v2/pkg --plugin go\n"
+            "  semver-dredd compare old_module new_module --details --current 1.0.0\n"
+            "  semver-dredd compare old_module new_module --verbose\n\n"
+            "Notes:\n"
+            "  - compare does not read source.path from config because it always\n"
+            "    requires both old and new inputs explicitly."
+        ),
     )
     compare_parser.add_argument(
         "--plugin",
@@ -289,6 +376,18 @@ def main(argv: list[str] | None = None) -> int:
     bump_parser = subparsers.add_parser(
         "bump",
         help="Bump version based on change type",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Compute a new semantic version from a current version and a change\n"
+            "kind (major/minor/patch/none)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd bump --current 1.0.0 --change minor\n"
+            "  semver-dredd bump --current 1.2.7 --change patch --quiet\n\n"
+            "Notes:\n"
+            "  - patch numbering uses the effective patch_scheme (config/env/CLI)."
+        ),
     )
     bump_parser.add_argument(
         "--color",
@@ -327,6 +426,19 @@ def main(argv: list[str] | None = None) -> int:
     patch_parser = subparsers.add_parser(
         "patch",
         help="Generate a new patch version number",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Generate the next patch component according to the effective patch\n"
+            "numbering scheme."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd patch\n"
+            "  semver-dredd patch --current 20260305001\n\n"
+            "Notes:\n"
+            "  - With the default date scheme this yields YYYYMMDDZZZ.\n"
+            "  - With integer scheme it yields the next integer patch value."
+        ),
     )
     patch_parser.add_argument(
         "--color",
@@ -351,6 +463,18 @@ def main(argv: list[str] | None = None) -> int:
     template_parser = subparsers.add_parser(
         "template",
         help="Generate a comprehensive .semver.yaml configuration template",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Generate a commented configuration template that documents the\n"
+            "currently shipped config surface."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd template\n"
+            "  semver-dredd template --out .semver.yaml\n\n"
+            "See also:\n"
+            "  example/semver_showcase.yaml for a fuller copy-pasteable reference."
+        ),
     )
     template_parser.add_argument(
         "--out",
@@ -376,6 +500,21 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_parser = subparsers.add_parser(
         "snapshot",
         help="Generate an API snapshot (baked.yaml-like) using language plugins",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Generate a standalone API snapshot without comparing or baking it.\n"
+            "This is useful for inspection, fixtures, and integration workflows."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd snapshot --plugin python --path mymodule --version 1.0.0\n"
+            "  semver-dredd snapshot --out snapshot.yaml\n"
+            "  semver-dredd snapshot --include api.v1 --exclude api.v1.internal\n\n"
+            "Config-driven behavior:\n"
+            "  plugin/path default from config when available. If --version is\n"
+            "  omitted, semver-dredd reads the resolved VERSION file. CLI include\n"
+            "  and exclude append to config arrays unless --override is used."
+        ),
     )
     snapshot_parser.add_argument(
         "--plugin",
@@ -437,11 +576,35 @@ def main(argv: list[str] | None = None) -> int:
     plugin_parser = subparsers.add_parser(
         "plugin",
         help="Manage semver-dredd language plugins",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Inspect installed/discoverable plugins and manage user-installed\n"
+            "plugin distributions."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin list\n"
+            "  semver-dredd plugin list --json\n"
+            "  semver-dredd plugin info python\n"
+            "  semver-dredd plugin install ./dist/vendor-plugin.whl\n"
+            "  semver-dredd plugin remove vendor-plugin"
+        ),
     )
     plugin_sub = plugin_parser.add_subparsers(dest="plugin_cmd")
     plugin_list = plugin_sub.add_parser(
         "list",
         help="List discovered plugins",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "List discovered plugins from entry points, built-ins, and the user\n"
+            "plugin directory."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin list\n"
+            "  semver-dredd plugin list --json\n"
+            "  semver-dredd plugin list --yaml"
+        ),
     )
     plugin_list_format = plugin_list.add_mutually_exclusive_group()
     plugin_list_format.add_argument(
@@ -458,6 +621,16 @@ def main(argv: list[str] | None = None) -> int:
     plugin_install = plugin_sub.add_parser(
         "install",
         help="Install a plugin distribution into the user plugin directory",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Install a plugin distribution into semver-dredd's user plugin\n"
+            "directory using pip semantics."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin install vendor-plugin\n"
+            "  semver-dredd plugin install ./dist/vendor_plugin-1.0.0-py3-none-any.whl"
+        ),
     )
     plugin_install.add_argument(
         "source",
@@ -467,6 +640,16 @@ def main(argv: list[str] | None = None) -> int:
     plugin_remove = plugin_sub.add_parser(
         "remove",
         help="Remove a plugin from the user plugin directory (manifest-tracked)",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Remove a plugin that was installed into semver-dredd's user plugin\n"
+            "directory."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin remove go\n"
+            "  semver-dredd plugin remove vendor-plugin"
+        ),
     )
     plugin_remove.add_argument(
         "name",
@@ -476,6 +659,17 @@ def main(argv: list[str] | None = None) -> int:
     plugin_info = plugin_sub.add_parser(
         "info",
         help="Show details about a discovered plugin",
+        formatter_class=RichHelpFormatter,
+        description=(
+            "Show metadata, provenance, scope information, and machine-readable\n"
+            "details for a discovered plugin."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  semver-dredd plugin info python\n"
+            "  semver-dredd plugin info bundle --json\n"
+            "  semver-dredd plugin info java --yaml"
+        ),
     )
     plugin_info.add_argument(
         "name",
@@ -493,6 +687,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Emit machine-readable YAML output",
     )
     plugin_info.set_defaults(func=cmd_plugin_info)
+
+    def _plugin_help(_args: argparse.Namespace) -> int:
+        plugin_parser.print_help()
+        return EXIT_OK
+
+    plugin_parser.set_defaults(func=_plugin_help)
     args = parser.parse_args(argv)
 
     # Configure stdlib logging based on -v count.

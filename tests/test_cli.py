@@ -231,6 +231,43 @@ class TestCLIBreakingPolicy:
         )  # No error message
 
 
+class TestCLIHelpSurface:
+    """Help and command-group behavior should be informative and stable."""
+
+    def test_top_level_help_is_verbose(self, capsys):
+        with patch("sys.argv", ["semver-dredd", "--help"]):
+            try:
+                main(["--help"])
+            except SystemExit as e:
+                assert e.code == 0
+
+        captured = capsys.readouterr()
+        assert "Typical workflow:" in captured.out
+        assert "Configuration precedence" in captured.out
+        assert "semver-dredd plugin list" in captured.out
+
+    def test_plugin_command_without_subcommand_prints_help(self, capsys):
+        result = main(["plugin"])
+        assert result == 0
+
+        captured = capsys.readouterr()
+        assert "usage: semver-dredd plugin" in captured.out
+        assert "list,install,remove,info" in captured.out
+        assert captured.err == ""
+
+    def test_snapshot_help_mentions_config_driven_behavior(self, capsys):
+        with patch("sys.argv", ["semver-dredd", "snapshot", "--help"]):
+            try:
+                main(["snapshot", "--help"])
+            except SystemExit as e:
+                assert e.code == 0
+
+        captured = capsys.readouterr()
+        assert "Config-driven behavior:" in captured.out
+        assert "reads the resolved VERSION file" in captured.out
+        assert "unless --override is used" in captured.out
+
+
 class TestConfigPriority:
     """Tests for configuration priority system."""
 
