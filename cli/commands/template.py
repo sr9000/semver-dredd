@@ -26,9 +26,18 @@ _TEMPLATE = """# semver-dredd configuration file
 schema_version: 1
 
 # Project plugin (optional, defaults to 'python')
-# Supported: python, go, java (or any installed plugin)
+# Supported: python, go, java, javaparser (or any installed plugin)
 # Can be overridden by SEMVER_DREDD_PLUGIN env var or --plugin CLI arg
 # plugin: python
+
+# Source path / module (optional but recommended)
+# Examples:
+#   python     -> mypackage.api
+#   go         -> ./pkg/api
+#   java       -> ./src/main/java
+# Can be overridden by SEMVER_DREDD_PATH env var or --path / positional CLI args
+# source:
+#   path: mypackage.api
 
 # Policies section controls semver-dredd behavior
 policies:
@@ -48,7 +57,9 @@ output:
   # color: null
 
   # Severity levels for different change types
-  # Controls the log level (info/warn/error) for each change type
+  # Intended project-local mapping for change severities.
+  # NOTE: the current CLI still uses built-in severities for NONE/PATCH/MINOR/
+  # BREAKING; this block is kept here for forward-compatible documentation.
   severity_by_change:
     # NONE: No API changes detected (but patch bump still occurs)
     none: info
@@ -86,10 +97,13 @@ versioning:
   patch_scheme: date
 
 # Analysis scope (optional)
-# Flat lists of opaque strings forwarded to the language plugin via its
-# options dict. Interpretation (packages, paths, globs) is plugin-specific.
-# NOTE: the bundled python/go/java plugins receive these but do not filter
-# by them yet (see the plans/ roadmap for status).
+# Flat lists of opaque items forwarded to the language plugin via its
+# options dict. Interpretation is plugin-specific.
+# Official plugins now honor include/exclude using their own native syntax:
+#   python     -> dotted module/package names
+#   go         -> relative import paths
+#   java       -> package prefixes
+#   javaparser -> package prefixes
 # include:
 #   - mypackage.core
 #   - mypackage.utils
@@ -108,6 +122,7 @@ versioning:
 # SEMVER_DREDD_ALLOW_BREAKING - Set to 'true' or 'false'
 # SEMVER_DREDD_COLOR - Set to 'true' or 'false'
 # SEMVER_DREDD_PLUGIN - Set to 'python', 'go', or 'java' (or plugin name)
+# SEMVER_DREDD_PATH - Override source.path
 # SEMVER_DREDD_BAKED_FILE - Path to baked.yaml
 # SEMVER_DREDD_CURRENT_FILE - Path to current.yaml
 # SEMVER_DREDD_VERSION_FILE - Path to VERSION file
@@ -116,6 +131,7 @@ versioning:
 # ------------------
 # SEMVER_DREDD_ALLOW_BREAKING=true
 # SEMVER_DREDD_COLOR=false
+# SEMVER_DREDD_PATH=mypackage.api
 # SEMVER_DREDD_BAKED_FILE=api/baked.yaml
 """
 

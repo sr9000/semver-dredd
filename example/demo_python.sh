@@ -17,6 +17,26 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEMO_DIR="$PROJECT_ROOT/example/py"
 WORK_DIR=$(mktemp -d)
 
+if command -v poetry >/dev/null 2>&1; then
+    POETRY_PY="$(cd "$PROJECT_ROOT" && poetry env info --executable)"
+
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$POETRY_PY" -m cli "$@"
+    }
+elif command -v semver-dredd >/dev/null 2>&1; then
+    run_sdd() {
+        semver-dredd "$@"
+    }
+elif command -v python3 >/dev/null 2>&1; then
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m cli "$@"
+    }
+else
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python -m cli "$@"
+    }
+fi
+
 echo -e "${BLUE}=================================================${NC}"
 echo -e "${BLUE}    semver-dredd Python Demo${NC}"
 echo -e "${BLUE}=================================================${NC}"
@@ -30,9 +50,9 @@ cd "$WORK_DIR"
 export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 
 echo -e "${GREEN}Step 1: Initialize project with pygeometry1${NC}"
-echo -e "Command: ${YELLOW}semver-dredd init example.py.pygeometry1 --version 1.0.0${NC}"
+echo -e "Command: ${YELLOW}semver-dredd init example.py.pygeometry1 --plugin python --version 1.0.0${NC}"
 echo ""
-semver-dredd init example.py.pygeometry1 --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd init example.py.pygeometry1 --plugin python --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 2: Show baked API snapshot${NC}"
@@ -45,7 +65,7 @@ echo ""
 echo -e "${GREEN}Step 3: Check status (no changes)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status example.py.pygeometry1 --details${NC}"
 echo ""
-semver-dredd status example.py.pygeometry1 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status example.py.pygeometry1 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 4: Compare pygeometry1 vs pygeometry2 (minor changes)${NC}"
@@ -56,13 +76,13 @@ echo -e "  - Point.z field (3D coordinate)"
 echo -e "  - Point.translate() method"
 echo -e "  - volume() function"
 echo ""
-semver-dredd compare example.py.pygeometry1 example.py.pygeometry2 --details --current 1.0.0 || true
+run_sdd compare example.py.pygeometry1 example.py.pygeometry2 --details --current 1.0.0 || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with pygeometry2 (against pygeometry1 baseline)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status example.py.pygeometry2 --details${NC}"
 echo ""
-semver-dredd status example.py.pygeometry2 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status example.py.pygeometry2 --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -75,7 +95,7 @@ echo ""
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
 echo -e "Command: ${YELLOW}semver-dredd bake example.py.pygeometry2${NC}"
 echo ""
-semver-dredd bake example.py.pygeometry2 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd bake example.py.pygeometry2 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

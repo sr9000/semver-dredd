@@ -1,0 +1,53 @@
+# Comprehensive semver-dredd configuration showcase
+#
+# This file is meant to be read, copied, and adapted. It demonstrates the full
+# shipped config surface in one place:
+# - source.path and pathless status/bake/snapshot
+# - custom managed file locations
+# - include/exclude scope
+# - plugin_options pass-through
+# - integer patch scheme
+# - documented output severity mapping
+#
+# For a runnable end-to-end tour, see: example/demo_config_showcase.sh
+
+schema_version: 1
+plugin: python
+
+source:
+  # Python module/package name, filesystem path, or language-specific source path
+  path: example.py.pygeometry1
+
+files:
+  baked: .semver-demo/baked.yaml
+  current: .semver-demo/current.yaml
+  version: .semver-demo/VERSION
+
+policies:
+  allow_breaking_changes: false
+
+output:
+  color: null
+  # Current CLI behavior still uses built-in severities for NONE/PATCH/MINOR/
+  # BREAKING. Keep this block as the documented/project-local intent until the
+  # CLI begins honoring custom mappings directly.
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+
+versioning:
+  # Use conventional integer patch bumps instead of YYYYMMDDZZZ.
+  patch_scheme: integer
+
+# Scope items are plugin-specific. For the Python plugin they are dotted module
+# or package names, matched recursively.
+include:
+  - example.py.pygeometry1
+exclude:
+  - example.py.pygeometry1._private
+
+# Passed through to the selected plugin as-is.
+plugin_options:
+  timeout_seconds: 30

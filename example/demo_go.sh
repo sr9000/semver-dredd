@@ -18,6 +18,26 @@ GOGEOM1="$SCRIPT_DIR/go/gogeometry1"
 GOGEOM2="$SCRIPT_DIR/go/gogeometry2"
 WORK_DIR=$(mktemp -d)
 
+if command -v poetry >/dev/null 2>&1; then
+    POETRY_PY="$(cd "$PROJECT_ROOT" && poetry env info --executable)"
+
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$POETRY_PY" -m cli "$@"
+    }
+elif command -v semver-dredd >/dev/null 2>&1; then
+    run_sdd() {
+        semver-dredd "$@"
+    }
+elif command -v python3 >/dev/null 2>&1; then
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m cli "$@"
+    }
+else
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python -m cli "$@"
+    }
+fi
+
 echo -e "${BLUE}=================================================${NC}"
 echo -e "${BLUE}    semver-dredd Go Demo${NC}"
 echo -e "${BLUE}=================================================${NC}"
@@ -46,7 +66,7 @@ echo ""
 echo -e "${GREEN}Step 2: Generate API snapshot for gogeometry1${NC}"
 echo -e "Command: ${YELLOW}semver-dredd snapshot --plugin go --path ./example/go/gogeometry1 --version 1.0.0${NC}"
 echo ""
-semver-dredd snapshot --plugin go --path "$GOGEOM1" --version 1.0.0 --out "$WORK_DIR/snapshot_preview.yaml"
+run_sdd snapshot --plugin go --path "$GOGEOM1" --version 1.0.0 --out "$WORK_DIR/snapshot_preview.yaml"
 echo -e "${YELLOW}snapshot_preview.yaml:${NC}"
 echo "----------------------------------------"
 cat "$WORK_DIR/snapshot_preview.yaml"
@@ -59,13 +79,13 @@ echo "1.0.0" > "$WORK_DIR/VERSION"
 echo -e "${GREEN}Step 3: Initialize project with semver-dredd (Go)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd init ./example/go/gogeometry1 --plugin go --version 1.0.0${NC}"
 echo ""
-semver-dredd init "$GOGEOM1" --plugin go --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd init "$GOGEOM1" --plugin go --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 4: Check status (no changes)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status ./example/go/gogeometry1 --plugin go --details${NC}"
 echo ""
-semver-dredd status "$GOGEOM1" --plugin go --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status "$GOGEOM1" --plugin go --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with gogeometry2 (against gogeometry1 baseline)${NC}"
@@ -76,7 +96,7 @@ echo -e "  - Added Point.Z field (3D coordinate)"
 echo -e "  - Added Point.Translate() method"
 echo -e "  - Added Volume() function"
 echo ""
-semver-dredd status "$GOGEOM2" --plugin go --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status "$GOGEOM2" --plugin go --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -89,7 +109,7 @@ echo ""
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
 echo -e "Command: ${YELLOW}semver-dredd bake ./example/go/gogeometry2 --plugin go${NC}"
 echo ""
-semver-dredd bake "$GOGEOM2" --plugin go --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd bake "$GOGEOM2" --plugin go --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

@@ -29,7 +29,7 @@ feature is still planned.
 | `include` / `exclude` / `plugin_options` forwarding to plugins | ✅ Implemented |
 | `--config` selection and pathless config-driven `status` / `bake` / `snapshot` defaults | ✅ Implemented |
 | Multi-document `.semver.yaml` fallback candidates | ✅ Implemented |
-| Plugin-side `include` / `exclude` filtering | 🚧 Planned — official plugins receive these keys but do not honor them yet |
+| Plugin-side `include` / `exclude` filtering | ✅ Implemented for official python/go/java/javaparser plugins |
 | Built-in aggregate `bundle` plugin | 🚧 Planned |
 
 The pre-1.0 completion roadmap and detailed scope/status notes live in the
@@ -314,17 +314,20 @@ Use `--config` to select explicit config modes such as `.semver.yaml`,
 ```yaml
 schema_version: 1
 
-# Language plugin (python, go, java)
+# Language plugin (python, go, java, javaparser, or any installed plugin)
 plugin: python
 
 source:
-  path: .
+  path: example.py.pygeometry1
 
 policies:
   allow_breaking_changes: false  # Fail on BREAKING by default
 
 output:
   color: null  # null = auto-detect, true = always, false = never
+  # Current CLI releases still use built-in severities for NONE/PATCH/MINOR/
+  # BREAKING. Keep this block as project-local intent / forward-compatible
+  # documentation.
   severity_by_change:
     none: info     # Green
     patch: info    # Green
@@ -332,21 +335,20 @@ output:
     major: error   # Red (becomes warn when --allow-breaking)
 
 files:
-  baked: baked.yaml
-  current: current.yaml
-  version: VERSION
+  baked: .semver-demo/baked.yaml
+  current: .semver-demo/current.yaml
+  version: .semver-demo/VERSION
 
 versioning:
-  patch_scheme: date  # "date" (YYYYMMDDZZZ, default) or "integer"
+  patch_scheme: integer  # or "date" (YYYYMMDDZZZ, default)
 
 # Analysis scope — forwarded to the plugin via its options dict.
-# Target pre-1.0 contract: include/exclude are arrays and each item is
-# plugin-specific. Dot-separated strings are only a recommendation where
-# natural for the language/domain.
+# Item syntax is plugin-specific. For the Python plugin shown here, use dotted
+# module / package names.
 include:
-  - mypackage.core
+  - example.py.pygeometry1
 exclude:
-  - mypackage.core._private
+  - example.py.pygeometry1._private
 
 # Free-form options forwarded to the plugin as-is (never validated
 # by the framework)
@@ -357,9 +359,18 @@ plugin_options:
 `include` and `exclude` must be arrays. Item shapes are plugin-specific and may
 be strings, numbers, or objects.
 
-> The bundled python/go/java/javaparser plugins receive `include`/`exclude`/
-> `plugin_options` but do not filter by them yet — see the
-> [`plans/`](plans/) roadmap for status.
+The official `python`, `go`, `java`, and `javaparser` plugins now honor
+`include` / `exclude` using their own native syntax:
+
+- `python` → dotted module/package names
+- `go` → relative import paths beneath the analyzed root
+- `java` / `javaparser` → package prefixes
+
+`plugin_options` remains an opaque plugin-specific escape hatch.
+
+There is also a copy-pasteable reference file in
+[`example/semver_showcase.yaml`](example/semver_showcase.yaml) plus a runnable
+end-to-end walkthrough in [`example/demo_config_showcase.sh`](example/demo_config_showcase.sh).
 
 ### Multi-document config fallback
 
@@ -389,6 +400,7 @@ include:
 SEMVER_DREDD_ALLOW_BREAKING=true
 SEMVER_DREDD_COLOR=false
 SEMVER_DREDD_PLUGIN=go
+SEMVER_DREDD_PATH=./pkg/api
 SEMVER_DREDD_BAKED_FILE=api/baked.yaml
 SEMVER_DREDD_CURRENT_FILE=api/current.yaml
 SEMVER_DREDD_VERSION_FILE=api/VERSION
@@ -401,6 +413,7 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 | `SEMVER_DREDD_ALLOW_BREAKING` | Allow breaking changes | `true` / `false` |
 | `SEMVER_DREDD_COLOR` | Color output mode | `true` / `false` |
 | `SEMVER_DREDD_PLUGIN` | Plugin override | `python`, `go`, `java`, `javaparser`, or any installed plugin |
+| `SEMVER_DREDD_PATH` | Override `source.path` | module name or file/directory path |
 | `SEMVER_DREDD_BAKED_FILE` | Path to baked.yaml | file path |
 | `SEMVER_DREDD_CURRENT_FILE` | Path to current.yaml | file path |
 | `SEMVER_DREDD_VERSION_FILE` | Path to VERSION file | file path |
@@ -412,9 +425,9 @@ SEMVER_DREDD_VERSION_FILE=api/VERSION
 --allow-breaking        # Allow BREAKING changes (exit 0)
 --disallow-breaking     # Fail on BREAKING changes (exit 10)
 
-# File paths
+# File paths and config resolution
 --config PATH           # Select config file/mode
---path PATH             # Override configured source.path (status/bake)
+--path PATH             # Override configured source.path (status/bake/snapshot)
 --baked PATH            # Custom baked.yaml path
 --current-file PATH     # Custom current.yaml path
 --version-file PATH     # Custom VERSION file path
@@ -509,6 +522,32 @@ semver-dredd status --details
 semver-dredd bake
 ```
 
+## Full Config Showcase
+
+The config showcase is the most complete shipped demonstration of semver-dredd's
+configuration model and command flow:
+
+```bash
+bash example/demo_config_showcase.sh
+```
+
+It demonstrates, end to end:
+
+- `template` generation
+- explicit `--config` selection
+- multi-document config candidates with first-valid fallback
+- `.env` overrides and real environment overrides
+- pathless `status`, `snapshot`, and `bake` driven by `source.path`
+- custom `files.baked` / `files.current` / `files.version`
+- integer patch scheme via `versioning.patch_scheme`
+- plugin scope via `include` / `exclude`
+- CLI scope append (`--include`) and replacement (`--override`)
+- plugin override failure semantics via `SEMVER_DREDD_PLUGIN`
+- `compare`, `bump`, and `patch`
+
+For a static reference config, see
+[`example/semver_showcase.yaml`](example/semver_showcase.yaml).
+
 ## Language Plugins
 
 semver-dredd uses a plugin system to support multiple languages.
@@ -521,7 +560,7 @@ Each plugin is a separate pip-installable package.
 | Java   | `java-1.8-dredd`         | JDK ≥ 1.8 (for the bundled parser)        |
 | JavaParser | `javaparser-1.8-dredd` | JDK + JavaParser-based parser tooling |
 
-Planned official scope semantics:
+Official scope semantics:
 
 | Plugin | Planned `include` meaning | Notes |
 |--------|---------------------------|-------|
@@ -573,6 +612,9 @@ poetry run pytest tests/test_snapshot.py -v
 ```bash
 # Python workflow demo
 bash example/demo_python.sh
+
+# Full config + precedence + scope showcase
+bash example/demo_config_showcase.sh
 
 # Go workflow demo (requires Go 1.20+)
 bash example/demo_go.sh

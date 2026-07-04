@@ -31,8 +31,8 @@ The `javaparser-1.8-dredd` plugin is used as a concrete reference throughout.
 
 ```
 ┌──────────────────────┐
-│  semver-dredd CLI     │
-│  or programmatic API  │
+│  semver-dredd CLI    │
+│  or programmatic API │
 └──────┬───────────────┘
        │  discovers via entry points
        ▼
@@ -45,17 +45,17 @@ The `javaparser-1.8-dredd` plugin is used as a concrete reference throughout.
                                      │
                                      ▼
                               ┌──────────────────────┐
-                              │  YourSnapshot         │
-                              │  (SnapshotFormat +    │
-                              │   Comparable)         │
-                              └──────┬────────────────┘
+                              │  YourSnapshot        │
+                              │  (SnapshotFormat +   │
+                              │   Comparable)        │
+                              └──────┬───────────────┘
                                      │
                               registered in
                                      │
                                      ▼
                               ┌──────────────────────┐
-                              │  SnapshotRegistry     │
-                              │  (by UUID)            │
+                              │  SnapshotRegistry    │
+                              │  (by UUID)           │
                               └──────────────────────┘
 ```
 
@@ -231,6 +231,29 @@ timeouts, parser tuning, classpaths, source levels, authentication settings, and
 similar details. The framework never validates this dictionary. Prefer putting
 semantic API-surface selection in `include` / `exclude`, not in
 `plugin_options`.
+
+### Reference showcase config and demo
+
+This repository now includes a full config-focused reference under:
+
+- [`example/semver_showcase.yaml`](example/semver_showcase.yaml) — a
+  copy-pasteable comprehensive config example
+- [`example/demo_config_showcase.sh`](example/demo_config_showcase.sh) — a
+  runnable walkthrough covering precedence, candidate fallback, pathless
+  commands, scope append/override, and config-driven versioning
+
+Use these as the concrete “what good looks like” examples when documenting your
+own plugin's scope syntax and `plugin_options`.
+
+Important current-state notes for plugin authors:
+
+- the official `python`, `go`, `java`, and `javaparser` plugins now honor
+  `include` / `exclude`;
+- `source.path`, `files.version`, and `versioning.patch_scheme` participate in
+  the config-driven CLI workflow and are worth testing in plugin examples;
+- `output.severity_by_change` still appears in templates and examples as
+  forward-compatible/documentary config, but the current CLI uses built-in
+  severities rather than reading custom mappings from config.
 
 ### Planned optional feature discovery
 
@@ -741,11 +764,11 @@ Before publishing your plugin, verify:
 | Java (regex) | `java-1.8-dredd` | `java` | Regex-based Java parser |
 | Java (AST) | `javaparser-1.8-dredd` | `javaparser` | JavaParser library |
 
-Current status: these official plugins accept the `options` parameter, but do
-not yet honor `include`, `exclude`, or most plugin-specific options during
-analysis.
+Current status: the official plugins accept the `options` parameter, honor
+`include` / `exclude`, and may selectively use `plugin_options` when those
+options are meaningful for that plugin/runtime.
 
-Planned official scope conventions:
+Official scope conventions:
 
 | Plugin | Planned `include` / `exclude` unit |
 |--------|------------------------------------|
