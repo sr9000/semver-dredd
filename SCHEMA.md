@@ -53,11 +53,22 @@ plugin_options: {}
 | `exclude` | plugin-specific scope items removed after include |
 | `plugin_options` | opaque plugin-specific options |
 
+Notes:
+
+- `include` / `exclude` must be YAML arrays when present.
+- CLI `--include` / `--exclude` currently affect `status`, `bake`, and
+  `snapshot`; they append to config values unless `--override` is used.
+- For the built-in `bundle` plugin, `include[]` is the explicit dependency list
+  of VERSION-file paths rather than an optional scope narrowing hint.
+
 ### Config precedence
 
 For CLI use, values resolve in this order:
 
 `config < .env < environment < CLI`
+
+That precedence applies to the CLI workflow only; direct programmatic API calls
+do not read `.semver.yaml` or `.env` implicitly.
 
 ### Multi-document candidate configs
 
