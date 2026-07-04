@@ -59,11 +59,10 @@ use-case). Mark implementation-dependent parts as milestones and update as you g
 
 ## Docs to read before editing
 
-- `README.md` — CLI/API overview, project structure.
+- `README.md` — repo overview and entry point.
 - `HOWTO.md` — plugin authoring; best source for the plugin contract.
-- `docs/schema.md` — snapshot YAML envelope + component schemas.
-- `plans/` — pre-1.0 completion roadmap and per-phase plans (config/plugin API
-  evolution, scope model, bundle plugin, observability).
+- `SCHEMA.md` — config + snapshot schema reference.
+- `plans/` — remaining roadmap notes and doc hardening tasks.
 
 ## Dev commands
 
@@ -77,14 +76,13 @@ poetry run pip install -e plugins/python-3.10-dredd   # + go/java/javaparser as 
 poetry run pytest -v
 bash example/demo_python.sh                # go/java need toolchains+plugins
 bash scripts/smoke.sh [python unit ...]    # Docker smoke
-
 ```
 
 **git log — always use non-interactive mode** to avoid blocking on a pager:
 
 ```bash
 git --no-pager log                            # suppress pager entirely
-git --no-pager log --oneline --decorate -n 8  # uasge example
+git --no-pager log --oneline --decorate -n 8  # usage example
 ```
 
 ## Conventions
@@ -99,10 +97,10 @@ git --no-pager log --oneline --decorate -n 8  # uasge example
 ## Scope status
 
 `include`/`exclude`/`plugin_options` are parsed and forwarded, and **all four
-official plugins (python, go, java, javaparser) now honor `include`/`exclude`**
-(module dotted names, import paths, and package prefixes respectively — see
-`plugins/agent.md` and each plugin's README). The `bundle` plugin is still
-planned. Before changing scope behavior, read the `plans/` roadmap and
-`plugins/agent.md`. Caution: configs with `include`/`exclude` keys now yield
-narrower snapshots than before this scope work landed.
-
+official language plugins (python, go, java, javaparser) now honor
+`include`/`exclude`** (module dotted names, import paths, and package prefixes
+respectively — see `plugins/agent.md` and each plugin's README). The built-in
+`bundle` plugin is also shipped and uses explicit VERSION-file paths in
+`include[]`. Before changing scope behavior, read the remaining `plans/`
+roadmap and `plugins/agent.md`. Caution: configs with `include`/`exclude` keys
+yield narrower snapshots than no-scope runs.

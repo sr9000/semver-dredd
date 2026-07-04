@@ -9,14 +9,15 @@ Importable core. Keep it **language-agnostic**.
   imports); loading is lazy via `PluginManager.get/list_plugins()`.
 - `plugin_base.py` — `LanguagePlugin`, `SnapshotResult` contracts.
 - `plugin_manager.py` — discovery. Prefers entry points in `semver_dredd.plugins`;
-  built-in fallback specs cover only repo-bundled `python`/`go`/`java` (NOT
-  `javaparser`).
+  built-in fallback specs cover repo-bundled `python`/`go`/`java` (not
+  `javaparser`), while core also ships the built-in `bundle` plugin.
 - `registry.py` — snapshot UUID registry; falls back to `NormalizedSnapshot` when
   `snapshot_type_id` is missing/unknown (back-compat).
 - `snapshot_io.py` — snapshot I/O shim.
 - `version.py` — version parse/increment; supports `date` (`YYYYMMDDZZZ`) and
   `integer` patch schemes.
 - `diff.py` — diff delegation.
+- `bundle_plugin.py` — built-in VERSION-file bundle plugin and snapshot format.
 
 ## Invariants
 
@@ -42,5 +43,5 @@ Importable core. Keep it **language-agnostic**.
 - Multi-document `.semver.yaml` selection spans `cli/config.py`, `cli/__init__.py`,
   and plugin validation — don't bake CLI resolution into core unless exposed as a
   clean helper.
-- A future core `bundle` plugin could live here (`bundle_plugin.py`) but must
-  implement the normal `LanguagePlugin` + `SnapshotFormat`/`Comparable` contracts.
+- The shipped `bundle` plugin lives here and follows the normal
+  `LanguagePlugin` + `SnapshotFormat`/`Comparable` contracts.
