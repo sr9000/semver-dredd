@@ -22,7 +22,7 @@ _TEMPLATE = """# semver-dredd configuration file
 # Programmatic API calls ignore all config files.
 
 # Schema version for this configuration file
-# Currently supported: 1
+# Supported: 1
 schema_version: 1
 
 # Project plugin (optional, defaults to 'python')
@@ -58,8 +58,8 @@ output:
 
   # Severity levels for different change types
   # Intended project-local mapping for change severities.
-  # NOTE: the current CLI still uses built-in severities for NONE/PATCH/MINOR/
-  # BREAKING; this block is kept here for forward-compatible documentation.
+  # NOTE: the CLI uses built-in severities for NONE/PATCH/MINOR/BREAKING;
+  # this block is documentary.
   severity_by_change:
     # NONE: No API changes detected (but patch bump still occurs)
     none: info
@@ -99,7 +99,7 @@ versioning:
 # Analysis scope (optional)
 # Flat lists of opaque items forwarded to the language plugin via its
 # options dict. Interpretation is plugin-specific.
-# Official plugins now honor include/exclude using their own native syntax:
+# Official plugins honor include/exclude using their own native syntax:
 #   python     -> dotted module/package names
 #   go         -> relative import paths
 #   java       -> package prefixes

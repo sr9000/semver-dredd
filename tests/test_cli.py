@@ -562,7 +562,7 @@ class TestRun2Verbosity:
         ), f"No args.dump in {messages}"
 
     def test_init_version_flag_is_long_form_only(self, tmp_path, monkeypatch):
-        """init --version should work; -v on top-level is now verbosity."""
+        """init --version should work; -v on top-level is verbosity."""
         monkeypatch.chdir(tmp_path)
         # init --version 1.0.0 should still work
         result = main(

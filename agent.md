@@ -37,10 +37,9 @@ suggests/writes versions.
 
 ## Planning
 
-Plans live in `plans/`. Split a feature into enumerated files
-`##-feature-title.md`, each describing one business-level change as commit-sized
-steps with: **Motivation**, **Touched files**, **Definition of Done** (validating
-use-case). Mark implementation-dependent parts as milestones and update as you go.
+Before implementing a feature, split it into commit-sized steps, each with:
+**Motivation**, **Touched files**, **Definition of Done** (validating use-case).
+Mark implementation-dependent parts as milestones and update as you go.
 
 ## Module map
 
@@ -62,7 +61,6 @@ use-case). Mark implementation-dependent parts as milestones and update as you g
 - `README.md` — repo overview and entry point.
 - `HOWTO.md` — plugin authoring; best source for the plugin contract.
 - `SCHEMA.md` — config + snapshot schema reference.
-- `plans/` — remaining roadmap notes and doc hardening tasks.
 
 ## Dev commands
 
@@ -97,10 +95,10 @@ git --no-pager log --oneline --decorate -n 8  # usage example
 ## Scope status
 
 `include`/`exclude`/`plugin_options` are parsed and forwarded, and **all four
-official language plugins (python, go, java, javaparser) now honor
+official language plugins (python, go, java, javaparser) honor
 `include`/`exclude`** (module dotted names, import paths, and package prefixes
 respectively — see `plugins/agent.md` and each plugin's README). The built-in
-`bundle` plugin is also shipped and uses explicit VERSION-file paths in
-`include[]`. Before changing scope behavior, read the remaining `plans/`
-roadmap and `plugins/agent.md`. Caution: configs with `include`/`exclude` keys
-yield narrower snapshots than no-scope runs.
+`bundle` plugin uses explicit VERSION-file paths in
+`include[]`. Before changing scope behavior, read `plugins/agent.md`.
+Caution: configs with `include`/`exclude` keys yield narrower snapshots than
+no-scope runs.

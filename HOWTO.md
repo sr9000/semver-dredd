@@ -68,6 +68,10 @@ semver-dredd plugin list
 semver-dredd plugin info mylang
 ```
 
+Plugin discovery and inspection are intentionally exposed through the `plugin`
+command group; semver-dredd does not provide a separate top-level
+`semver-dredd list` alias.
+
 ## 3. Required interface
 
 Subclass `LanguagePlugin` from `semverdredd.plugin_base`.
@@ -122,7 +126,7 @@ Required pieces:
 
 | Member | Required | Notes |
 |--------|----------|-------|
-| `name` | yes | CLI plugin key |
+| `name` | yes | CLI selector key (the value users pass to `--plugin` and `plugin info`) |
 | `generate_snapshot()` | yes | must return `SnapshotResult` |
 | `version` | no | defaults to `0.0.0` |
 | `description` | no | human-facing summary |
@@ -131,6 +135,50 @@ Required pieces:
 | `snapshot_format_class` | no | `None` means `NormalizedSnapshot` |
 | `metadata` | no | plugin inventory details |
 | `have(feature)` | no | optional feature discovery helper |
+
+### What `name` means in practice
+
+Plugin authors sometimes read “CLI key” and assume a plugin can define its own
+CLI arguments, flags, or subcommands. That is **not** what `name` means here.
+
+`name` is only the **selector string** semver-dredd uses to choose which plugin
+implementation should handle a command.
+
+For example, if your plugin returns:
+
+```python
+@property
+def name(self) -> str:
+    return "mylang"
+```
+
+then users can select it like this:
+
+```bash
+semver-dredd init <source> --plugin mylang
+semver-dredd snapshot --plugin mylang --path <source> --version 1.0.0
+semver-dredd plugin info mylang
+```
+
+That does **not** mean:
+
+- your plugin adds a new top-level command such as `semver-dredd mylang`
+- your plugin adds custom argparse flags such as `--mylang-mode`
+- your plugin gets its own separate CLI parser/help page
+
+The core semver-dredd CLI owns the command-line surface. Plugins are selected by
+name, then receive the resolved source/version/options from the framework.
+
+If a plugin needs extra tuning, that configuration should go through
+`plugin_options` in `.semver.yaml`, not through plugin-specific ad-hoc CLI flags.
+
+In other words:
+
+- **package name**: how the plugin is installed, e.g. `python-3.10-dredd`
+- **import module name**: Python import target, e.g. `semver_dredd_python`
+- **plugin `name`**: CLI selector, e.g. `python`
+
+Those names are related, but they are not the same thing.
 
 ## 4. Snapshot contracts and concepts
 
@@ -167,11 +215,48 @@ Useful fields include:
 - runtime requirements
 - feature flags
 
+The core workflow uses only a small portion of this directly. The bigger
+reason to provide good metadata is **toolability**.
+
+In other words, metadata is an extension point for commands, automation,
+or integrations that may need to answer questions such as:
+
+- what kind of scope syntax this plugin expects
+- whether the plugin needs extra runtime/toolchain setup
+- which optional behaviors or tuning knobs the plugin supports
+- whether extra operator steps are required before a workflow can proceed
+
+A tool or command can read plugin metadata first and decide whether it
+can safely guide the user through a workflow, or whether it should ask for more
+setup before continuing.
+
 ### `have(feature)`
 
-Optional helper for feature discovery. This is already shipped, not planned.
-It is useful when a plugin wants to expose lightweight capability checks without
-forcing callers to parse free-form metadata.
+Optional helper for feature discovery. It is useful when a plugin wants to
+expose lightweight capability checks without forcing callers to parse
+free-form metadata.
+
+This is mainly an **extension hook**. Core commands do not depend heavily on
+it, but external tooling may want a simple way to ask a plugin questions like:
+
+- “do you support this behavior?”
+- “can you participate in this workflow step?”
+- “is this capability available in the current plugin/runtime?”
+
+That is especially useful when a command or external tool needs to do
+extra steps conditionally. Instead of guessing from docs alone, it can:
+
+1. inspect `metadata` for descriptive/static information
+2. call `have(feature)` for a lightweight yes/no capability check
+
+So the intended model is:
+
+- `metadata` = descriptive information a tool can read
+- `have(feature)` = quick capability probe a tool can ask
+
+Together, these make it easier to build commands and integrations that
+adapt to what a plugin actually supports, instead of assuming every plugin has
+identical behavior.
 
 ## 5. Scope, include/exclude, and plugin options
 
@@ -198,7 +283,7 @@ Recommended scope behavior, when it fits your domain:
 - `exclude` applies after `include`
 - log invalid or match-nothing patterns clearly
 
-Official plugin scope semantics today:
+Official plugin scope semantics:
 
 | Plugin | Scope item meaning |
 |--------|--------------------|
@@ -214,7 +299,7 @@ Use [`SCHEMA.md`](SCHEMA.md) for the authoritative snapshot and config reference
 
 Important nuance:
 
-- plugin-specific snapshots currently serialize a v3-style envelope with
+- plugin-specific snapshots serialize a v3-style envelope with
   `snapshot_type_id`
 - the built-in `NormalizedSnapshot` remains a separate schema-version-2 default
   model
@@ -258,7 +343,7 @@ possible, expose them in `metadata["runtime_requirements"]`.
 Each plugin README should be verbose enough to answer:
 
 - how to install it
-- which CLI key it registers
+- which CLI key it registers (*plugin name*)
 - what `--path` means for that language
 - what `include` / `exclude` items look like
 - whether extra toolchains are required

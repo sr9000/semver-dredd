@@ -1,6 +1,6 @@
 """snapshot — backward-compatibility shim.
 
-All canonical implementations now live in the ``semverdredd`` package.
+All canonical implementations live in the ``semverdredd`` package.
 This package re-exports them so existing ``from snapshot import …``
 statements keep working.
 

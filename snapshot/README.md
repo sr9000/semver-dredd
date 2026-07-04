@@ -203,7 +203,7 @@ Key fields:
 
 | Field            | Type                              | Description                    |
 |------------------|-----------------------------------|--------------------------------|
-| `schema_version` | `int`                             | Schema version (currently `2`) |
+| `schema_version` | `int`                             | Schema version (`2`) |
 | `version`        | `str`                             | Version string                 |
 | `language`       | `str`                             | Language identifier             |
 | `source_kind`    | `str`                             | `"module"`, `"package"`, etc.  |

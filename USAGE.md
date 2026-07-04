@@ -22,6 +22,10 @@ Primary commands:
 - `template` — print a commented config template
 - `plugin` — inspect/install/remove plugins
 
+Plugin inspection is intentionally namespaced under `plugin`; use
+`semver-dredd plugin list` and `semver-dredd plugin info ...` rather than a
+top-level `semver-dredd list` alias.
+
 ## Config precedence
 
 For CLI usage, the effective precedence is:
@@ -177,8 +181,10 @@ semver-dredd plugin remove python
 Notes:
 
 - `semver-dredd plugin` with no subcommand prints group help
+- there is no top-level `semver-dredd list`; plugin inventory stays under
+  `semver-dredd plugin list`
 - installs are tracked so removal can target the installed package accurately
-- machine-readable plugin inventory is already shipped
+- `plugin list --json|--yaml` provides a machine-readable plugin inventory
 
 ## Typical language-specific examples
 
