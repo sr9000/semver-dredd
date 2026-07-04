@@ -537,15 +537,21 @@ def main(argv: list[str] | None = None) -> int:
         _print_level("error", str(e))
         return EXIT_ERROR
 
-    # Apply generic defaults first (allow_breaking, color, etc.)
-    apply_config_defaults(args, config)
-
-    # Resolve command-scoped plugin/path/version/include/exclude context.
+    # Resolve command-scoped plugin/path/version/include/exclude context before
+    # applying generic defaults. This is important for multi-document configs:
+    # load_config() materializes only the first merged candidate, so pre-filling
+    # args.plugin from Config here would incorrectly turn a config default into
+    # an explicit override and break candidate fallback.
     try:
         resolved = resolve_command_context(args, loaded, cwd=Path.cwd())
     except ValueError as e:
         _print_level("error", str(e), use_color=False)
         return EXIT_ERROR
+
+    # Apply generic defaults after command-scoped resolution so only genuinely
+    # unset flags (allow_breaking, color, patch_scheme, etc.) are filled from
+    # config without interfering with candidate selection.
+    apply_config_defaults(args, config)
 
     # Emit candidate attempt events (-vv and above).
     for attempt in resolved.candidate_attempts:

@@ -433,6 +433,30 @@ policies:
         assert out.exists()
         assert "version: 1.2.3" in out.read_text()
 
+    def test_multi_document_candidate_fallback_works_in_real_cli_main(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+schema_version: 1
+source:
+  path: .
+---
+plugin: does-not-exist
+---
+plugin: go
+"""
+        )
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        (tmp_path / "VERSION").write_text("1.0.0\n")
+
+        out = tmp_path / "snap.yaml"
+        result = main(["snapshot", "--version", "1.0.0", "--out", str(out)])
+        assert result == 0
+        assert out.exists()
+
 
 class TestRun2Verbosity:
     """Tests for global counted verbosity flag (-v/-vv/-vvv)."""
