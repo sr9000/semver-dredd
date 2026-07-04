@@ -144,3 +144,6 @@ cython_debug/
 .DS_Store
 /parser/golang/golang
 *.class
+
+# semver-dredd generated comparison snapshots
+current.yaml

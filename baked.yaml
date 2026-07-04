@@ -1,0 +1,1703 @@
+snapshot_type_id: 9447899e-4643-5637-9e41-d9f5eb685273
+schema_version: 3
+version: 1.0.20260214001
+language: python
+source:
+  kind: directory
+  path: /home/sr9000/Documents/dev/semver-dredd
+api:
+  variables:
+    cli.CLI_SURFACE:
+      type: tuple
+      default: tuple
+    semverdredd.default_registry:
+      type: SnapshotRegistry
+      default: <semverdredd.registry.SnapshotRegistry>
+    snapshot.NORMALIZED_SNAPSHOT_TYPE_ID:
+      type: str
+      default: '''d4e5f6a7-1234-5678-9abc-def012345678'''
+    snapshot.default_registry:
+      type: SnapshotRegistry
+      default: <semverdredd.registry.SnapshotRegistry>
+  functions:
+    cli.main:
+      result_type: int
+      args:
+      - name: argv
+        type: list[str] | None
+        default: None
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.compare:
+      result_type: CompareResult
+      args:
+      - name: old_path
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: new_path
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: plugin
+        type: str
+        default: '''python'''
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: options
+        type: dict | None
+        default: None
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: old_version
+        type: str
+        default: '''0.0.0'''
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: new_version
+        type: str
+        default: '''0.0.0'''
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.compare_and_suggest:
+      result_type: SuggestVersionResult
+      args:
+      - name: old_path
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: new_path
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: current_version
+        type: semverdredd.version.Version | str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: plugin
+        type: str
+        default: '''python'''
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: options
+        type: dict | None
+        default: None
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.compare_snapshots:
+      result_type: DiffResult
+      args:
+      - name: old
+        type: Any
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: new
+        type: Any
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.generate_patch:
+      result_type: int
+      args:
+      - name: current_patch
+        type: int | None
+        default: None
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: today
+        type: date | None
+        default: None
+        position_only: false
+        pos_and_named: true
+        named_only: false
+      - name: scheme
+        type: str
+        default: '''date'''
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.get_plugin:
+      result_type: LanguagePlugin | None
+      args:
+      - name: name
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.get_plugin_manager:
+      result_type: PluginManager
+      args: []
+    semverdredd.list_plugins:
+      result_type: list[PluginInfo]
+      args: []
+    semverdredd.load_snapshot:
+      result_type: Any
+      args:
+      - name: path
+        type: Path | str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    semverdredd.load_snapshot_yaml:
+      result_type: Any
+      args:
+      - name: yaml_str
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    snapshot.load_snapshot:
+      result_type: Any
+      args:
+      - name: path
+        type: Path | str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+    snapshot.load_snapshot_yaml:
+      result_type: Any
+      args:
+      - name: yaml_str
+        type: str
+        default: null
+        position_only: false
+        pos_and_named: true
+        named_only: false
+  types:
+    cli.RichHelpFormatter:
+      fields: []
+      methods:
+        __init__:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: prog
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: indent_increment
+            type: unknown
+            default: '2'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: max_help_position
+            type: unknown
+            default: '24'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: width
+            type: unknown
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        add_argument:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: action
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        add_arguments:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: actions
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        add_text:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: text
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        add_usage:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: usage
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: actions
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: groups
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: prefix
+            type: unknown
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        end_section:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        format_help:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        start_section:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: heading
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.ChangeKind:
+      fields: []
+      methods: {}
+    semverdredd.CompareResult:
+      fields:
+      - name: change_kind
+        type: '''ChangeKind'''
+        default: null
+      - name: description
+        type: str
+        default: null
+      - name: severity
+        type: str
+        default: null
+      - name: diff
+        type: '''DiffResult | None'''
+        default: null
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: change_kind
+            type: '''ChangeKind'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: description
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: severity
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: diff
+            type: '''DiffResult | None'''
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.DefaultDiffScorer:
+      fields: []
+      methods:
+        compare:
+          result_type: DiffResult
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: old
+            type: Any
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: new
+            type: Any
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        diff:
+          result_type: DiffResult
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: old
+            type: Any
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: new
+            type: Any
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.DiffResult:
+      fields:
+      - name: change_kind
+        type: ChangeKind
+        default: null
+      - name: breaking
+        type: tuple[str, ...]
+        default: tuple
+      - name: added
+        type: tuple[str, ...]
+        default: tuple
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: change_kind
+            type: ChangeKind
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: breaking
+            type: tuple[str, ...]
+            default: tuple
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: added
+            type: tuple[str, ...]
+            default: tuple
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.LanguagePlugin:
+      fields: []
+      methods:
+        generate_snapshot:
+          result_type: SnapshotResult
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: version
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: options
+            type: Optional[dict[str, Any]]
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        have:
+          result_type: bool
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: feature
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        validate_path:
+          result_type: tuple[bool, str]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.NormalizedSnapshot:
+      fields:
+      - name: SNAPSHOT_TYPE_ID
+        type: str
+        default: '''d4e5f6a7-1234-5678-9abc-def012345678'''
+      - name: schema_version
+        type: int
+        default: '2'
+      - name: version
+        type: str
+        default: ''''''
+      - name: language
+        type: str
+        default: ''''''
+      - name: source_kind
+        type: str
+        default: ''''''
+      - name: source_path
+        type: str
+        default: ''''''
+      - name: functions
+        type: dict[str, FunctionSignature]
+        default: null
+      - name: types
+        type: dict[str, TypeDefinition]
+        default: null
+      - name: generator
+        type: GeneratorInfo | None
+        default: None
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: SNAPSHOT_TYPE_ID
+            type: str
+            default: '''d4e5f6a7-1234-5678-9abc-def012345678'''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: schema_version
+            type: int
+            default: '2'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: version
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: language
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: source_kind
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: source_path
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: functions
+            type: dict[str, FunctionSignature]
+            default: <dataclasses._HAS_DEFAULT_FACTORY_CLASS>
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: types
+            type: dict[str, TypeDefinition]
+            default: <dataclasses._HAS_DEFAULT_FACTORY_CLASS>
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: generator
+            type: GeneratorInfo | None
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        diff_against:
+          result_type: '''DiffResult'''
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: other
+            type: '''NormalizedSnapshot'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        save:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: Path | str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_dict:
+          result_type: dict[str, Any]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_yaml:
+          result_type: str
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.PluginManager:
+      fields: []
+      methods:
+        __init__:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: user_plugin_dir
+            type: Optional[Path]
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        describe_plugin:
+          result_type: dict[str, Any] | None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        ensure_plugin_dir:
+          result_type: Path
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        get:
+          result_type: LanguagePlugin | None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        is_loaded:
+          result_type: bool
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        list_names:
+          result_type: list[str]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        list_plugin_metadata:
+          result_type: list[dict[str, Any]]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        list_plugins:
+          result_type: list[PluginInfo]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        load_plugins:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: force
+            type: bool
+            default: 'False'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        register:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: plugin
+            type: LanguagePlugin
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: origin
+            type: str
+            default: '''manual'''
+            position_only: false
+            pos_and_named: false
+            named_only: true
+          - name: entry_point
+            type: str | None
+            default: None
+            position_only: false
+            pos_and_named: false
+            named_only: true
+        unregister:
+          result_type: bool
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.SnapshotFormat:
+      fields:
+      - name: SNAPSHOT_TYPE_ID
+        type: str
+        default: null
+      methods:
+        __init__:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: args
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+          - name: kwargs
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+        to_dict:
+          result_type: dict[str, Any]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_yaml:
+          result_type: str
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.SnapshotRegistry:
+      fields: []
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        get:
+          result_type: type | None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: uid
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        load_file:
+          result_type: Any
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: Path | str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        load_yaml_str:
+          result_type: Any
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: yaml_str
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        register:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: cls
+            type: type
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: force
+            type: bool
+            default: 'False'
+            position_only: false
+            pos_and_named: false
+            named_only: true
+        registered_ids:
+          result_type: list[str]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        unregister:
+          result_type: bool
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: uid
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.SnapshotResult:
+      fields:
+      - name: success
+        type: bool
+        default: null
+      - name: yaml_content
+        type: str
+        default: null
+      - name: error_message
+        type: Optional[str]
+        default: None
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: success
+            type: bool
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: yaml_content
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: error_message
+            type: Optional[str]
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.SuggestVersionResult:
+      fields:
+      - name: change_kind
+        type: '''ChangeKind'''
+        default: null
+      - name: description
+        type: str
+        default: null
+      - name: severity
+        type: str
+        default: null
+      - name: current_version
+        type: Version
+        default: null
+      - name: suggested_version
+        type: Version
+        default: null
+      - name: diff
+        type: '''DiffResult | None'''
+        default: null
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: change_kind
+            type: '''ChangeKind'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: description
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: severity
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: current_version
+            type: Version
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: suggested_version
+            type: Version
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: diff
+            type: '''DiffResult | None'''
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    semverdredd.Version:
+      fields:
+      - name: major
+        type: int
+        default: null
+      - name: minor
+        type: int
+        default: null
+      - name: patch
+        type: int
+        default: null
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: major
+            type: int
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: minor
+            type: int
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: patch
+            type: int
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        increment:
+          result_type: Version
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: change_type
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: today
+            type: date | None
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: scheme
+            type: str
+            default: '''date'''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.ChangeKind:
+      fields: []
+      methods: {}
+    snapshot.Comparable:
+      fields: []
+      methods:
+        __init__:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: args
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+          - name: kwargs
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+        diff_against:
+          result_type: DiffResult
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: other
+            type: '''Comparable'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.DiffResult:
+      fields:
+      - name: change_kind
+        type: ChangeKind
+        default: null
+      - name: breaking
+        type: tuple[str, ...]
+        default: tuple
+      - name: added
+        type: tuple[str, ...]
+        default: tuple
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: change_kind
+            type: ChangeKind
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: breaking
+            type: tuple[str, ...]
+            default: tuple
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: added
+            type: tuple[str, ...]
+            default: tuple
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.Field:
+      fields:
+      - name: name
+        type: str
+        default: null
+      - name: type
+        type: str
+        default: null
+      - name: optional
+        type: bool
+        default: 'False'
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: type
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: optional
+            type: bool
+            default: 'False'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.FunctionSignature:
+      fields:
+      - name: name
+        type: str
+        default: null
+      - name: parameters
+        type: tuple[Parameter, ...]
+        default: null
+      - name: returns
+        type: tuple[Parameter, ...]
+        default: tuple
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: parameters
+            type: tuple[Parameter, ...]
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: returns
+            type: tuple[Parameter, ...]
+            default: tuple
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        diff_against:
+          result_type: '''DiffResult'''
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: other
+            type: '''FunctionSignature'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.NormalizedSnapshot:
+      fields:
+      - name: SNAPSHOT_TYPE_ID
+        type: str
+        default: '''d4e5f6a7-1234-5678-9abc-def012345678'''
+      - name: schema_version
+        type: int
+        default: '2'
+      - name: version
+        type: str
+        default: ''''''
+      - name: language
+        type: str
+        default: ''''''
+      - name: source_kind
+        type: str
+        default: ''''''
+      - name: source_path
+        type: str
+        default: ''''''
+      - name: functions
+        type: dict[str, FunctionSignature]
+        default: null
+      - name: types
+        type: dict[str, TypeDefinition]
+        default: null
+      - name: generator
+        type: GeneratorInfo | None
+        default: None
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: SNAPSHOT_TYPE_ID
+            type: str
+            default: '''d4e5f6a7-1234-5678-9abc-def012345678'''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: schema_version
+            type: int
+            default: '2'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: version
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: language
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: source_kind
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: source_path
+            type: str
+            default: ''''''
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: functions
+            type: dict[str, FunctionSignature]
+            default: <dataclasses._HAS_DEFAULT_FACTORY_CLASS>
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: types
+            type: dict[str, TypeDefinition]
+            default: <dataclasses._HAS_DEFAULT_FACTORY_CLASS>
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: generator
+            type: GeneratorInfo | None
+            default: None
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        diff_against:
+          result_type: '''DiffResult'''
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: other
+            type: '''NormalizedSnapshot'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        save:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: Path | str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_dict:
+          result_type: dict[str, Any]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_yaml:
+          result_type: str
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.Parameter:
+      fields:
+      - name: name
+        type: str
+        default: null
+      - name: type
+        type: str
+        default: null
+      - name: optional
+        type: bool
+        default: 'False'
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: type
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: optional
+            type: bool
+            default: 'False'
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.SnapshotFormat:
+      fields:
+      - name: SNAPSHOT_TYPE_ID
+        type: str
+        default: null
+      methods:
+        __init__:
+          result_type: unknown
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: args
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+          - name: kwargs
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: false
+            named_only: false
+        to_dict:
+          result_type: dict[str, Any]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        to_yaml:
+          result_type: str
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.SnapshotRegistry:
+      fields: []
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        get:
+          result_type: type | None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: uid
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        load_file:
+          result_type: Any
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: path
+            type: Path | str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        load_yaml_str:
+          result_type: Any
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: yaml_str
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        register:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: cls
+            type: type
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: force
+            type: bool
+            default: 'False'
+            position_only: false
+            pos_and_named: false
+            named_only: true
+        registered_ids:
+          result_type: list[str]
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        unregister:
+          result_type: bool
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: uid
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+    snapshot.TypeDefinition:
+      fields:
+      - name: name
+        type: str
+        default: null
+      - name: fields
+        type: tuple[Field, ...]
+        default: null
+      - name: methods
+        type: dict[str, FunctionSignature]
+        default: null
+      methods:
+        __init__:
+          result_type: None
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: name
+            type: str
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: fields
+            type: tuple[Field, ...]
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: methods
+            type: dict[str, FunctionSignature]
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+        diff_against:
+          result_type: '''DiffResult'''
+          args:
+          - name: self
+            type: unknown
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+          - name: other
+            type: '''TypeDefinition'''
+            default: null
+            position_only: false
+            pos_and_named: true
+            named_only: false
+generator:
+  plugin_name: python
+  plugin_version: 1.1.0
+  plugin_source: entry_point
+  config_path: /home/sr9000/Documents/dev/semver-dredd/.semver.yaml
+  candidate_index: 0

@@ -7,6 +7,7 @@ import inspect
 import logging
 import pkgutil
 import sys
+import types
 import uuid as _uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -283,6 +284,20 @@ def _get_type_hint(annotation: Any) -> str:
         return "unknown"
 
 
+def _stable_default_repr(value: Any) -> str:
+    """Return a deterministic representation suitable for API snapshots."""
+    if isinstance(value, (types.MemberDescriptorType, types.GetSetDescriptorType)):
+        return "<descriptor>"
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return repr(value)
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return type(value).__name__
+    if isinstance(value, dict):
+        return "dict"
+    value_type = type(value)
+    return f"<{value_type.__module__}.{value_type.__qualname__}>"
+
+
 def _inspect_function(name: str, func: Any) -> Function:
     try:
         sig = inspect.signature(func)
@@ -304,10 +319,7 @@ def _inspect_function(name: str, func: Any) -> Function:
         )
         default: str | None = None
         if param.default is not inspect.Parameter.empty:
-            try:
-                default = repr(param.default)
-            except Exception:
-                default = "..."
+            default = _stable_default_repr(param.default)
         type_hint = _get_type_hint(hints.get(param_name, param.annotation))
         args.append(
             PythonArgument(
@@ -338,11 +350,10 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
         default: str | None = None
         if hasattr(cls_obj, attr_name):
             val = getattr(cls_obj, attr_name)
-            if not callable(val):
-                try:
-                    default = repr(val)
-                except Exception:
-                    default = "..."
+            if isinstance(val, (types.MemberDescriptorType, types.GetSetDescriptorType)):
+                default = None
+            elif not callable(val):
+                default = _stable_default_repr(val)
         fields.append(ClassField(name=attr_name, type=type_str, default=default))
         seen_fields.add(attr_name)
 
@@ -375,10 +386,7 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
             )
             p_default: str | None = None
             if param.default is not inspect.Parameter.empty:
-                try:
-                    p_default = repr(param.default)
-                except Exception:
-                    p_default = "..."
+                p_default = _stable_default_repr(param.default)
             type_hint = _get_type_hint(hints.get(param_name, param.annotation))
             m_args.append(
                 PythonArgument(
@@ -403,6 +411,15 @@ def _inspect_class(cls_obj: Any) -> tuple[list[ClassField], dict[str, ClassMetho
 def _to_normalized(snap: PythonSnapshot) -> NormalizedSnapshot:
     """Convert a PythonSnapshot to NormalizedSnapshot for diff_against."""
     functions: dict[str, FunctionSignature] = {}
+    for name, variable in snap.variables.items():
+        functions[f"variable:{name}"] = FunctionSignature(
+            name=f"variable:{name}",
+            parameters=(
+                Parameter(name="type", type=variable.type, optional=False),
+                Parameter(name="default", type=str(variable.default), optional=True),
+            ),
+        )
+
     for name, func in snap.functions.items():
         params = tuple(
             Parameter(name=a.name, type=a.type, optional=a.default is not None)
@@ -483,8 +500,6 @@ class PythonPlugin(LanguagePlugin):
         p = Path(path)
         if p.exists():
             if p.is_dir():
-                if not (p / "__init__.py").exists():
-                    return False, f"Directory '{path}' is not a Python package (no __init__.py)"
                 return True, ""
             if p.is_file() and p.suffix == ".py":
                 return True, ""
@@ -495,6 +510,14 @@ class PythonPlugin(LanguagePlugin):
     def generate_snapshot(
         self, path: str, version: str, options: Optional[dict[str, Any]] = None
     ) -> SnapshotResult:
+        path_obj = Path(path)
+        if path_obj.exists() and path_obj.is_dir() and not (path_obj / "__init__.py").exists():
+            try:
+                snap = self._build_directory_snapshot(path_obj, version, options)
+                return SnapshotResult(True, snap.to_yaml())
+            except Exception as e:
+                return SnapshotResult(False, "", f"Failed to generate directory snapshot: {e}")
+
         try:
             module = self._import_module(path)
         except Exception as e:
@@ -641,10 +664,7 @@ class PythonPlugin(LanguagePlugin):
                 functions[attr_name] = _inspect_function(attr_name, obj)
             else:
                 type_str = type(obj).__name__
-                try:
-                    default = repr(obj)
-                except Exception:
-                    default = "..."
+                default = _stable_default_repr(obj)
                 variables[attr_name] = Variable(name=attr_name, type=type_str, default=default)
 
         return variables, functions, types
@@ -686,6 +706,58 @@ class PythonPlugin(LanguagePlugin):
             version=version,
             source_kind="module",
             source_path=source_path,
+            variables=variables,
+            functions=functions,
+            types=types,
+        )
+
+    def _build_directory_snapshot(
+        self,
+        root: Path,
+        version: str,
+        options: Optional[dict[str, Any]] = None,
+    ) -> PythonSnapshot:
+        """Build a namespaced snapshot for a repository/root directory.
+
+        ``include`` is interpreted as importable top-level packages/modules under
+        the root. Entries are scanned as real packages and then namespaced with
+        the include item so unrelated packages can be tracked by one root config
+        without collisions.
+        """
+        include = list((options or {}).get("include") or [])
+        if not include:
+            raise ValueError("Directory snapshots require include[] with package/module names")
+
+        root_str = str(root.resolve())
+        sys.path.insert(0, root_str)
+        try:
+            variables: dict[str, Variable] = {}
+            functions: dict[str, Function] = {}
+            types: dict[str, tuple[list[ClassField], dict[str, ClassMethod]]] = {}
+
+            for item in include:
+                module_name = str(item)
+                if not module_name or self._has_private_component(module_name):
+                    continue
+                module = importlib.import_module(module_name)
+                module_options = dict(options or {})
+                module_options["include"] = [module_name]
+                snap = self._build_snapshot(module, version, module_name, module_options)
+
+                for name, value in snap.variables.items():
+                    variables[f"{module_name}.{name}"] = value
+                for name, value in snap.functions.items():
+                    functions[f"{module_name}.{name}"] = value
+                for name, value in snap.types.items():
+                    types[f"{module_name}.{name}"] = value
+        finally:
+            if sys.path and sys.path[0] == root_str:
+                sys.path.pop(0)
+
+        return PythonSnapshot(
+            version=version,
+            source_kind="directory",
+            source_path=str(root.resolve()),
             variables=variables,
             functions=functions,
             types=types,

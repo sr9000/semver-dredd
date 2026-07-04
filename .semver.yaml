@@ -1,0 +1,36 @@
+# Root semver config.
+#
+# Tracks the real active repository packages directly from the repository root.
+schema_version: 1
+plugin: python
+
+source:
+  path: .
+
+files:
+  baked: baked.yaml
+  current: current.yaml
+  version: VERSION
+
+policies:
+  allow_breaking_changes: false
+
+output:
+  color: null
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+
+versioning:
+  patch_scheme: date
+
+include:
+  - cli
+  - semverdredd
+  - snapshot
+
+exclude: []
+
+plugin_options: {}

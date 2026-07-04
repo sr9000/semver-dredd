@@ -3,6 +3,7 @@ CLI tool for semver-dredd that compares modules and manages versions.
 """
 
 import argparse
+import ast
 import logging
 import sys
 from pathlib import Path
@@ -20,6 +21,89 @@ from semverdredd.version import load_version_file
 from snapshot.models import GeneratorInfo
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "CLI_SURFACE",
+    "RichHelpFormatter",
+    "main",
+]
+
+
+def _string_args(call: ast.Call) -> tuple[str, ...]:
+    return tuple(
+        arg.value
+        for arg in call.args
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+    )
+
+
+def _call_receiver(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Attribute) and isinstance(call.func.value, ast.Name):
+        return call.func.value.id
+    return None
+
+
+def _call_method(call: ast.Call) -> str | None:
+    return call.func.attr if isinstance(call.func, ast.Attribute) else None
+
+
+def _extract_cli_surface() -> tuple[str, ...]:
+    """Extract public command/argument surface from this active parser source.
+
+    This is deliberately inside the real ``cli`` package so semver tracking sees
+    behavior exported by the package itself, not a separate compatibility mirror.
+    """
+    tree = ast.parse(Path(__file__).read_text(), filename=__file__)
+    main_func = next(
+        node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main"
+    )
+
+    parser_vars: dict[str, tuple[str, ...]] = {"parser": ()}
+    subparser_vars: dict[str, tuple[str, ...]] = {}
+    group_vars: dict[str, tuple[str, ...]] = {}
+    entries: set[str] = {"prog:semver-dredd", "global:--config", "global:-v"}
+
+    for stmt in main_func.body:
+        call: ast.Call | None = None
+        target: str | None = None
+        if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name) and isinstance(stmt.value, ast.Call):
+            call = stmt.value
+            target = stmt.targets[0].id
+        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+            call = stmt.value
+        if call is None:
+            continue
+
+        receiver = _call_receiver(call)
+        method = _call_method(call)
+        args = _string_args(call)
+
+        if target and method == "add_subparsers" and receiver in parser_vars:
+            subparser_vars[target] = parser_vars[receiver]
+            continue
+        if target and method == "add_parser" and receiver in subparser_vars and args:
+            path = subparser_vars[receiver] + (args[0],)
+            parser_vars[target] = path
+            entries.add("command:" + " ".join(path))
+            continue
+        if target and method == "add_mutually_exclusive_group" and receiver in parser_vars:
+            group_vars[target] = parser_vars[receiver]
+            continue
+        if method != "add_argument" or not args:
+            continue
+        if receiver in parser_vars:
+            path = parser_vars[receiver]
+        elif receiver in group_vars:
+            path = group_vars[receiver]
+        else:
+            continue
+        prefix = "global" if not path else "command:" + " ".join(path)
+        entries.add(prefix + ":" + "|".join(args))
+
+    return tuple(sorted(entries))
+
+
+CLI_SURFACE = _extract_cli_surface()
 
 
 class RichHelpFormatter(

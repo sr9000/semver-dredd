@@ -64,7 +64,6 @@ from snapshot.models import NormalizedSnapshot
 # Protocols and diff types
 from snapshot.protocols import DiffResult, SnapshotFormat
 
-
 def _description_for_change(change: ChangeKind) -> str:
     return {
         ChangeKind.NONE: "No API changes detected",
@@ -229,6 +228,8 @@ __all__ = [
     # Core types
     "Version",
     "generate_patch",
+    "ChangeKind",
+    "NormalizedSnapshot",
     # Result types
     "CompareResult",
     "SuggestVersionResult",
