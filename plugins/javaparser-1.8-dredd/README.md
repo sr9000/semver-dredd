@@ -9,6 +9,10 @@ classes, interfaces, fields, and method signatures than regex-based approaches.
 ## Installation
 
 ```bash
+# Install via the core package extra
+pip install "semver-dredd[javaparser]"
+
+# Or install the plugin distribution directly
 pip install javaparser-1.8-dredd
 ```
 
@@ -21,7 +25,7 @@ pip install ./plugins/javaparser-1.8-dredd
 ## Requirements
 
 - Python 3.10+
-- semver-dredd >= 0.1.0
+- semver-dredd >= 1.0.20260704001
 - **JDK 1.8+** installed (both `javac` and `java` must be in PATH)
 
 ## Usage

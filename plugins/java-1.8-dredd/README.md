@@ -5,6 +5,10 @@ Java 1.8+ language plugin for semver-dredd.
 ## Installation
 
 ```bash
+# Install via the core package extra
+pip install "semver-dredd[java]"
+
+# Or install the plugin distribution directly
 pip install java-1.8-dredd
 ```
 
@@ -17,7 +21,7 @@ pip install ./plugins/java-1.8-dredd
 ## Requirements
 
 - Python 3.10+
-- semver-dredd >= 0.1.0
+- semver-dredd >= 1.0.20260704001
 - **JDK 1.8+** installed (both `javac` and `java` must be in PATH)
 
 ## Usage

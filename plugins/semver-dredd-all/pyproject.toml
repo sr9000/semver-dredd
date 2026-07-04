@@ -7,12 +7,30 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
 dependencies = [
-    "semver-dredd>=0.1.0",
+    "semver-dredd>=1.0.20260704001",
     "python-3.10-dredd>=1.1.0",
     "go-1.20-dredd>=1.1.0",
     "java-1.8-dredd>=1.1.0",
+    "javaparser-1.8-dredd>=1.0.0",
 ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Version Control",
+]
+keywords = ["semantic-versioning", "semver", "plugin", "meta-package"]
+
+[project.urls]
+Homepage = "https://github.com/sr9000/semver-dredd"
+Repository = "https://github.com/sr9000/semver-dredd"
 
 [build-system]
 requires = ["setuptools>=61.0"]

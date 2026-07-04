@@ -41,19 +41,30 @@ semver-dredd supports:
 ## Install
 
 ```bash
-# Core package
+# Core package only
 pip install semver-dredd
 
-# Install the plugins you want
+# Core package + official extras
+pip install "semver-dredd[python]"
+pip install "semver-dredd[go]"
+pip install "semver-dredd[java]"
+pip install "semver-dredd[javaparser]"
+pip install "semver-dredd[all]"
+
+# Or install plugin packages directly
 pip install python-3.10-dredd
 pip install go-1.20-dredd
 pip install java-1.8-dredd
 pip install javaparser-1.8-dredd
 
 # Or install the official meta-package
-# (includes python/go/java; install javaparser separately)
 pip install semver-dredd-all
 ```
+
+Extras work by depending on separately published plugin distributions. For
+example, `semver-dredd[python]` resolves the `python-3.10-dredd` package from
+PyPI and then discovers it through the `semver_dredd.plugins` entry-point
+group.
 
 Development install:
 
