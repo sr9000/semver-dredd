@@ -1,5 +1,20 @@
-# Smoke-test image: unit-test runner (pytest against the mounted repo)
-FROM python:3.10-slim
+# Smoke-test image: unit-test runner (pytest against the mounted repo).
+#
+# The unit suite installs official plugins and includes CLI workflow tests that
+# exercise the Go plugin end-to-end, so the image needs a Go toolchain too.
+FROM golang:1.20-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-venv \
+        openjdk-17-jdk-headless \
+        curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Isolated venv keeps pip happy on Debian (PEP 668)
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv "$VIRTUAL_ENV"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 WORKDIR /app
 
@@ -10,16 +25,27 @@ COPY snapshot ./snapshot
 COPY plugins/python-3.10-dredd ./plugins/python-3.10-dredd
 COPY plugins/go-1.20-dredd ./plugins/go-1.20-dredd
 COPY plugins/java-1.8-dredd ./plugins/java-1.8-dredd
+COPY plugins/javaparser-1.8-dredd ./plugins/javaparser-1.8-dredd
 
-RUN pip install --no-cache-dir "pytest>=9.0,<10" . \
+RUN pip install --no-cache-dir "pytest>=9.0,<10" "pydantic>=2.0.0" . \
     ./plugins/python-3.10-dredd \
     ./plugins/go-1.20-dredd \
-    ./plugins/java-1.8-dredd
+    ./plugins/java-1.8-dredd \
+    ./plugins/javaparser-1.8-dredd
+
+# Prepare the regex-based Java plugin parser the same way as the dedicated
+# Java smoke image, so unit tests can exercise the plugin end-to-end.
+RUN PARSER_DIR="$(python3 -c 'import semver_dredd_java, pathlib; print(pathlib.Path(semver_dredd_java.__file__).parent / "parser")')" \
+    && mkdir -p "$PARSER_DIR/lib" \
+    && curl -fsSL -o "$PARSER_DIR/lib/snakeyaml-2.2.jar" \
+        https://repo1.maven.org/maven2/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar \
+    && javac -cp "$PARSER_DIR/lib/snakeyaml-2.2.jar" "$PARSER_DIR/main.java"
 
 # Sanity check: all bundled plugins must be discoverable
 RUN semver-dredd plugin list | grep -q python \
     && semver-dredd plugin list | grep -q go \
-    && semver-dredd plugin list | grep -q java
+    && semver-dredd plugin list | grep -q java \
+    && semver-dredd plugin list | grep -q javaparser
 
 # The repo is mounted read-only at /repo; disable the pytest cache so the
 # run does not attempt to write into the mount.

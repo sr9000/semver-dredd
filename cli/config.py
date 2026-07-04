@@ -494,6 +494,7 @@ def resolve_command_context(args: Any, loaded: LoadedConfig, cwd: Path | None = 
     selected_candidate: dict[str, Any] = {}
 
     candidates = loaded.candidate_documents or [(-1, {})]
+    require_candidate_plugin_match = bool(loaded.candidate_documents)
     from semverdredd.plugin_manager import get_plugin_manager
 
     plugin_manager = get_plugin_manager()
@@ -501,7 +502,11 @@ def resolve_command_context(args: Any, loaded: LoadedConfig, cwd: Path | None = 
 
     for doc_index, candidate in candidates:
         candidate_plugin = str(candidate.get("plugin", "python"))
-        if override_plugin is not None and candidate_plugin != str(override_plugin):
+        if (
+            require_candidate_plugin_match
+            and override_plugin is not None
+            and candidate_plugin != str(override_plugin)
+        ):
             candidate_attempts.append(
                 CandidateAttempt(
                     index=doc_index,
