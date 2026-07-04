@@ -532,6 +532,37 @@ exclude: [x]
         assert resolved_override.include == ["only"]
         assert resolved_override.exclude == ["none"]
 
+    def test_compare_does_not_inherit_config_scope(self, tmp_path, monkeypatch):
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+plugin: python
+source:
+  path: .
+include: [cli, semverdredd, snapshot]
+exclude: [internal]
+"""
+        )
+        monkeypatch.chdir(tmp_path)
+        import argparse
+
+        args = argparse.Namespace(
+            command="compare",
+            plugin=None,
+            old_module="old.module",
+            new_module="new.module",
+            module=None,
+            path=None,
+            include=None,
+            exclude=None,
+            override=False,
+            version_file=None,
+        )
+        loaded = load_config_with_meta(cwd=tmp_path)
+        resolved = resolve_command_context(args, loaded, cwd=tmp_path)
+        assert resolved.include == []
+        assert resolved.exclude == []
+
     def test_candidate_fallback_first_valid(self, tmp_path, monkeypatch):
         (tmp_path / "dummy.go").write_text("package dummy\n")
         cfg = tmp_path / ".semver.yaml"

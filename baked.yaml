@@ -1,10 +1,10 @@
 snapshot_type_id: 9447899e-4643-5637-9e41-d9f5eb685273
 schema_version: 3
-version: 1.0.20260214001
+version: 1.0.20260704001
 language: python
 source:
   kind: directory
-  path: /home/sr9000/Documents/dev/semver-dredd
+  path: .
 api:
   variables:
     cli.CLI_SURFACE:
@@ -1699,5 +1699,5 @@ generator:
   plugin_name: python
   plugin_version: 1.1.0
   plugin_source: entry_point
-  config_path: /home/sr9000/Documents/dev/semver-dredd/.semver.yaml
+  config_path: .semver.yaml
   candidate_index: 0

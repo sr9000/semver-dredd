@@ -909,11 +909,22 @@ def main(argv: list[str] | None = None) -> int:
                 _gen_plugin_version = str(_pinfo.plugin.version)
             except Exception:
                 _gen_plugin_version = ""
+    _config_path = ""
+    if loaded.config_exists:
+        try:
+            _config_path = (
+                loaded.config_path.resolve()
+                .relative_to(Path.cwd().resolve())
+                .as_posix()
+            )
+        except ValueError:
+            _config_path = str(loaded.config_path)
+
     args.generator_info = GeneratorInfo(
         plugin_name=resolved.plugin or "",
         plugin_version=_gen_plugin_version,
         plugin_source=_gen_plugin_source,
-        config_path=str(loaded.config_path) if loaded.config_exists else "",
+        config_path=_config_path,
         candidate_index=(
             resolved.candidate_index if resolved.candidate_index is not None else -1
         ),

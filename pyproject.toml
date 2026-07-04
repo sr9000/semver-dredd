@@ -1,6 +1,6 @@
 [project]
 name = "semver-dredd"
-version = "0.1.0"
+version = "1.0.20260704001"
 description = "Automatically increments semver number based on interface changes."
 authors = [
     {name = "sr9000",email = "no@mail.org"}

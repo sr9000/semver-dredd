@@ -630,7 +630,14 @@ def resolve_command_context(args: Any, loaded: LoadedConfig, cwd: Path | None = 
     cli_include = list(getattr(args, "include", None) or [])
     cli_exclude = list(getattr(args, "exclude", None) or [])
     override_scope = bool(getattr(args, "override", False))
-    if override_scope:
+
+    # Scope from config belongs to commands that operate on the configured
+    # source.path.  Direct two-input comparisons intentionally do not inherit
+    # root-config include/exclude items: a repository self-config such as
+    # include: [cli, semverdredd, snapshot] must not filter unrelated explicit
+    # module comparisons like ``semver-dredd compare old_module new_module``.
+    command_uses_configured_scope = command in {"init", "status", "bake", "snapshot"}
+    if override_scope or not command_uses_configured_scope:
         include = cli_include
         exclude = cli_exclude
     else:

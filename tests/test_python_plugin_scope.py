@@ -25,6 +25,12 @@ def _snapshot_names(plugin: PythonPlugin, path: str, options: dict | None = None
     }
 
 
+def _snapshot(plugin: PythonPlugin, path: str, options: dict | None = None) -> PythonSnapshot:
+    result = plugin.generate_snapshot(path, "1.0.0", options=options)
+    assert result.success, result.error_message
+    return PythonSnapshot.from_yaml_str(result.yaml_content)
+
+
 class TestNoScope:
     """No include/exclude configured: behavior must match no-scope output."""
 
@@ -106,3 +112,12 @@ class TestIncludeExclude:
         )
         assert "included_func" in names["functions"]
         assert "excluded_func" in names["functions"]
+
+
+class TestPortableMetadata:
+    def test_directory_root_source_path_is_cwd_relative(self, monkeypatch):
+        monkeypatch.chdir(FIXTURES_DIR)
+        plugin = PythonPlugin()
+        snap = _snapshot(plugin, ".", options={"include": ["scopepkg"]})
+        assert snap.source_kind == "directory"
+        assert snap.source_path == "."

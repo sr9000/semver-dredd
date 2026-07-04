@@ -18,6 +18,17 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
+def _portable_path(path: Path) -> str:
+    """Return a stable cwd-relative path when possible."""
+    resolved = path.resolve()
+    try:
+        relative = resolved.relative_to(Path.cwd().resolve())
+    except ValueError:
+        return str(resolved)
+    relative_str = relative.as_posix()
+    return relative_str or "."
+
+
 from semverdredd.plugin_base import LanguagePlugin, SnapshotResult
 from snapshot.models import (
     Field,
@@ -676,7 +687,7 @@ class PythonPlugin(LanguagePlugin):
         path: str,
         options: Optional[dict[str, Any]] = None,
     ) -> PythonSnapshot:
-        source_path = str(Path(path).resolve()) if Path(path).exists() else path
+        source_path = _portable_path(Path(path)) if Path(path).exists() else path
         respect_all = hasattr(module, "__all__")
 
         variables: dict[str, Variable] = {}
@@ -757,7 +768,7 @@ class PythonPlugin(LanguagePlugin):
         return PythonSnapshot(
             version=version,
             source_kind="directory",
-            source_path=str(root.resolve()),
+            source_path=_portable_path(root),
             variables=variables,
             functions=functions,
             types=types,
