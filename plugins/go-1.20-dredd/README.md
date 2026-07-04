@@ -5,6 +5,10 @@ Go 1.20+ language plugin for semver-dredd.
 ## Installation
 
 ```bash
+# Install via the core package extra
+pip install "semver-dredd[go]"
+
+# Or install the plugin distribution directly
 pip install go-1.20-dredd
 ```
 
@@ -17,7 +21,7 @@ pip install ./plugins/go-1.20-dredd
 ## Requirements
 
 - Python 3.10+
-- semver-dredd >= 0.1.0
+- semver-dredd >= 1.0.20260704001
 - **Go 1.20+** installed and available in PATH
 
 ## Usage

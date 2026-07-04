@@ -41,19 +41,30 @@ semver-dredd supports:
 ## Install
 
 ```bash
-# Core package
+# Core package only
 pip install semver-dredd
 
-# Install the plugins you want
+# Core package + official extras
+pip install "semver-dredd[python]"
+pip install "semver-dredd[go]"
+pip install "semver-dredd[java]"
+pip install "semver-dredd[javaparser]"
+pip install "semver-dredd[all]"
+
+# Or install plugin packages directly
 pip install python-3.10-dredd
 pip install go-1.20-dredd
 pip install java-1.8-dredd
 pip install javaparser-1.8-dredd
 
 # Or install the official meta-package
-# (includes python/go/java; install javaparser separately)
 pip install semver-dredd-all
 ```
+
+Extras work by depending on separately published plugin distributions. For
+example, `semver-dredd[python]` resolves the `python-3.10-dredd` package from
+PyPI and then discovers it through the `semver_dredd.plugins` entry-point
+group.
 
 Development install:
 
@@ -64,6 +75,45 @@ poetry run pip install -e plugins/go-1.20-dredd
 poetry run pip install -e plugins/java-1.8-dredd
 poetry run pip install -e plugins/javaparser-1.8-dredd
 ```
+
+## Publish to PyPI
+
+Use the local Twine-based publish helper to build, validate, and upload the
+core package plus the separately installable official plugins that power extras.
+
+```bash
+# Build + twine-check everything without uploading
+bash scripts/publish_pypi.sh --check-only
+
+# Upload plugins first, then core, then the meta-package
+TWINE_USERNAME=__token__ \
+TWINE_PASSWORD=pypi-... \
+bash scripts/publish_pypi.sh
+```
+
+Useful flags:
+
+```bash
+# Skip parts that are already published
+bash scripts/publish_pypi.sh --skip-plugins
+bash scripts/publish_pypi.sh --skip-core
+bash scripts/publish_pypi.sh --skip-meta
+
+# Target a custom repository / TestPyPI
+bash scripts/publish_pypi.sh --repository testpypi
+bash scripts/publish_pypi.sh --repository-url https://test.pypi.org/legacy/
+
+# Resume after a partial upload failure
+bash scripts/publish_pypi.sh --start-from javaparser-1.8-dredd --skip-existing
+```
+
+The helper publishes official plugin packages before the core package so that
+extras such as `semver-dredd[python]` can resolve from PyPI as soon as the core
+release becomes available.
+
+If PyPI rate-limits an upload with HTTP 429, wait a bit and rerun the helper
+from the failed package with `--start-from ... --skip-existing`. Add
+`--verbose` when you need Twine to show the underlying retry details.
 
 ## Run it
 

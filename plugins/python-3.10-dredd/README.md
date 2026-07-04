@@ -5,6 +5,10 @@ Python 3.10+ language plugin for semver-dredd.
 ## Installation
 
 ```bash
+# Install via the core package extra
+pip install "semver-dredd[python]"
+
+# Or install the plugin distribution directly
 pip install python-3.10-dredd
 ```
 
@@ -79,4 +83,4 @@ exclude: [mypackage.api.internal]
 ## Requirements
 
 - Python 3.10+
-- semver-dredd >= 0.1.0
+- semver-dredd >= 1.0.20260704001
