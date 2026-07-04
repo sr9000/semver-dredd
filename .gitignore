@@ -26,6 +26,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Keep bundled runtime dependencies for the JavaParser plugin tracked.
+!plugins/javaparser-1.8-dredd/semver_dredd_javaparser/parser/lib/
+!plugins/javaparser-1.8-dredd/semver_dredd_javaparser/parser/lib/*.jar
+
 # PyInstaller
 *.manifest
 *.spec
