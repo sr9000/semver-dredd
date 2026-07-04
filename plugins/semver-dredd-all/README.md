@@ -1,6 +1,7 @@
 # semver-dredd-all
 
-Meta-package that installs semver-dredd with all official language plugins.
+Meta-package that installs `semver-dredd` plus the core set of official plugin
+packages bundled by this repo.
 
 ## Installation
 
@@ -8,15 +9,18 @@ Meta-package that installs semver-dredd with all official language plugins.
 pip install semver-dredd-all
 ```
 
-This will install:
+This currently installs:
 - `semver-dredd` - Core library
 - `python-3.10-dredd` - Python language plugin
 - `go-1.20-dredd` - Go language plugin
 - `java-1.8-dredd` - Java language plugin
 
+It does **not** currently include `javaparser-1.8-dredd`; install that package
+separately when you want the AST-based Java parser.
+
 ## Usage
 
-After installation, all plugins are automatically available:
+After installation, all included plugins are automatically available:
 
 ```bash
 # List available plugins

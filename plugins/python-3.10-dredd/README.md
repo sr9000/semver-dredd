@@ -29,8 +29,17 @@ semver-dredd plugin list
 semver-dredd snapshot --plugin python --path ./mypackage --version 1.0.0
 
 # Use with init/status/bake commands
-semver-dredd init ./mypackage
-semver-dredd status ./mypackage
+semver-dredd init ./mypackage --plugin python --version 1.0.0
+semver-dredd status ./mypackage --plugin python
+semver-dredd bake ./mypackage --plugin python
+```
+
+If `.semver.yaml` already records `plugin: python` and `source.path`, follow-up
+commands can often omit the explicit path/plugin:
+
+```bash
+semver-dredd status --details
+semver-dredd bake
 ```
 
 ## How it works
@@ -69,4 +78,3 @@ exclude: [mypackage.api.internal]
 
 - Python 3.10+
 - semver-dredd >= 0.1.0
-

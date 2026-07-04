@@ -1,0 +1,132 @@
+# semver-dredd configuration showcase
+#
+# This file is intentionally verbose. It is meant to be copied, trimmed, and
+# adapted rather than used unchanged.
+#
+# See also:
+# - `semver-dredd template`
+# - `SCHEMA.md`
+# - `example/demo_config_showcase.sh`
+
+schema_version: 1
+
+# Default plugin used by config-driven commands.
+# Alternatives: go, java, javaparser, bundle, or any installed third-party key.
+plugin: python
+
+source:
+  # Default source path for pathless `status`, `bake`, and `snapshot`.
+  #
+  # Python examples:
+  #   mypackage
+  #   mypackage.api
+  # Go example:
+  #   ./pkg/api
+  # Java example:
+  #   ./src/main/java
+  # Bundle example:
+  #   .
+  path: example.py.pygeometry1
+
+files:
+  # Managed snapshot/version files. These can live anywhere in the repo.
+  baked: .semver-demo/baked.yaml
+  current: .semver-demo/current.yaml
+  version: .semver-demo/VERSION
+
+policies:
+  # If false, BREAKING changes keep the command non-green.
+  # If true, semver-dredd still reports BREAKING but allows the workflow to continue.
+  allow_breaking_changes: false
+
+output:
+  # `null` means auto-detect terminal color support.
+  # Alternatives: true / false.
+  color: null
+
+  # This block is still useful documentation for project intent, but the current
+  # CLI uses built-in severities rather than loading custom mappings from config.
+  severity_by_change:
+    none: info
+    patch: info
+    minor: warn
+    major: error
+
+versioning:
+  # `date`    -> YYYYMMDDZZZ
+  # `integer` -> conventional semver patch numbers
+  patch_scheme: integer
+
+# Scope items are plugin-specific.
+#
+# Official plugin meanings:
+# - python     -> dotted module/package names
+# - go         -> relative import paths under the analyzed root
+# - java       -> package prefixes
+# - javaparser -> package prefixes
+# - bundle     -> explicit VERSION-file paths
+#
+# Empty/omitted include usually means “analyze everything under source.path”,
+# except for `bundle`, where include[] is required because it is the dependency list.
+include:
+  - example.py.pygeometry1
+
+exclude:
+  # Python example: exclude a private submodule/package after include matching.
+  - example.py.pygeometry1._private
+
+# Free-form plugin-specific options. The framework forwards this mapping as-is.
+plugin_options:
+  timeout_seconds: 30
+  # source_encoding: UTF-8
+  # classpath: libs/*
+
+# ---------------------------------------------------------------------------
+# Alternative candidate documents
+# ---------------------------------------------------------------------------
+# A real `.semver.yaml` may contain multiple YAML documents. semver-dredd checks
+# them in order and can fall back to later candidates when the earlier one does
+# not fit the current checkout/tooling.
+#
+# Example alternative config for Go:
+#
+# ---
+# schema_version: 1
+# plugin: go
+# source:
+#   path: ./example/go/gogeometry1
+# files:
+#   baked: .semver-demo/go-baked.yaml
+#   current: .semver-demo/go-current.yaml
+#   version: .semver-demo/go-VERSION
+# versioning:
+#   patch_scheme: date
+# include:
+#   - .
+# exclude:
+#   - internal
+# plugin_options:
+#   timeout_seconds: 30
+#
+# Example alternative config for the built-in bundle plugin:
+#
+# ---
+# schema_version: 1
+# plugin: bundle
+# source:
+#   path: .
+# files:
+#   baked: .semver-demo/bundle-baked.yaml
+#   current: .semver-demo/bundle-current.yaml
+#   version: .semver-demo/bundle-VERSION
+# include:
+#   - services/backend/VERSION
+#   - sdk-python/VERSION
+# plugin_options: {}
+#
+# Notes/caveats:
+# - CLI arguments override this file.
+# - `.env` and environment variables override this file too.
+# - `status`, `bake`, and `snapshot` CLI `--include` / `--exclude` append to the
+#   arrays above unless `--override` is passed.
+# - `init` still requires `--plugin`; it does not infer a plugin from config.

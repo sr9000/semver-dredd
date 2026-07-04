@@ -231,6 +231,43 @@ class TestCLIBreakingPolicy:
         )  # No error message
 
 
+class TestCLIHelpSurface:
+    """Help and command-group behavior should be informative and stable."""
+
+    def test_top_level_help_is_verbose(self, capsys):
+        with patch("sys.argv", ["semver-dredd", "--help"]):
+            try:
+                main(["--help"])
+            except SystemExit as e:
+                assert e.code == 0
+
+        captured = capsys.readouterr()
+        assert "Typical workflow:" in captured.out
+        assert "Configuration precedence" in captured.out
+        assert "semver-dredd plugin list" in captured.out
+
+    def test_plugin_command_without_subcommand_prints_help(self, capsys):
+        result = main(["plugin"])
+        assert result == 0
+
+        captured = capsys.readouterr()
+        assert "usage: semver-dredd plugin" in captured.out
+        assert "list,install,remove,info" in captured.out
+        assert captured.err == ""
+
+    def test_snapshot_help_mentions_config_driven_behavior(self, capsys):
+        with patch("sys.argv", ["semver-dredd", "snapshot", "--help"]):
+            try:
+                main(["snapshot", "--help"])
+            except SystemExit as e:
+                assert e.code == 0
+
+        captured = capsys.readouterr()
+        assert "Config-driven behavior:" in captured.out
+        assert "reads the resolved VERSION file" in captured.out
+        assert "unless --override is used" in captured.out
+
+
 class TestConfigPriority:
     """Tests for configuration priority system."""
 
@@ -432,6 +469,30 @@ policies:
         assert snap_result == 0
         assert out.exists()
         assert "version: 1.2.3" in out.read_text()
+
+    def test_multi_document_candidate_fallback_works_in_real_cli_main(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        cfg = tmp_path / ".semver.yaml"
+        cfg.write_text(
+            """
+schema_version: 1
+source:
+  path: .
+---
+plugin: does-not-exist
+---
+plugin: go
+"""
+        )
+        (tmp_path / "dummy.go").write_text("package dummy\n")
+        (tmp_path / "VERSION").write_text("1.0.0\n")
+
+        out = tmp_path / "snap.yaml"
+        result = main(["snapshot", "--version", "1.0.0", "--out", str(out)])
+        assert result == 0
+        assert out.exists()
 
 
 class TestRun2Verbosity:

@@ -18,6 +18,26 @@ JAVAGEOM1="$SCRIPT_DIR/java/javageometry1"
 JAVAGEOM2="$SCRIPT_DIR/java/javageometry2"
 WORK_DIR=$(mktemp -d)
 
+if command -v poetry >/dev/null 2>&1; then
+    POETRY_PY="$(cd "$PROJECT_ROOT" && poetry env info --executable)"
+
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$POETRY_PY" -m cli "$@"
+    }
+elif command -v semver-dredd >/dev/null 2>&1; then
+    run_sdd() {
+        semver-dredd "$@"
+    }
+elif command -v python3 >/dev/null 2>&1; then
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m cli "$@"
+    }
+else
+    run_sdd() {
+        PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}" python -m cli "$@"
+    }
+fi
+
 echo -e "${BLUE}=================================================${NC}"
 echo -e "${BLUE}    semver-dredd Java Demo${NC}"
 echo -e "${BLUE}=================================================${NC}"
@@ -62,7 +82,7 @@ echo ""
 echo -e "${GREEN}Step 2: Generate API snapshot for javageometry1${NC}"
 echo -e "Command: ${YELLOW}semver-dredd snapshot --plugin java --path ./example/java/javageometry1 --version 1.0.0${NC}"
 echo ""
-semver-dredd snapshot --plugin java --path "$JAVAGEOM1" --version 1.0.0 --out "$WORK_DIR/snapshot_preview.yaml"
+run_sdd snapshot --plugin java --path "$JAVAGEOM1" --version 1.0.0 --out "$WORK_DIR/snapshot_preview.yaml"
 echo -e "${YELLOW}snapshot_preview.yaml:${NC}"
 echo "----------------------------------------"
 cat "$WORK_DIR/snapshot_preview.yaml"
@@ -75,13 +95,13 @@ echo "1.0.0" > "$WORK_DIR/VERSION"
 echo -e "${GREEN}Step 3: Initialize project with semver-dredd (Java)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd init ./example/java/javageometry1 --plugin java --version 1.0.0${NC}"
 echo ""
-semver-dredd init "$JAVAGEOM1" --plugin java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd init "$JAVAGEOM1" --plugin java --version 1.0.0 --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 4: Check status (no changes)${NC}"
 echo -e "Command: ${YELLOW}semver-dredd status ./example/java/javageometry1 --plugin java --details${NC}"
 echo ""
-semver-dredd status "$JAVAGEOM1" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status "$JAVAGEOM1" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 5: Check status with javageometry2 (against javageometry1 baseline)${NC}"
@@ -92,7 +112,7 @@ echo -e "  - Added Point.z field (3D coordinate)"
 echo -e "  - Added Point.translate() method"
 echo -e "  - Added Geometry.volume() static method"
 echo ""
-semver-dredd status "$JAVAGEOM2" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
+run_sdd status "$JAVAGEOM2" --plugin java --details --baked "$WORK_DIR/baked.yaml" --current-file "$WORK_DIR/current.yaml" --version-file "$WORK_DIR/VERSION" || true
 echo ""
 
 echo -e "${GREEN}Step 6: Show suggested version in current.yaml${NC}"
@@ -105,7 +125,7 @@ echo ""
 echo -e "${GREEN}Step 7: Bake the new version${NC}"
 echo -e "Command: ${YELLOW}semver-dredd bake ./example/java/javageometry2 --plugin java${NC}"
 echo ""
-semver-dredd bake "$JAVAGEOM2" --plugin java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
+run_sdd bake "$JAVAGEOM2" --plugin java --baked "$WORK_DIR/baked.yaml" --version-file "$WORK_DIR/VERSION"
 echo ""
 
 echo -e "${GREEN}Step 8: Show new version${NC}"

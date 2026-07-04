@@ -1,7 +1,7 @@
 # Agent Notes — `snapshot/` (protocols + default models)
 
 Defines snapshot contracts, the default normalized model, and reusable component
-dataclasses. Schemas: `docs/schema.md`, `HOWTO.md`.
+dataclasses. Schemas: `SCHEMA.md`, `HOWTO.md`.
 
 ## Files
 
